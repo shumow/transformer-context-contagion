@@ -9,6 +9,7 @@ Pure numpy -- no torch -- so it is unit-testable without a model. Run this file 
 for a self-test:  python -m tcc.scoring
 """
 from __future__ import annotations
+import math
 import numpy as np
 
 
@@ -81,6 +82,29 @@ def knee(ns, probs, threshold=0.5):
             t = (threshold - probs[i - 1]) / (probs[i] - probs[i - 1])
             return float(ns[i - 1] + t * (ns[i] - ns[i - 1]))
     return float(ns[0]) if probs[0] >= threshold else None
+
+
+def knee_width(ns, probs, lo=0.25, hi=0.75):
+    """Knee location N* (the 0.5 crossing) and the transition WIDTH = N(hi)-N(lo). A
+    small width is a sharp, condensation-like knee; a large width is a graded ramp.
+    Returns (N*, width); width is None if either side crossing is absent."""
+    n_star = knee(ns, probs, 0.5)
+    n_lo, n_hi = knee(ns, probs, lo), knee(ns, probs, hi)
+    width = (n_hi - n_lo) if (n_lo is not None and n_hi is not None) else None
+    return n_star, width
+
+
+def wilson_interval(k, n, z=1.96):
+    """Wilson score interval for a binomial proportion (better than normal near 0/1 and
+    for small n). Returns (phat, lo, hi)."""
+    if n == 0:
+        return (0.0, 0.0, 1.0)
+    phat = k / n
+    z2 = z * z
+    denom = 1.0 + z2 / n
+    center = (phat + z2 / (2 * n)) / denom
+    half = (z * math.sqrt(phat * (1 - phat) / n + z2 / (4 * n * n))) / denom
+    return (phat, max(0.0, center - half), min(1.0, center + half))
 
 
 # --------------------------------------------------------------------------- #

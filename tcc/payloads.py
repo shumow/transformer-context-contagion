@@ -36,6 +36,63 @@ def build_context(payload, n_reps, prefix=None):
     return ctx
 
 
+def roundtrip_stable(tokenizer, ids):
+    """True iff decoding `ids` to text and re-encoding gives back exactly `ids`. A payload
+    that fails this is not actually present in the context as the tokens we score against
+    (the E1 tokenization-instability threat) and should be discarded."""
+    text = tokenizer.decode(ids)
+    re = tokenizer.encode(text, add_special_tokens=False)
+    return list(re) == list(ids)
+
+
+def sample_payloads(pool, length, n, rng, kind="rainbow", tokenizer=None, max_tries=4000):
+    """Draw `n` DISTINCT payloads of the given length and kind, each round-trip-stable
+    (if a tokenizer is given). Averaging over payloads is what turns the smoke test into a
+    measurement -- it removes the which-tokens-got-picked artifact."""
+    out, seen = [], set()
+    builder = rainbow_payload if kind == "rainbow" else random_payload
+    for _ in range(max_tries):
+        if len(out) >= n:
+            break
+        S = builder(pool, length, rng)
+        key = tuple(S)
+        if key in seen:
+            continue
+        if tokenizer is not None and not roundtrip_stable(tokenizer, S):
+            continue
+        seen.add(key)
+        out.append(S)
+    if len(out) < n:
+        raise RuntimeError(f"only found {len(out)}/{n} stable payloads (length {length}); "
+                           f"enlarge the pool or lower n")
+    return out
+
+
+def scrambled_context(payload, n_reps, rng):
+    """CONTROL. The same multiset of tokens as `payload * n_reps`, but in a shuffled order
+    so the payload n-gram does NOT recur -- same token frequencies, no repeated pattern.
+    Forced to end in `payload[-1]` so the generation-start token matches the main
+    condition. If reproduction needs the PATTERN (induction) rather than mere token
+    presence, this control should not lock."""
+    toks = list(payload) * int(n_reps)
+    toks = [toks[i] for i in rng.permutation(len(toks))]
+    if toks and toks[-1] != payload[-1]:
+        for i in range(len(toks)):
+            if toks[i] == payload[-1]:
+                toks[i], toks[-1] = toks[-1], toks[i]
+                break
+    return toks
+
+
+def nopayload_context(payload, pool, rng):
+    """CONTROL (N=0 / spontaneous emission). A short filler of random pool tokens ending in
+    `payload[-1]`, so the model is primed at the same start token but has NEVER seen the
+    payload. P(reproduce) here is the spontaneous floor -- must be ~0 for a genuine OOD
+    payload."""
+    filler = [int(t) for t in rng.choice(list(pool), size=max(1, len(payload)), replace=True)]
+    return filler + [payload[-1]]
+
+
 def rare_token_pool(tokenizer, size=512, max_id=None):
     """A pool of 'safe, rare-ish' single tokens to draw OOD payloads from: tokens that
     decode to short, plain alphanumeric pieces, excluding special / added tokens. This is
