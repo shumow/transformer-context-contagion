@@ -8,6 +8,20 @@ interpretability tier -- E2's induction-head attribution via activation patching
 ablation -- will add a TransformerLens `HookedTransformer` path here; left as a stub below.
 """
 from __future__ import annotations
+import os
+
+# Let unsupported ops fall back to CPU on Apple-Silicon MPS rather than erroring.
+os.environ.setdefault("PYTORCH_ENABLE_MPS_FALLBACK", "1")
+
+
+def pick_device(torch):
+    """Prefer a real GPU: CUDA, then Apple-Silicon MPS (Metal), then CPU."""
+    if torch.cuda.is_available():
+        return "cuda"
+    mps = getattr(torch.backends, "mps", None)
+    if mps is not None and mps.is_available():
+        return "mps"
+    return "cpu"
 
 
 class LM:
@@ -19,7 +33,7 @@ class LM:
         self._torch = torch
         self.name = name
         self.tokenizer = AutoTokenizer.from_pretrained(name)
-        self.device = device or ('cuda' if torch.cuda.is_available() else 'cpu')
+        self.device = device or pick_device(torch)
         kw = {}
         if dtype is not None:
             kw['torch_dtype'] = dtype
@@ -34,8 +48,10 @@ class LM:
         torch = self._torch
         with torch.no_grad():
             ids = torch.tensor([input_ids], device=self.device).repeat(n, 1)
+            attn = torch.ones_like(ids)            # single context, no padding
             out = self.model.generate(
                 ids,
+                attention_mask=attn,
                 max_new_tokens=max_new_tokens,
                 do_sample=not greedy,
                 temperature=temperature,
