@@ -93,6 +93,15 @@ def nopayload_context(payload, pool, rng):
     return filler + [payload[-1]]
 
 
+def neutral_token(pool, exclude, rng):
+    """A pool token NOT in `exclude` -- a non-matching cue: it has no prior occurrence in
+    the payload, so an induction (copy-on-match) mechanism cannot be triggered by it,
+    whereas a frequency bias would be cue-independent."""
+    excl = set(int(e) for e in exclude)
+    cand = [int(t) for t in pool if int(t) not in excl]
+    return int(rng.choice(cand))
+
+
 def rare_token_pool(tokenizer, size=512, max_id=None):
     """A pool of 'safe, rare-ish' single tokens to draw OOD payloads from: tokens that
     decode to short, plain alphanumeric pieces, excluding special / added tokens. This is

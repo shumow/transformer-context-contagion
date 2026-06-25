@@ -100,4 +100,47 @@ longer/structured payloads where the control bites.
 **This sets up E2 cleanly:** the induction claim (C2) should be tested at `p ≥ 3`, where
 the scrambled control already says the mechanism is pattern-copying — activation patching
 should pin reproduction there to induction heads, and should *not* for the
-frequency-driven `p = 1` case.
+frequency-driven `p = 1` case. **(Partly revised by E1.2 below: `p=1` is *also* mostly
+copy, with only the largest frequency tail.)**
+
+## E1.2 — copy vs. frequency (cue-dependence) on GPT-2 (2026-06-25)
+
+E1.1's scrambled control was degenerate at short length, leaving open whether short-string
+reproduction was pattern-copying (induction) or a frequency bias. E1.2 separates them
+behaviorally (no activation access): after streaming `S × N` at above-knee `N ∈ {16,32}`,
+prime generation with **S's own tail** (matching cue) vs **a fresh token `z ∉ S`**
+(non-matching cue), and compare `P(reproduce S)`. Induction = cue-triggered; frequency =
+cue-independent. 6 payloads × 12 trials.
+
+| p | P(self) | P(neutral) | cue gap (N=16 / N=32) |
+|---|---|---|---|
+| 1 | 0.78–0.92 | **0.26–0.29** | +0.51 / +0.62 |
+| 2 | 0.92–0.97 | 0.07–0.12 | +0.79 / +0.90 |
+| 3 | 0.97–1.00 | 0.07–0.19 | +0.90 / +0.81 |
+| 5 | 1.00 | 0.17–0.32 | +0.83 / +0.68 |
+| 8 | 0.99–1.00 | 0.15–0.26 | +0.85 / +0.72 |
+
+**Finding: reproduction is predominantly CUE-DEPENDENT at every length** — the
+non-matching cue mostly fails (`P(neutral)≤~0.3`) while the matching cue locks
+(`P(self)≈0.8–1.0`), a large gap (0.5–0.9) well above zero everywhere
+(`results/e1_2_gpt2.png`). A behavioral **induction** signature (copy-on-match), without
+TransformerLens.
+
+**This revises E1.1.** Even `p=1` is mostly copy (gap +0.5–0.6; the matching cue far
+outperforms the non-matching one), *not* the pure-frequency regime E1.1 suggested. What is
+true is that `p=1` carries the **largest frequency tail** (`P(neutral)≈0.27` vs ~0.1–0.2
+for longer strings): a single repeated token has the biggest cue-independent pull,
+shrinking as more distinct tokens dilute any one token's frequency. The length axis is
+*copy-dominant-everywhere, frequency-tail-largest-at-1*, not a clean regime switch.
+
+**Caveats.** `P(neutral)` is **not pure frequency**: after the non-matching cue the model
+can re-enter `S` if it emits an `S`-token by chance and induction then completes the
+pattern (the toy's re-entry / self-healing), so `P(neutral)` *over*-states the frequency
+component and the true copy fraction is if anything larger. ~72 samples/cell (Wilson
+half-width ~0.11; neutral values noisy/non-monotonic, e.g. p=5 at N=32), GPT-2-small,
+sampled `T=1.0` only.
+
+**For E2:** updated prediction — induction should carry the self-cue reproduction at
+**all** lengths (not only `p≥3`), with a frequency-bias contribution detectable mainly at
+`p=1`. E2 (activation patching / head ablation) becomes the mechanistic confirmation of a
+behaviorally-established induction signature.
