@@ -1,0 +1,19 @@
+# Core harness. Install into a fresh venv:
+#   python3 -m venv .venv && source .venv/bin/activate && pip install -r requirements.txt
+#
+# Versions are loose floors; pin exactly once a working environment is established.
+# torch should match your CUDA / platform -- see https://pytorch.org for the right wheel.
+
+numpy>=1.24
+matplotlib>=3.7
+torch>=2.2
+transformers>=4.44
+accelerate>=0.33
+
+# Mechanistic tier (E2: induction-head attribution, activation patching). Optional until
+# Phase 1's E2 -- uncomment when you start the interpretability experiments.
+# transformer_lens>=2.0
+# nnsight>=0.3
+
+# Throughput for the N / length sweeps (optional; CPU/HF generate works for small models).
+# vllm>=0.5

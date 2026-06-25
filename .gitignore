@@ -1,0 +1,18 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+.ipynb_checkpoints/
+
+# Generated outputs (reproducible from the experiment scripts)
+results/
+
+# Model / dataset caches
+.cache/
+hf_cache/
+*.safetensors
+*.bin
+
+# OS / editor cruft
+.DS_Store
