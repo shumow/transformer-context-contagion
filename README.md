@@ -60,6 +60,8 @@ knee. Writes `results/e1_knee.png` and a table of `P(reproduce)` vs `N` per stri
 | Path | What |
 |---|---|
 | `transformer_validation_plan.md` | The research plan: claims C1–C6, experiments E1–E6, phasing, threats to validity. |
+| `e1_plan.md` | Detailed work plan for E1 (the condensation knee): factors, controls, statistics, staged runs. |
+| `results_log.md` | Running log of empirical runs (mirrors the toy project's `contagion_notes.md`). |
 | `tcc/payloads.py` | Token-level out-of-distribution payload construction. |
 | `tcc/scoring.py` | Transition-level reproduction scoring + knee location (numpy-only, self-testing). |
 | `tcc/models.py` | Minimal model loader / generation wrapper (HF; TransformerLens added for E2). |
