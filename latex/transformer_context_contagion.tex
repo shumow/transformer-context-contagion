@@ -1,0 +1,324 @@
+\documentclass[11pt]{article}
+
+% --- packages (all standard; compiles on stock TeX Live / Overleaf) ---------
+\usepackage[margin=1in]{geometry}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{booktabs}
+\usepackage{graphicx}
+\usepackage{xcolor}
+\usepackage{caption}
+\usepackage[hidelinks]{hyperref}
+\usepackage{microtype}
+
+\graphicspath{{figures/}}
+
+\theoremstyle{plain}
+\newtheorem{conjecture}{Conjecture}
+\theoremstyle{definition}
+\newtheorem{definition}{Definition}
+\theoremstyle{remark}
+\newtheorem{remark}{Remark}
+
+\newcommand{\Pself}{P_{\mathrm{self}}}
+\newcommand{\Pneu}{P_{\mathrm{neu}}}
+\newcommand{\tbd}{\textcolor{red}{\textbf{[TBD]}}}
+
+\title{\bfseries Context Contagion in Real Transformers:\\[2pt]
+A Progress Report}
+\author{Dan Shumow\thanks{Work-in-progress write-up of the open-source project
+\texttt{transformer-context-contagion}, the empirical follow-on to the toy-model analyses
+\texttt{trust-is-the-attack-surface}. All numbers and figures are reproduced by the
+\texttt{experiments/} scripts in that repository; the running log is \texttt{results\_log.md}.}}
+\date{June 2026 --- \emph{draft, in progress}}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+Two companion analyses~\cite{shumow2026trust,shumow2026contagion} establish, \emph{exactly}
+on a toy global-plus-cache Markov model, that in-context exploitability tracks \emph{trust}
+rather than usefulness, and that self-reproducing token strings (\emph{quines}) can be
+planted in a cache, hijack an occupied one, and spread between caches as a
+context-window worm---all cheapest and most transmissible under a longest-match
+(\emph{induction-head}) surrogate. Those results were stated as \emph{conjectures} for real
+transformers. This report is the running status of testing them on real models. So far we
+have built the harness and run the first two stages of the keystone experiment on
+GPT-2-small. We find (i) a clear \emph{condensation knee}: a repeated out-of-distribution
+string begins to be regenerated past a sharp threshold in the repetition count, with the
+threshold \emph{decreasing} in string length (the induction-like, length-robust signature,
+opposite of fixed-order brittleness); and (ii) that reproduction is predominantly
+\emph{cue-dependent}---a non-matching prime mostly fails to elicit the string while a
+matching one reliably does---a behavioral induction signature obtained without
+interpretability tooling. The mechanistic attribution (activation patching), the
+model-size scaling, the delivery/hijack experiments, and the cross-model worm remain
+\tbd. This document will be revised as those land.
+\end{abstract}
+
+% ===========================================================================
+\section{Scope and status}\label{sec:status}
+% ===========================================================================
+This is a \emph{progress report}, not a finished paper: sections marked \tbd\ are planned
+but not yet run. The conceptual framing, the exact toy results, and the falsifiable
+conjecture all live in the companion write-ups~\cite{shumow2026trust,shumow2026contagion};
+we recap only what is needed. The threat is concrete---context poisoning and
+self-replicating prompts already target real retrieval-augmented and agent
+pipelines~\cite{greshake2023,cohen2024}---and the toy substrate is a from-scratch analogue
+of the parametric-versus-in-context split studied by Bietti et al.~\cite{bietti2023}. The
+detailed experiment plan (claims, controls, statistics,
+phasing) is the repository's \texttt{transformer\_validation\_plan.md} and
+\texttt{e1\_plan.md}; this report records what those plans have produced so far.
+
+\begin{table}[h]
+\centering\small
+\begin{tabular}{llp{0.46\textwidth}}
+\toprule
+Stage & Status & What \\
+\midrule
+E1.0 smoke test & done & knee exists on GPT-2 (qualitative). \\
+E1.1 measured knee & done & knee vs length with controls + CIs (\S\ref{sec:e1}). \\
+E1.2 copy vs.\ frequency & done & cue-dependence; behavioral induction (\S\ref{sec:e1b}). \\
+E1.3 model-size sweep & \tbd & needs more compute than the dev laptop. \\
+E1.4 modern / chat models & \tbd & base vs.\ instruct. \\
+E2 induction attribution & \tbd & activation patching / head ablation (mechanistic C2). \\
+E4 trust, not usefulness & \tbd & poisonability vs.\ attention vs.\ task benefit. \\
+E5 delivery in RAG & \tbd & entry $\times$ lock-in in a long context. \\
+E6 the worm / $R_0$ & \tbd & cross-context propagation; critical length. \\
+\bottomrule
+\end{tabular}
+\caption{Status of the experimental program. Stage numbering follows
+\texttt{transformer\_validation\_plan.md} and \texttt{e1\_plan.md}.}
+\label{tab:status}
+\end{table}
+
+% ===========================================================================
+\section{Claims under test}\label{sec:claims}
+% ===========================================================================
+Each maps a toy object to a transformer-measurable quantity; see the plan for the full
+list and the experiments E1--E6.
+
+\begin{table}[h]
+\centering\small
+\begin{tabular}{clp{0.44\textwidth}}
+\toprule
+& Toy result & Real-transformer prediction \\
+\midrule
+C1 & condensation knee & a repeated OOD string is regenerated past a sharp threshold in $N$ \\
+C2 & induction is the engine & reproduction is carried by induction heads (copy-on-match) \\
+C3 & length penalty vanishes under induction & knee location roughly flat or \emph{decreasing} in length \\
+C4 & exploitability tracks trust, not usefulness & repetitive contexts most poisonable, $\approx$ independent of benefit \\
+C5 & delivery $=$ entry $\times$ lock-in & a planted span hijacks generation in a long context \\
+C6 & worm with $R_0\approx T/(p\,k_{\mathrm{thresh}})$ & output fed back propagates; short strings spread, long die \\
+\bottomrule
+\end{tabular}
+\caption{The conjecture, claim by claim. This report has evidence on \textbf{C1}, \textbf{C3}
+(\S\ref{sec:e1}) and behavioral evidence on \textbf{C2} (\S\ref{sec:e1b}); C4--C6 are \tbd.}
+\label{tab:claims}
+\end{table}
+
+% ===========================================================================
+\section{Method}\label{sec:method}
+% ===========================================================================
+\paragraph{Payloads.} A \emph{payload} is a short cyclic string $S$ of token ids the model
+would essentially never emit on its own, so any reproduction is the copy mechanism, not the
+model's taste---the analogue of the toy's rainbow / de Bruijn quines. Payloads are built at
+the \emph{token} level (length $p$ is in tokens) from a pool of rare, round-trip-stable
+single tokens, as distinct-token (``rainbow'') cycles. We use $R$ independent random
+payloads per length and average, with Wilson confidence intervals.
+
+\paragraph{Scoring.} Reproduction is scored at the level of \emph{transitions}, not
+positions: a single slip only phase-shifts a positional comparison and tanks all later
+positions even while the model is faithfully reproducing. Given $S$ and a generated
+continuation, the per-step fidelity is the fraction of steps obeying $S$'s successor rule
+given the realized window; a continuation \emph{reproduces} $S$ if that fidelity exceeds
+$\tfrac12$. $P(\text{reproduce})$ is the fraction of sampled continuations that do.
+
+\paragraph{Controls.} Three controls separate genuine pattern-copying from artifacts:
+(i) a \emph{no-payload} ($N{=}0$) control---prime at the same start token but never show
+the payload---measures spontaneous emission, which must be $\approx 0$; (ii) a
+\emph{scrambled} control---the same tokens in shuffled order, destroying the repeated
+$n$-gram while preserving token frequencies; (iii) a \emph{cue} control (\S\ref{sec:e1b})
+contrasting a matching with a non-matching generation prompt.
+
+\paragraph{Setup.} Results below are GPT-2-small (124M)~\cite{radford2019}, on an Apple-Silicon
+laptop (MPS/Metal backend), \texttt{torch~2.8}, \texttt{transformers~4.57}, sampled at
+temperature $1.0$. This is a development-scale environment: it establishes the phenomena on
+one small model; the size sweep (E1.3) needs more compute.
+
+% ===========================================================================
+\section{E1.1: the condensation knee}\label{sec:e1}
+% ===========================================================================
+We sweep the repetition count $N$ and the string length $p$, estimating
+$P(\text{reproduce})$ over $R{=}4$ payloads $\times 10$ sampled continuations per cell, with
+the scrambled and no-payload controls and a bootstrap interval on the knee location $N^*$
+(the interpolated $P{=}\tfrac12$ crossing).
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=0.74\textwidth]{e1_1_knee_gpt2.png}
+\caption{$P(\text{reproduce})$ vs.\ repetition count $N$ on GPT-2-small, per string length
+(solid, with Wilson bands); dashed is the scrambled control. A clear knee in $N$ exists for
+every length. Reproduced by \texttt{experiments/e1\_condensation\_knee.py}.}
+\label{fig:knee}
+\end{figure}
+
+\begin{table}[h]
+\centering\small
+\begin{tabular}{ccccc}
+\toprule
+$p$ & knee $N^*$ (95\% CI) & width & scrambled $P$ @ $N{=}32$ & no-payload $P$ \\
+\midrule
+1 & 7.2 (5.5--10.3) & 7.8 & \textbf{0.97} & 0.00 \\
+2 & 4.3 (1.7--6.2)  & 5.2 & \textbf{0.70} & 0.00 \\
+3 & 3.0 (2.6--3.6)  & 1.6 & 0.05 & 0.00 \\
+5 & 1.9 (1.7--4.8)  & 3.2 & 0.00 & 0.00 \\
+\bottomrule
+\end{tabular}
+\caption{E1.1 on GPT-2-small. The knee $N^*$ decreases with length; the no-payload control
+is $0$ throughout; the scrambled control is near $0$ for $p\ge3$ but \emph{not} for short
+$p$ (see text).}
+\label{tab:e1}
+\end{table}
+
+\paragraph{C1 (the knee exists): confirmed.} Every length shows a clear threshold in $N$
+(Figure~\ref{fig:knee}), and the no-payload control is $0.00$ everywhere
+(Table~\ref{tab:e1})---the payloads are genuinely out-of-distribution, so reproduction is
+caused by the repetitions, not the model's prior.
+
+\paragraph{C3 (length robustness): confirmed, and stronger than ``flat.''} $N^*$
+\emph{decreases} with length, $7.2\to4.3\to3.0\to1.9$ (Figure~\ref{fig:nstar}): longer
+strings are \emph{easier} to plant. This is the induction-like signature---the opposite of
+the fixed-order count cache's doubly-exponential brittleness ladder~\cite{shumow2026contagion}.
+
+\paragraph{The scrambled control exposed a length-dependent mechanism.} For $p\ge3$ the
+scrambled control stays near $0$ while the payload locks: reproduction needs the
+\emph{pattern}. But for $p\le2$ the scrambled control reproduces almost as well
+($0.97,0.70$), because it is \emph{degenerate} at short length---a single repeated token has
+no order to scramble, and a bigram re-forms by chance. This motivated E1.2, which separates
+copying from frequency directly.
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=0.56\textwidth]{e1_1_Nstar_gpt2.png}
+\caption{Knee $N^*$ vs.\ string length (bootstrap CI). Decreasing $N^*$ is the
+induction-like, length-robust behavior; a rising curve would indicate fixed-order
+brittleness.}
+\label{fig:nstar}
+\end{figure}
+
+% ===========================================================================
+\section{E1.2: copy versus frequency}\label{sec:e1b}
+% ===========================================================================
+Is reproduction genuine copy-on-match (induction) or a frequency bias (the repeated tokens
+simply become likely)? We separate them behaviorally---no activation access. After
+streaming $S$ a fixed above-knee number of times $N$, we prime generation two ways:
+a \emph{self-cue} at $S$'s own tail (a matching cue), and a \emph{neutral-cue} appending a
+fresh token $z\notin S$ (a non-matching cue), and compare $P(\text{reproduce }S)$. Induction
+is cue-triggered (the matching cue reproduces, the non-matching one should not); a frequency
+bias is cue-independent. The signature is the gap $\Pself-\Pneu$ vs.\ length.
+
+\begin{table}[h]
+\centering\small
+\begin{tabular}{ccccc}
+\toprule
+$p$ & $\Pself$ & $\Pneu$ & gap ($N{=}16$) & gap ($N{=}32$) \\
+\midrule
+1 & 0.78--0.92 & \textbf{0.26--0.29} & $+0.51$ & $+0.62$ \\
+2 & 0.92--0.97 & 0.07--0.12 & $+0.79$ & $+0.90$ \\
+3 & 0.97--1.00 & 0.07--0.19 & $+0.90$ & $+0.81$ \\
+5 & 1.00       & 0.17--0.32 & $+0.83$ & $+0.68$ \\
+8 & 0.99--1.00 & 0.15--0.26 & $+0.85$ & $+0.72$ \\
+\bottomrule
+\end{tabular}
+\caption{E1.2 on GPT-2-small ($R{=}6$ payloads $\times 12$ trials). The matching cue locks;
+the non-matching cue mostly fails. The gap is large at every length and smallest at $p{=}1$.}
+\label{tab:e1b}
+\end{table}
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\textwidth]{e1_2_gpt2.png}
+\caption{Copy vs.\ frequency. \emph{Left:} matching (self) vs.\ non-matching (neutral) cue
+at $N{=}32$ per length, Wilson CIs. \emph{Right:} the cue gap $\Pself-\Pneu$ vs.\ length;
+large everywhere (cue-triggered copy), smallest at $p{=}1$ (largest frequency tail).
+Reproduced by \texttt{experiments/e1\_2\_cue.py}.}
+\label{fig:cue}
+\end{figure}
+
+\paragraph{Reproduction is predominantly cue-dependent at every length}
+(Table~\ref{tab:e1b}, Figure~\ref{fig:cue}): the non-matching cue mostly fails
+($\Pneu\le\!\sim\!0.3$) while the matching cue locks ($\Pself\approx0.8$--$1.0$), a gap of
+$0.5$--$0.9$ well above zero. This is a behavioral induction~\cite{olsson2022}
+(copy-on-match) signature, established without interpretability tooling and consistent with C2.
+
+\paragraph{This revises the E1.1 reading.} Even $p{=}1$ is mostly copy (gap $+0.5$--$0.6$),
+not the pure-frequency regime E1.1's degenerate control suggested; it merely carries the
+\emph{largest frequency tail} ($\Pneu\approx0.27$, versus $\sim0.1$--$0.2$ for longer
+strings), since a single token has the biggest cue-independent pull and more distinct tokens
+dilute any one token's frequency. The length axis is therefore
+\emph{copy-dominant-everywhere with a frequency tail largest at $p{=}1$}, not a clean regime
+switch.
+
+\begin{remark}[$\Pneu$ over-states frequency]
+After the non-matching cue the model can still re-enter $S$ if it emits an $S$-token by
+chance and induction then completes the pattern (the toy's re-entry / self-healing). So
+$\Pneu$ is an \emph{upper} bound on the pure-frequency component, and the true copy fraction
+is if anything larger than the gap suggests.
+\end{remark}
+
+% ===========================================================================
+\section{Threats to validity}\label{sec:threats}
+% ===========================================================================
+Beyond the small scale (one model, $R\!\sim\!4$--$6$ payloads, $\sim\!72$--$128$ samples per
+cell, sampled $T{=}1.0$ only), the standing concerns are: \textbf{tokenization}---length is
+in tokens and OOD spans tokenize unstably, addressed by a round-trip-stability filter;
+\textbf{decoding}---lock-in is a sampling phenomenon, so greedy vs.\ temperature should be
+swept (\tbd); \textbf{instruction-tuned models} may comment or refuse rather than copy, so
+base models are used for the clean mechanism and chat models are a separate condition
+(\tbd); \textbf{context-length vs.\ $N$}---a moving knee could be a context-length effect, to
+be checked by holding total context fixed (\tbd); and \textbf{scale}---induction strengthens
+with model size, so the knee is expected to move, which is the point of the size sweep
+(\tbd).
+
+% ===========================================================================
+\section{What is established, and what is not}\label{sec:honesty}
+% ===========================================================================
+On GPT-2-small, with controls and confidence intervals: a repeated out-of-distribution
+string is regenerated past a sharp condensation knee (C1); the knee \emph{decreases} with
+string length, the induction-like length-robustness predicted by the toy (C3); and
+reproduction is predominantly a cue-triggered copy rather than a frequency bias, a
+behavioral induction signature (C2, behaviorally). What is \emph{not} yet established: the
+mechanistic attribution to induction heads (E2), how any of this scales with model size
+(E1.3) or survives instruction tuning (E1.4), and the entire delivery (C5) and transmission
+(C6) story---whether a planted span hijacks a realistic long context, and whether output fed
+back propagates with a reproduction number that falls with length. Those are the next
+stages, and this report will grow to cover them.
+
+\begin{thebibliography}{9}
+\bibitem{shumow2026trust} D.\ Shumow. \emph{Trust Is the Attack Surface: A Cryptanalytic
+Reading of In-Context Memory Poisoning in a Markov Mixture Model.} Project
+\texttt{trust-is-the-attack-surface}, 2026.
+
+\bibitem{shumow2026contagion} D.\ Shumow. \emph{Contagious Context: Self-Reproducing and
+Transmissible Token Strings in a Markov Cache.} Project
+\texttt{trust-is-the-attack-surface}, 2026.
+
+\bibitem{olsson2022} C.\ Olsson et al. \emph{In-context Learning and Induction Heads.}
+Transformer Circuits, 2022.
+
+\bibitem{bietti2023} A.\ Bietti, V.\ Cabannes, D.\ Bouchacourt, H.\ J\'egou, L.\ Bottou.
+\emph{Birth of a Transformer: A Memory Viewpoint.} NeurIPS, 2023.
+
+\bibitem{cohen2024} S.\ Cohen, R.\ Bitton, B.\ Nassi. \emph{Here Comes the AI Worm:
+Unleashing Zero-click Worms that Target GenAI-Powered Applications.} 2024.
+
+\bibitem{greshake2023} K.\ Greshake et al. \emph{Not What You've Signed Up For:
+Compromising Real-World LLM-Integrated Applications with Indirect Prompt Injection.}
+AISec, 2023.
+
+\bibitem{radford2019} A.\ Radford, J.\ Wu, R.\ Child, D.\ Luan, D.\ Amodei, I.\ Sutskever.
+\emph{Language Models are Unsupervised Multitask Learners.} OpenAI, 2019.
+\end{thebibliography}
+
+\end{document}
