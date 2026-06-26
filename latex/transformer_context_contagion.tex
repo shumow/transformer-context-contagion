@@ -51,9 +51,13 @@ threshold \emph{decreasing} in string length (the induction-like, length-robust 
 opposite of fixed-order brittleness); and (ii) that reproduction is predominantly
 \emph{cue-dependent}---a non-matching prime mostly fails to elicit the string while a
 matching one reliably does---a behavioral induction signature obtained without
-interpretability tooling. The mechanistic attribution (activation patching), the
-model-size scaling, the delivery/hijack experiments, and the cross-model worm remain
-\tbd. This document will be revised as those land.
+interpretability tooling; and (iii) confirmed \emph{mechanistically} that the model's own
+induction heads carry it---ablating the canonical GPT-2 induction heads collapses
+reproduction near the knee, far beyond random-head damage. Controls further show the knee
+is a repetition (not context-length) effect though distance-sensitive, and the phenomena
+replicate in a second model family (Pythia); a genuine size sweep is capped by the 8\,GB
+development machine. The delivery/hijack experiments (C5) and the cross-model worm (C6)
+remain \tbd. This document will be revised as those land.
 \end{abstract}
 
 % ===========================================================================
@@ -79,9 +83,10 @@ Stage & Status & What \\
 E1.0 smoke test & done & knee exists on GPT-2 (qualitative). \\
 E1.1 measured knee & done & knee vs length with controls + CIs (\S\ref{sec:e1}). \\
 E1.2 copy vs.\ frequency & done & cue-dependence; behavioral induction (\S\ref{sec:e1b}). \\
-E1.3 model-size sweep & \tbd & needs more compute than the dev laptop. \\
+E1.5 context confound & done & knee is an $N$ effect; distance-sensitive (\S\ref{sec:e15}). \\
+E1.3 size sweep & partial & cross-family replication; 8\,GB caps it at $\le$162M (\S\ref{sec:e13}). \\
+E2 induction attribution & done & induction heads \emph{causally} carry it (\S\ref{sec:e2}). \\
 E1.4 modern / chat models & \tbd & base vs.\ instruct. \\
-E2 induction attribution & \tbd & activation patching / head ablation (mechanistic C2). \\
 E4 trust, not usefulness & \tbd & poisonability vs.\ attention vs.\ task benefit. \\
 E5 delivery in RAG & \tbd & entry $\times$ lock-in in a long context. \\
 E6 the worm / $R_0$ & \tbd & cross-context propagation; critical length. \\
@@ -113,7 +118,8 @@ C6 & worm with $R_0\approx T/(p\,k_{\mathrm{thresh}})$ & output fed back propaga
 \bottomrule
 \end{tabular}
 \caption{The conjecture, claim by claim. This report has evidence on \textbf{C1}, \textbf{C3}
-(\S\ref{sec:e1}) and behavioral evidence on \textbf{C2} (\S\ref{sec:e1b}); C4--C6 are \tbd.}
+(\S\ref{sec:e1}), and \textbf{C2} confirmed both behaviorally (\S\ref{sec:e1b}) and
+mechanistically (\S\ref{sec:e2}); C4--C6 are \tbd.}
 \label{tab:claims}
 \end{table}
 
@@ -268,6 +274,89 @@ is if anything larger than the gap suggests.
 \end{remark}
 
 % ===========================================================================
+\section{E1.5: is the knee an $N$ effect or a context-length effect?}\label{sec:e15}
+% ===========================================================================
+E1.1's context is $S\times N$, so the number of repetitions and the total context length
+grow together. E1.5 disentangles them. \emph{Test 1} compares a \emph{growing} context
+($S\times N$) against a \emph{fixed} total length (filler padded to a constant length) at
+each $N$. The two curves largely coincide (Figure~\ref{fig:context}, left): at fixed total
+length the threshold still rises sharply with $N$, so \textbf{the knee is predominantly an
+$N$ effect}, not an artifact of longer context. A secondary \emph{dilution} effect remains
+(padding at low $N$ modestly lowers reproduction, strongest for longer $p$). \emph{Test 2}
+holds $N$ above the knee and inserts a gap of $G$ neutral tokens between the payload and a
+re-presented matching cue. Reproduction \textbf{decays with distance}---gone by
+$G\approx16$--$32$ tokens for $p\ge3$ (Figure~\ref{fig:context}, right). So in GPT-2-small
+the copy is recency-modulated, not arbitrarily long-range; a payload buried deep in a long
+context is much weaker than one near the end. (The gap is filled with rare tokens, so part
+of the decay may be filler competition rather than pure distance; larger models with
+longer-range induction should push the limit out.)
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\textwidth]{e1_5_gpt2.png}
+\caption{E1.5. \emph{Left:} growing (solid) vs.\ fixed total length (dashed) -- the knee
+persists at fixed length, so it is an $N$ effect. \emph{Right:} reproduction decays as the
+payload is separated from the cue by a gap of $G$ neutral tokens (recency-modulated).
+Reproduced by \texttt{experiments/e1\_5\_context.py}.}
+\label{fig:context}
+\end{figure}
+
+% ===========================================================================
+\section{E1.3-lite: cross-family replication, and an 8\,GB wall}\label{sec:e13}
+% ===========================================================================
+A size sweep over GPT-2 \{small, medium, large\} and Pythia \{160M, 410M\} was intended.
+The dominant outcome was a \emph{hardware} one: on an 8\,GB machine, gpt2-medium (355M) and
+larger thrash on swap (gpt2-large, 3\,GB of weights, ran 47 wall-minutes using $\sim$9 CPU
+minutes and completed nothing). Only GPT-2-small (124M) and Pythia-160M (162M) run cleanly,
+so a genuine size-scaling sweep is \textbf{deferred to more compute}. What did run shows the
+condensation knee and its length-robustness ($N^*$ decreasing with $p$) in \emph{both} model
+families (Figure~\ref{fig:size}), a modest cross-family generality check; the GPT-2 knees
+also replicate E1.1. Pythia-160M does not lock a single token within $N\le32$ (no knee at
+$p{=}1$), i.e.\ it is harder to frequency-drive than GPT-2, consistent with E1.2. The
+``knee vs.\ parameters'' panel spans only two near-identical sizes and is \emph{not} a
+scaling result.
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=0.86\textwidth]{e1_3.png}
+\caption{E1.3-lite. \emph{Left:} the knee decreases with length in both GPT-2 and Pythia
+(cross-family replication). \emph{Right:} two near-identical sizes -- not a scaling result;
+a real sweep needs $>$8\,GB. Reproduced by \texttt{experiments/e1\_3\_size\_sweep.py}.}
+\label{fig:size}
+\end{figure}
+
+% ===========================================================================
+\section{E2: induction-head attribution}\label{sec:e2}
+% ===========================================================================
+E1.2 showed reproduction is cue-triggered copy (behavioral induction); E2 asks whether the
+model's actual induction heads carry it. Run on CPU (TransformerLens warns MPS may be
+silently incorrect on torch~2.8). First, the standard repeated-random-sequence induction
+score flags the top heads as \textbf{L5H5, L7H10, L6H9, L5H1, L7H2} (then L9H6, L10H1,
+L9H9)---exactly the canonical GPT-2-small induction heads, validating the detector. Then a
+causal test: build $S\times N$, measure $P(\text{correct next payload token})$, and ablate
+the 8 induction heads versus 8 random heads, sweeping $N$.
+
+The clean signal lives \emph{near the knee}, not at saturation: at $N{=}16$ the copy is
+over-determined (many repetitions, redundant heads) and robust to losing 8 heads, but near
+threshold the circuit is load-bearing. Ablating the induction heads then \textbf{collapses}
+reproduction---e.g.\ at $N{=}2$, $p{=}3$: $0.40\to0.05$ ($-87\%$); $p{=}5$: $0.48\to0.09$
+($-81\%$)---far beyond the $\sim$15--25\% general degradation from ablating random heads
+(Figure~\ref{fig:e2}). This is the \textbf{mechanistic confirmation of C2}: the
+real-transformer condensation knee is an induction-head phenomenon. (Caveats: random-head
+ablation is not exactly zero, so the load-bearing signal is the induction-vs-random
+\emph{differential}; 8 heads is a subset of the circuit; GPT-2-small only.)
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\textwidth]{e2_gpt2.png}
+\caption{E2. Per length, $P(\text{correct next token})$ vs.\ $N$ for baseline, ablating 8
+induction heads, and ablating 8 random heads. Induction ablation suppresses reproduction
+far below baseline and below random ablation, most strongly near the knee (low $N$).
+Reproduced by \texttt{experiments/e2\_induction.py}.}
+\label{fig:e2}
+\end{figure}
+
+% ===========================================================================
 \section{Threats to validity}\label{sec:threats}
 % ===========================================================================
 Beyond the small scale (one model, $R\!\sim\!4$--$6$ payloads, $\sim\!72$--$128$ samples per
@@ -276,24 +365,28 @@ in tokens and OOD spans tokenize unstably, addressed by a round-trip-stability f
 \textbf{decoding}---lock-in is a sampling phenomenon, so greedy vs.\ temperature should be
 swept (\tbd); \textbf{instruction-tuned models} may comment or refuse rather than copy, so
 base models are used for the clean mechanism and chat models are a separate condition
-(\tbd); \textbf{context-length vs.\ $N$}---a moving knee could be a context-length effect, to
-be checked by holding total context fixed (\tbd); and \textbf{scale}---induction strengthens
-with model size, so the knee is expected to move, which is the point of the size sweep
-(\tbd).
+(\tbd); \textbf{context-length vs.\ $N$}---addressed by E1.5 (\S\ref{sec:e15}): the knee
+persists at fixed total length, so it is an $N$ effect, though reproduction is
+distance-sensitive; and \textbf{scale}---induction strengthens with model size, so the knee
+is expected to move, but the size sweep is capped at 162M by the 8\,GB machine
+(\S\ref{sec:e13}) and needs more compute.
 
 % ===========================================================================
 \section{What is established, and what is not}\label{sec:honesty}
 % ===========================================================================
 On GPT-2-small, with controls and confidence intervals: a repeated out-of-distribution
 string is regenerated past a sharp condensation knee (C1); the knee \emph{decreases} with
-string length, the induction-like length-robustness predicted by the toy (C3); and
-reproduction is predominantly a cue-triggered copy rather than a frequency bias, a
-behavioral induction signature (C2, behaviorally). What is \emph{not} yet established: the
-mechanistic attribution to induction heads (E2), how any of this scales with model size
-(E1.3) or survives instruction tuning (E1.4), and the entire delivery (C5) and transmission
-(C6) story---whether a planted span hijacks a realistic long context, and whether output fed
-back propagates with a reproduction number that falls with length. Those are the next
-stages, and this report will grow to cover them.
+string length, the induction-like length-robustness predicted by the toy (C3); the knee is a
+repetition effect (not context length) though distance-sensitive (E1.5); reproduction is a
+cue-triggered copy rather than a frequency bias (C2, behaviorally); and---the new result---
+ablating the canonical GPT-2 induction heads \emph{causally} collapses reproduction near the
+knee, far beyond random-head damage, so \textbf{C2 is mechanistically established} on this
+model (E2). The phenomena replicate in a second model family (Pythia-160M). What is
+\emph{not} yet established: how any of this scales with model size (the sweep is capped at
+162M by 8\,GB) or survives instruction tuning (E1.4), and the entire delivery (C5) and
+transmission (C6) story---whether a planted span hijacks a realistic long context, and
+whether output fed back propagates with a reproduction number that falls with length. Those
+are the next stages, and this report will grow to cover them.
 
 \begin{thebibliography}{9}
 \bibitem{shumow2026trust} D.\ Shumow. \emph{Trust Is the Attack Surface: A Cryptanalytic
