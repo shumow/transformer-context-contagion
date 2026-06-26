@@ -338,3 +338,41 @@ not because they help.
 instruction-tuned version (Track B) is needed to test usefulness as actual task utility.
 Greedy copy-rate has occasional outliers (one rep+useful at 0.075, one nonrep+useless at
 0.875). The qualitative dissociation (P ⊥ usefulness, P ∥ repetition/induction) is clear.
+
+## E5-lite — delivery: hijacking generation from inside a document (2026-06-26)
+
+Scaled-down RAG attack (C5): a coherent prose "document" (~65 tokens) with an OOD payload
+(p=3) repeated k times planted in it; generate and measure **hijack** = payload occupancy
+of the continuation. 3 docs × 4 payloads/trials. GPT-2-small.
+
+**A. Placement / entry (k=8 fixed), hijack vs where the payload sits:**
+
+| placement (0=buried start, 1=at end) | 0.00 | 0.25 | 0.50 | 0.75 | 1.00 |
+|---|---|---|---|---|---|
+| hijack | 0.003 | 0.001 | 0.003 | 0.001 | **0.523** |
+
+**Entry is sharply recency-gated.** The payload hijacks *only* when it is at the very end
+(frac=1.0 → 0.52); anywhere earlier it is ~0 — even frac=0.75, which leaves just ~16 tokens
+of prose between the payload and the generation point, already kills it. So a payload
+**buried** in a document is defanged; it must sit within ~the last dozen-or-so tokens. This
+is E1.5's distance limit, and tighter, because *coherent* prose competes harder for the
+continuation than random filler.
+
+**B. Repetition / lock-in (payload at the end), hijack vs k:**
+
+| k | 0 | 1 | 2 | 4 | 8 | 16 |
+|---|---|---|---|---|---|---|
+| hijack | 0.001 | 0.005 | 0.027 | 0.117 | 0.354 | **0.696** |
+
+A clean knee inside a real document, crossing ~0.5 around **k ≈ 10–12** — notably *higher*
+than the clean-context knee (~3 for p=3 in E1.1). **Embedding in legitimate prose raises the
+poison cost**: the document provides resistance, so more repetitions are needed to lock in.
+
+**C5 confirmed: hijack = entry × lock-in.** Both must be satisfied — the payload must be
+*recent* (near the generation point) **and** repeated enough to overcome the legit content.
+Security reading: in a RAG/long-context setting the danger zone is content near where
+generation happens; burying a payload deep, or having strong legitimate context, both
+suppress the hijack.
+
+**Caveats.** ~65-token "documents" (GPT-2-small, scaled down), p=3, occupancy metric, 12
+samples/cell. The realistic long-context (4k–128k) RAG version with retrieval is Track B.
