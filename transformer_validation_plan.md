@@ -102,6 +102,16 @@ attention/induction engagement on the span and (b) the span's task benefit.
   retrieval-dump / long-quote contexts are maximally poisonable while contributing little.
 - *Falsified if:* poisonability tracks benefit (the naive conservation law the parent
   paper already refuted on the toy).
+- **On 8 GB now (E4-lite).** All three axes are computable on GPT-2-small: *trust* =
+  induction-head attention / contribution on the span (reuse the E2 hooks); *usefulness* =
+  the perplexity reduction the context gives on a held-out natural-text continuation;
+  *poisonability* = the E1 knee / reproduction strength. Build a 2×2 of contexts —
+  {repetitive, non-repetitive} × {useful, useless}: repeated-OOD (repetitive, useless; we
+  already have it), a repeated pattern that *predicts* the continuation (repetitive,
+  useful), informative prose (non-repetitive, useful), incoherent tokens (non-repetitive,
+  useless) — and show poisonability tracks the repetition / induction-trust axis, not the
+  usefulness axis. **Deferred to the bigger machine:** instruction-tuned models, where
+  "task usefulness" is a real downstream task rather than a perplexity proxy.
 
 ### E5 — Delivery in a RAG/long context
 **Tests C5.** Place the payload inside a *retrieved document* in a realistic
@@ -112,6 +122,13 @@ minimal-poison bridge.
 - *Predicted:* a small, well-placed planted span (high-attention, on the generation
   trajectory) hijacks; poison cost factors as entry + lock-in.
 - *Falsified if:* hijack requires implausibly large or specially-tuned payloads.
+- **On 8 GB now (E5-lite).** GPT-2-small (1024-token context) runs a scaled-down version:
+  a coherent prose "warmed context" (a few hundred tokens) with an OOD payload repeated `k`
+  times inserted at position `pos`; generate and measure the **hijack rate** (fraction of
+  the continuation captured by the payload) as a function of placement/recency and `k`.
+  This already factors as entry (does generation reach the payload) × lock-in (the knee),
+  and E1.5's distance result feeds it directly. **Deferred:** realistic long-context
+  (4k–128k) RAG with actual retrieval, and instruct models.
 
 ### E6 — Transmission (the worm) and R0
 **Tests C6.** Close a loop: model output is written into a store/message that becomes
@@ -123,6 +140,12 @@ one tokenizer likely fragments under another — a predicted natural firebreak).
   same-model/same-tokenizer transmission strongest; cross-tokenizer transmission weak.
 - *Falsified if:* nothing propagates beyond the index host (no worm), or propagation is
   length-independent.
+- **On 8 GB now (fully feasible).** This is generation-only and runs entirely on small
+  models. Serial passage on GPT-2-small: take output containing the payload `k` times, make
+  it the next context, and measure survival / amplification across hops → `R0` and critical
+  length. The **cross-tokenizer firebreak** test comes for free with the two models already
+  on this machine — GPT-2 ↔ Pythia-160M (different tokenizers). **Deferred:** larger models,
+  longer payloads, and larger host populations / contact graphs.
 
 ## 4. Metrics and analysis
 - **Reproduction fidelity** (transition-level), **knee location** `N*(p)`,
@@ -145,18 +168,35 @@ one tokenizer likely fragments under another — a predicted natural firebreak).
   model size deliberately.
 
 ## 6. Phasing and deliverables
-- **Phase 0 (setup):** new sibling repo, harness on GPT-2-small/Pythia-410M, payload and
-  scoring utilities, reproduce a known induction-head result as a baseline.
-- **Phase 1 (core):** E1 + E2 + E3 — does the condensation knee exist, is it induction,
-  is it length-robust? This is the make-or-break of the conjecture and the first
-  write-up.
-- **Phase 2 (depth):** E4 — trust-not-usefulness on real models, the headline scientific
-  claim.
-- **Phase 3 (applied):** E5 + E6 — RAG delivery and the worm/R0, with the paired detector
-  (bound longest-match trust on repeated spans) and responsible disclosure.
-- **Deliverables:** the harness repo, a results notebook per phase, and a paper extending
-  the two toy write-ups with on-transformer measurements — confirming, refuting, or
-  bounding each conjecture.
+
+**Status (2026-06).** Phase 0 and the core of Phase 1 are **done** on GPT-2-small: the
+condensation knee exists (E1.1, C1), is length-robust (C3), is a repetition-not-context-
+length effect but distance-sensitive (E1.5), is cue-triggered copy (E1.2, C2 behaviorally),
+and is **causally carried by the induction heads** (E2, C2 mechanistically); it replicates
+in Pythia-160M. The size sweep (E1.3) is **blocked by the 8 GB dev machine** (gpt2-medium+
+thrash on swap). The remaining work splits by hardware:
+
+### Track A — runnable now on the 8 GB machine (GPT-2-small, Pythia-160M)
+- **E6 — the worm** (best fit): serial passage, `R0`, critical length, and the
+  GPT-2 ↔ Pythia-160M **cross-tokenizer firebreak**. Generation-only; no size pressure.
+- **E4-lite — trust vs.\ usefulness:** the 2×2 of {repetitive, non-repetitive} ×
+  {useful, useless} contexts, scored by induction-attention (trust), perplexity reduction
+  (usefulness), and the knee (poisonability).
+- **E5-lite — scaled-down RAG hijack:** prose "warmed context" + a planted span; hijack
+  rate vs.\ placement/recency and repetition count.
+- **Cheap E1 refinements:** greedy vs.\ temperature sweep; more payloads/seeds to tighten CIs.
+- **The paired defense/detector** for each (bound longest-match trust on repeated spans),
+  which is small-model-friendly.
+
+### Track B — needs a bigger machine (≥24 GB unified RAM, or a 24 GB+ GPU)
+- **E1.3 proper** (size sweep, 355M–~7B) and **E1.4** (instruction-tuned / chat models).
+- **E4 and E5 at scale:** instruct models give a *real* task for "usefulness"; 4k–128k
+  context gives a *real* long-context/RAG setting.
+- **Longer-range induction:** larger models should extend E1.5's distance limit.
+
+**Deliverables:** the harness repo, the running `results_log.md`, and the progress-report
+paper (`latex/transformer_context_contagion.tex`) extending the two toy write-ups with
+on-transformer measurements — confirming, refuting, or bounding each conjecture.
 
 ## 7. Definition of done
 A clear verdict on the central conjecture: **does in-context exploitability on real
