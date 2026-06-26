@@ -55,9 +55,16 @@ interpretability tooling; and (iii) confirmed \emph{mechanistically} that the mo
 induction heads carry it---ablating the canonical GPT-2 induction heads collapses
 reproduction near the knee, far beyond random-head damage. Controls further show the knee
 is a repetition (not context-length) effect though distance-sensitive, and the phenomena
-replicate in a second model family (Pythia); a genuine size sweep is capped by the 8\,GB
-development machine. The delivery/hijack experiments (C5) and the cross-model worm (C6)
-remain \tbd. This document will be revised as those land.
+replicate in a second model family (Pythia). We then confirm the three downstream claims:
+\emph{(iv)} poisonability tracks \emph{trust}, not usefulness---repetitive gibberish is fully
+poisonable while useful non-repetitive prose is not ($\mathrm{corr}(P,\text{useful}){=}{-}0.20$
+vs.\ $\mathrm{corr}(P,\text{trust}){=}{+}0.54$, C4); \emph{(v)} a payload planted in a document
+hijacks generation only when recent \emph{and} sufficiently repeated---delivery factors as
+entry$\,\times\,$lock-in (C5); and \emph{(vi)} output fed back as another context propagates
+as a \emph{worm} with a critical string length (short strings reach an endemic load, long ones
+die out) and a \emph{cross-tokenizer firebreak} (GPT-2$\to$Pythia transmission collapses, C6).
+What remains is scale: a genuine size sweep and instruction-tuned models are capped by the
+8\,GB development machine. This document will be revised as those land.
 \end{abstract}
 
 % ===========================================================================
@@ -86,10 +93,11 @@ E1.2 copy vs.\ frequency & done & cue-dependence; behavioral induction (\S\ref{s
 E1.5 context confound & done & knee is an $N$ effect; distance-sensitive (\S\ref{sec:e15}). \\
 E1.3 size sweep & partial & cross-family replication; 8\,GB caps it at $\le$162M (\S\ref{sec:e13}). \\
 E2 induction attribution & done & induction heads \emph{causally} carry it (\S\ref{sec:e2}). \\
-E1.4 modern / chat models & \tbd & base vs.\ instruct. \\
-E4 trust, not usefulness & \tbd & poisonability vs.\ attention vs.\ task benefit. \\
-E5 delivery in RAG & \tbd & entry $\times$ lock-in in a long context. \\
-E6 the worm / $R_0$ & \tbd & cross-context propagation; critical length. \\
+E4-lite trust, not usefulness & done & poisonability $\perp$ usefulness, $\parallel$ trust (\S\ref{sec:e4}). \\
+E5-lite delivery in a document & done & hijack $=$ entry $\times$ lock-in (\S\ref{sec:e5}). \\
+E6 the worm / $R_0$ & done & critical length; cross-tokenizer firebreak (\S\ref{sec:e6}). \\
+E1.4 modern / chat models & \tbd & base vs.\ instruct (needs $>$8\,GB). \\
+E1.3 size sweep ($\ge$355M) & \tbd & how the knee moves with scale (needs $>$8\,GB). \\
 \bottomrule
 \end{tabular}
 \caption{Status of the experimental program. Stage numbering follows
@@ -117,9 +125,10 @@ C5 & delivery $=$ entry $\times$ lock-in & a planted span hijacks generation in 
 C6 & worm with $R_0\approx T/(p\,k_{\mathrm{thresh}})$ & output fed back propagates; short strings spread, long die \\
 \bottomrule
 \end{tabular}
-\caption{The conjecture, claim by claim. This report has evidence on \textbf{C1}, \textbf{C3}
-(\S\ref{sec:e1}), and \textbf{C2} confirmed both behaviorally (\S\ref{sec:e1b}) and
-mechanistically (\S\ref{sec:e2}); C4--C6 are \tbd.}
+\caption{The conjecture, claim by claim. All six now have a real-transformer result on
+GPT-2-small: \textbf{C1}, \textbf{C3} (\S\ref{sec:e1}); \textbf{C2} behaviorally (\S\ref{sec:e1b})
+and mechanistically (\S\ref{sec:e2}); \textbf{C4} (\S\ref{sec:e4}); \textbf{C5} (\S\ref{sec:e5});
+\textbf{C6} (\S\ref{sec:e6}). What remains is scale (size sweep, instruct models).}
 \label{tab:claims}
 \end{table}
 
@@ -357,6 +366,108 @@ Reproduced by \texttt{experiments/e2\_induction.py}.}
 \end{figure}
 
 % ===========================================================================
+\section{E4-lite: poisonability tracks trust, not usefulness}\label{sec:e4}
+% ===========================================================================
+The toy's headline (C4) is that exploitability follows how much the model \emph{trusts} a
+span, not how \emph{useful} it is. We test the dissociation with a $2\times2$ of contexts---
+\{repetitive, non-repetitive\} $\times$ \{useful (real text), useless (OOD gibberish)\}---each
+scored on three axes: usefulness $U$ (naturalness $=$ mean log-prob of one content unit),
+trust $T$ (induction-head engagement: attention the E2 heads pay to a repeated bigram's
+continuation), and poisonability $P$ (copy-rate of a greedy continuation).
+
+\begin{table}[h]
+\centering\small
+\begin{tabular}{lccc}
+\toprule
+context type & $U$ (log-prob) & $T$ (induction) & $P$ (copy-rate) \\
+\midrule
+repetitive $+$ useful (real sentence $\times k$) & $-3.5$ & $0.34$ & $0.77$ \\
+repetitive $+$ \textbf{useless} (gibberish $\times k$) & $\mathbf{-8.7}$ & $0.12$ & $\mathbf{1.00}$ \\
+non-repetitive $+$ \textbf{useful} (real prose) & $\mathbf{-4.2}$ & $0.00$ & $\mathbf{0.00}$ \\
+non-repetitive $+$ useless (random tokens) & $-8.3$ & $0.00$ & $0.22$ \\
+\bottomrule
+\end{tabular}
+\caption{E4-lite on GPT-2-small. Poisonability follows the repetition/trust axis, not
+usefulness: $\mathrm{corr}(P,U){=}{-}0.20$, $\mathrm{corr}(P,T){=}{+}0.54$.}
+\label{tab:e4}
+\end{table}
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\textwidth]{e4_trust.png}
+\caption{E4-lite. \emph{Left:} per context type, trust $T$ and poisonability $P$ move together;
+both ignore the usefulness columns. \emph{Right:} $P$ vs.\ usefulness---useless gibberish
+($U\!\approx\!-9$) is fully poisonable while useful prose ($U\!\approx\!-4$) is not.
+Reproduced by \texttt{experiments/e4\_trust.py}.}
+\label{fig:e4}
+\end{figure}
+
+The dissociation is clean (Table~\ref{tab:e4}, Fig.~\ref{fig:e4}): \textbf{repetitive
+gibberish---the \emph{least} useful content---is fully poisonable ($P{=}1.0$), while
+non-repetitive real prose---useful---is not poisonable at all ($P{=}0.0$)}. This is the
+real-transformer analogue of the toy's central finding and its defensive corollary: the
+quantity to bound is \emph{trust on repeated/templated content}, independent of whether that
+content is useful. (On a base model ``usefulness'' is a naturalness proxy, not a downstream
+task; the instruction-tuned version is deferred to a larger machine.)
+
+% ===========================================================================
+\section{E5-lite: delivery from inside a document}\label{sec:e5}
+% ===========================================================================
+A scaled-down RAG attack (C5): a coherent prose document ($\sim$65 tokens) has an OOD payload
+($p{=}3$) repeated $k$ times planted in it; we generate a continuation and measure
+\emph{hijack} $=$ payload occupancy of the output. Two sweeps (Fig.~\ref{fig:e5}). \emph{Entry}
+(placement, $k{=}8$): the payload hijacks \emph{only} when it sits at the very end
+($\text{frac}{=}1.0\!\to\!0.52$); buried anywhere earlier it is $\approx 0$, even with just
+$\sim$16 tokens of prose after it---sharper than E1.5's filler gap, because coherent prose
+competes harder for the continuation. \emph{Lock-in} (repetitions, at the end): a clean knee
+crossing $\tfrac12$ around $k\!\approx\!10$--$12$, \emph{higher} than the bare-context knee
+($\sim$3): embedding in legitimate prose raises the poison cost.
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\textwidth]{e5_hijack.png}
+\caption{E5-lite. \emph{Left:} hijack vs.\ placement---delivery is recency-gated, only a payload
+at the end takes over. \emph{Right:} hijack vs.\ repetitions at the end---the knee inside a real
+document. Reproduced by \texttt{experiments/e5\_hijack.py}.}
+\label{fig:e5}
+\end{figure}
+
+\textbf{C5 confirmed: hijack $=$ entry $\times$ lock-in.} Both must hold---the payload must be
+recent \emph{and} repeated enough to overcome the legitimate content. The danger zone in a
+long context is the span near where generation happens; burying a payload, or strong
+surrounding context, suppresses the hijack.
+
+% ===========================================================================
+\section{E6: the context-window worm}\label{sec:e6}
+% ===========================================================================
+Transmission (C6): an infected host's output (containing the payload) becomes the next host's
+context, passed as \emph{text} (decoded then re-tokenized, as agents and RAG pipelines pass
+it); we count payload copies in each host's output across hops.
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=0.49\textwidth]{e6_worm_serial.png}\hfill
+\includegraphics[width=0.49\textwidth]{e6_worm_crosstok.png}
+\caption{E6. \emph{Left:} same-model serial passage---short strings ($p{=}1$) sustain at an
+endemic load while longer strings die out, faster as $p$ grows (a critical length). \emph{Right:}
+the cross-tokenizer firebreak---GPT-2$\to$GPT-2 transmission persists, GPT-2$\to$Pythia collapses
+after one hop. Reproduced by \texttt{experiments/e6\_worm.py}.}
+\label{fig:e6}
+\end{figure}
+
+\textbf{A real worm with a critical length.} In same-model serial passage (Fig.~\ref{fig:e6},
+left), a length-1 string \emph{propagates indefinitely} at an endemic load ($\sim$12 copies/host)
+while longer strings \emph{die out}, faster as $p$ grows (gone by hop 2 at $p{=}8$): the basic
+reproduction number falls with string length and crosses $1$ around $p\!\approx\!1$--$2$,
+exactly the toy's prediction (short $=$ epidemic, long $=$ one-shot). The epidemic is carried by
+\emph{super-spreader} payloads that fully take over a host's output (occupancy $\to 1$, ending
+mid-payload so the next host re-enters); most payloads reproduce weakly and die, tying the
+critical length to the recency limit of E1.5. \textbf{Cross-tokenizer firebreak}
+(Fig.~\ref{fig:e6}, right): same-tokenizer transmission survives to hop 6, but switching hosts
+to Pythia-160M collapses it after one hop---re-tokenizing fragments the payload so induction
+cannot copy it cleanly. A heterogeneous-model pipeline is naturally worm-resistant.
+
+% ===========================================================================
 \section{Threats to validity}\label{sec:threats}
 % ===========================================================================
 Beyond the small scale (one model, $R\!\sim\!4$--$6$ payloads, $\sim\!72$--$128$ samples per
@@ -381,12 +492,16 @@ repetition effect (not context length) though distance-sensitive (E1.5); reprodu
 cue-triggered copy rather than a frequency bias (C2, behaviorally); and---the new result---
 ablating the canonical GPT-2 induction heads \emph{causally} collapses reproduction near the
 knee, far beyond random-head damage, so \textbf{C2 is mechanistically established} on this
-model (E2). The phenomena replicate in a second model family (Pythia-160M). What is
-\emph{not} yet established: how any of this scales with model size (the sweep is capped at
-162M by 8\,GB) or survives instruction tuning (E1.4), and the entire delivery (C5) and
-transmission (C6) story---whether a planted span hijacks a realistic long context, and
-whether output fed back propagates with a reproduction number that falls with length. Those
-are the next stages, and this report will grow to cover them.
+model (E2). The downstream claims also hold on GPT-2-small: poisonability is dissociated from
+usefulness and aligned with induction trust (C4, \S\ref{sec:e4}); a planted span hijacks
+generation as entry$\,\times\,$lock-in (C5, \S\ref{sec:e5}); and the worm has a critical string
+length and a cross-tokenizer firebreak (C6, \S\ref{sec:e6}). The phenomena replicate in a second
+model family (Pythia-160M). So all six conjectures C1--C6 have a qualitative real-transformer
+result. What is \emph{not} yet established is \textbf{scale}: how the knee, the worm's critical
+length, and the induction range move with model size (the sweep is capped at 162M by 8\,GB), and
+whether instruction-tuned models behave the same---plus the larger-context, retrieval-grounded
+versions of C5 and C6, and a real-task (not naturalness-proxy) usefulness for C4. Those need more
+than an 8\,GB machine and are the next stage.
 
 \begin{thebibliography}{9}
 \bibitem{shumow2026trust} D.\ Shumow. \emph{Trust Is the Attack Surface: A Cryptanalytic
