@@ -144,3 +144,48 @@ sampled `T=1.0` only.
 **all** lengths (not only `p≥3`), with a frequency-bias contribution detectable mainly at
 `p=1`. E2 (activation patching / head ablation) becomes the mechanistic confirmation of a
 behaviorally-established induction signature.
+
+## E1.5 — context-length confound on GPT-2 (2026-06-26)
+
+E1.1's context is `S × N`, so number-of-repetitions and total context length grow
+together. E1.5 disentangles them (4 payloads × 10 trials, lengths 1/3/5).
+
+**Test 1 — is the knee an `N` effect or a length effect?** Compare *growing* context
+(`S×N`, length grows) against *fixed* total length (filler padded to a constant length)
+at each `N` (`results/e1_5_gpt2.png`, left).
+
+| p | growing P (N=1..32) | fixed-length P (N=1..32) |
+|---|---|---|
+| 1 | 0, 0, .20, .57, .88, .97 | 0, 0, .15, .62, .78, .97 |
+| 3 | 0, .65, .90, .97, .97, 1.0 | 0, .15, .75, .88, .90, .88 |
+| 5 | 0, .72, .88, .97, 1.0, .97 | 0, .35, .85, .97, .93, 1.0 |
+
+**The knee is predominantly an `N` effect:** at fixed total context length the threshold
+still rises sharply with `N` (the knee persists), so E1.1's knee is not an artifact of the
+context simply getting longer. There is a **secondary context-dilution effect**: at low
+`N`, padding with filler modestly *lowers* reproduction (the payload is a smaller fraction
+of context / sits further back), strongest for longer `p` (p=3 at N=2: .65 → .15). For
+p=1 growing and fixed nearly coincide (least filler). So: knee = `N`-driven, with a mild
+length modulation worth noting.
+
+**Test 2 — distance / recency.** Hold `N=16` and insert a gap of `G` neutral tokens
+between the payload and a re-presented matching cue `S[-1]`; sweep `G`
+(`results/e1_5_gpt2.png`, right).
+
+| p | P(reproduce) at G = 0, 8, 16, 32, 64, 128 |
+|---|---|
+| 1 | .97, .38, .47, .40, .05, .12 |
+| 3 | .95, .23, .07, .00, .00, .03 |
+| 5 | .88, .28, .07, .12, .03, .03 |
+
+**Reproduction is distance-sensitive:** pushing the payload back from the generation point
+collapses reproduction — gone by `G ≈ 16–32` tokens for `p ≥ 3`, more gradual for `p = 1`
+(holds ~0.4 out to `G = 32`). So in GPT-2-small the copy is **recency-modulated, not
+arbitrarily long-range**. Security reading: a payload *buried* deep in a long context
+(far from where generation happens) is much weaker than one near the end.
+
+**Caveats.** The gap is filled with rare tokens, so the decay could partly be
+*filler-competition* (the model attends to the recent filler) rather than pure distance;
+disentangling needs a position-matched control. Larger models have more / longer-range
+induction heads, so the distance limit is expected to extend with scale — a prediction for
+E1.3-lite / E2. 4 payloads × 10 trials, GPT-2-small, `T=1.0`.

@@ -102,6 +102,17 @@ def neutral_token(pool, exclude, rng):
     return int(rng.choice(cand))
 
 
+def filler_tokens(pool, length, exclude, rng):
+    """`length` neutral filler tokens drawn from `pool`, none in `exclude` (the payload).
+    Used to hold total context length fixed, or to insert a gap between the payload and the
+    generation point, without re-introducing the payload pattern."""
+    if length <= 0:
+        return []
+    excl = set(int(e) for e in exclude)
+    cand = [int(t) for t in pool if int(t) not in excl]
+    return [int(t) for t in rng.choice(cand, size=length, replace=True)]
+
+
 def rare_token_pool(tokenizer, size=512, max_id=None):
     """A pool of 'safe, rare-ish' single tokens to draw OOD payloads from: tokens that
     decode to short, plain alphanumeric pieces, excluding special / added tokens. This is
