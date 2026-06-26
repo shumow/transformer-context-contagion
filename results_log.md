@@ -409,3 +409,19 @@ benign — repeated boilerplate, templates, repeated instructions, code. That is
 the detector identifies the poisonable *configuration*, not malicious *intent*; a deployed
 version needs a benign-repetition allowlist or a trust cap rather than a hard block. ~65-token
 docs, GPT-2-small, p=3.
+
+## E1 refinement — greedy vs. sampled decoding (2026-06-26)
+
+Robustness check that the knee is not a sampling artifact. Re-ran E1 under **greedy**
+(deterministic) decoding, 6 payloads:
+
+| p | knee N* greedy | knee N* sampled (E1.1, T=1.0) |
+|---|---|---|
+| 1 | 4.0 | 7.2 |
+| 3 | 1.5 | 3.0 |
+| 5 | 1.5 | 1.9 |
+
+The knee **persists under greedy decoding** and length-robustness holds (N* decreasing with
+p). Greedy knees are *lower* than sampled — with no sampling noise to break reproduction the
+payload locks in with fewer repetitions. So the condensation knee is a property of the model,
+not of stochastic decoding. (A full temperature sweep, 0 → 1.0+, remains future work.)

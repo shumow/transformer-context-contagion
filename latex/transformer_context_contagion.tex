@@ -473,8 +473,10 @@ cannot copy it cleanly. A heterogeneous-model pipeline is naturally worm-resista
 Beyond the small scale (one model, $R\!\sim\!4$--$6$ payloads, $\sim\!72$--$128$ samples per
 cell, sampled $T{=}1.0$ only), the standing concerns are: \textbf{tokenization}---length is
 in tokens and OOD spans tokenize unstably, addressed by a round-trip-stability filter;
-\textbf{decoding}---lock-in is a sampling phenomenon, so greedy vs.\ temperature should be
-swept (\tbd); \textbf{instruction-tuned models} may comment or refuse rather than copy, so
+\textbf{decoding}---the knee persists under \emph{greedy} decoding (with lower $N^*$, less
+sampling noise to break reproduction), so it is a model property, not a sampling artifact; a
+full temperature sweep is still future work; \textbf{instruction-tuned models} may comment or
+refuse rather than copy, so
 base models are used for the clean mechanism and chat models are a separate condition
 (\tbd); \textbf{context-length vs.\ $N$}---addressed by E1.5 (\S\ref{sec:e15}): the knee
 persists at fixed total length, so it is an $N$ effect, though reproduction is
