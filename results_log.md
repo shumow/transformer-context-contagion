@@ -218,3 +218,42 @@ short-`p` reproduction has a model-dependent frequency component.
 **Caveat.** The "knee vs parameters" panel has only two near-identical sizes (124M, 162M);
 its apparent trend is **not** a scaling result. A genuine scaling sweep needs gpt2-medium+
 on hardware with more than 8 GB.
+
+## E2 — induction-head attribution on GPT-2 (2026-06-26)
+
+Mechanistic test of C2: do the actual induction heads carry the reproduction E1.2 showed
+behaviorally? Run on **CPU** (TransformerLens warns MPS may be silently wrong on torch 2.8;
+GPT-2-small on CPU is fast enough). Two steps.
+
+**1. Identify induction heads.** The standard repeated-random-sequence induction score
+flags the top heads as **L5H5, L7H10, L6H9, L5H1, L7H2** (then L9H6, L10H1, L9H9) — exactly
+the canonical GPT-2-small induction heads from the literature, validating the detector.
+
+**2. Causal ablation, swept over N.** Build `S × N`, measure `P(correct next payload
+token)`; ablate the 8 induction heads vs 8 random heads. The clean signal needs the
+**knee**, not saturation — at `N=16` the copy is over-determined (many copies + redundant
+heads) so ablating a subset barely dents it; near the knee the circuit is load-bearing.
+
+| | base | ablate-induction | ablate-random |
+|---|---|---|---|
+| p=3, N=2 | 0.40 | **0.05 (−87%)** | 0.30 (−25%) |
+| p=3, N=3 | 0.70 | 0.26 (−63%) | 0.57 (−18%) |
+| p=5, N=2 | 0.48 | **0.09 (−81%)** | 0.36 (−25%) |
+| p=5, N=3 | 0.74 | 0.31 (−58%) | 0.63 (−15%) |
+| p=1, N=4 | 0.31 | 0.10 (−67%) | 0.18 (−41%) |
+
+**Finding: induction heads causally carry the reproduction.** Ablating the 8 induction
+heads suppresses `P(correct token)` far more than ablating 8 random heads, at every length,
+and the gap is **largest near the knee** (−81%/−87% at N=2 for p=5/3) and washes out at
+saturation (`results/e2_gpt2.png`). This is the mechanistic confirmation of **C2** that
+E1.2 set up behaviorally — reproduction is genuinely an induction-head phenomenon. For p=1
+the induction ablation also bites (consistent with E1.2's "p=1 is mostly copy"), leaving a
+residual that is the frequency tail.
+
+**Caveats.** Random-head ablation is not exactly zero — removing any 8 heads causes ~15–25%
+general degradation — so the load-bearing signal is the **differential** (induction drop ≫
+random drop), which is large and consistent. 8 heads is a subset of the induction circuit;
+ablating more would suppress further. At deep repetition (`N=16`) reproduction is robust to
+losing 8 heads (redundancy). GPT-2-small only. Together with E1, this closes the core
+behavioral-plus-mechanistic case that the condensation knee on real transformers is an
+induction phenomenon.
