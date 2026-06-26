@@ -257,3 +257,49 @@ ablating more would suppress further. At deep repetition (`N=16`) reproduction i
 losing 8 heads (redundancy). GPT-2-small only. Together with E1, this closes the core
 behavioral-plus-mechanistic case that the condensation knee on real transformers is an
 induction phenomenon.
+
+## E6 — the context-window worm on GPT-2 / Pythia (2026-06-26)
+
+Transmission test (Track A, C6): an infected host's output (containing the payload) becomes
+the next host's context, passed as **text** (decoded then re-tokenized, as agents/RAG do);
+count payload copies in each host's output across hops. Fresh payload per trial (8 trials).
+
+**A. Same-model serial passage (GPT-2), mean load per hop** (`results/e6_worm_serial.png`):
+
+| p | hop 0 → 6 | verdict |
+|---|---|---|
+| 1 | 42 → 18 → 12 → 12 → 12 → 12 → **12** | **sustains** (endemic load ~12; survive 25%) |
+| 2 | 25 → 4 → 0 | dies (hop 2) |
+| 3 | 25 → 15 → 11 → 8 → 6 → 2 → 0 | decays out (hop 6) |
+| 5 | 12 → 5 → 5 → 3 → 1 → 0 | dies (hop 5) |
+| 8 | 6 → 2 → 0 | dies fast (hop 2) |
+
+**A real worm with a critical length.** Short strings (p=1) **propagate indefinitely** at an
+endemic load; longer strings **die out**, faster as `p` grows — i.e. `R0` falls with string
+length and crosses 1 around `p ≈ 1–2`. This confirms the toy's C6 prediction (short =
+epidemic, long = one-shot) on a real transformer.
+
+**Payload-dependence / super-spreaders.** Even at p=1, only ~25% of payloads sustain — the
+worm is carried by **"sticky" payloads that fully take over generation** (occupancy → 1,
+output ends mid-payload, so the next host re-enters). The high mean load is driven by those
+super-spreaders; most payloads reproduce weakly and die. This ties to E1.5: a payload that
+drifts to the front of a host's output is too far back (recency limit) for the next host to
+re-trigger, so GPT-2's worm is weaker than the toy's induction surrogate (critical length
+~1–2 vs the toy's ~2–3).
+
+**B. Cross-tokenizer firebreak** (p=3, GPT-2 patient zero; `results/e6_worm_crosstok.png`):
+
+| chain | load per hop |
+|---|---|
+| GPT-2 hosts (same tokenizer) | 15 → 9 → 8 → 6 → 4 → 4 → **2** (alive at hop 6) |
+| Pythia-160M hosts (different tokenizer) | 21 → 4 → **0** (dead after one hop) |
+
+**Confirmed: the tokenizer boundary is a firebreak.** Same-tokenizer transmission persists;
+re-tokenizing the payload text under a different tokenizer fragments it (different token
+boundaries) so induction can't copy it cleanly, and transmission collapses after the first
+cross-tokenizer hop. A heterogeneous-model pipeline is naturally worm-resistant.
+
+**Caveats.** 8 payloads/length, GPT-2-small + Pythia-160M, base models (no instructions),
+`T=96` tokens/host, text-level payload counting (p=1 counts a short substring, so its
+absolute load is less comparable). Establishes the *qualitative* epidemiology — critical
+length and the tokenizer firebreak — not precise R0 values.
