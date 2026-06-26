@@ -303,3 +303,38 @@ cross-tokenizer hop. A heterogeneous-model pipeline is naturally worm-resistant.
 `T=96` tokens/host, text-level payload counting (p=1 counts a short substring, so its
 absolute load is less comparable). Establishes the *qualitative* epidemiology — critical
 length and the tokenizer firebreak — not precise R0 values.
+
+## E4-lite — poisonability tracks trust, not usefulness (2026-06-26)
+
+The toy's headline claim (C4) on GPT-2-small, via a 2×2 of contexts —
+{repetitive, non-repetitive} × {useful (real text), useless (OOD gibberish)} — each scored
+on three axes: **U** = content naturalness (log-prob of one unit), **T** = induction-head
+engagement (attention to a repeated bigram's continuation, using the E2 induction heads),
+**P** = poisonability (copy-rate of a greedy continuation). On CPU via TransformerLens.
+
+| context type | U (log-prob) | T (induction) | P (copy-rate) |
+|---|---|---|---|
+| rep + useful (real sentence ×k) | −3.5 | 0.34 | ~0.77 |
+| rep + **useless** (gibberish ×k) | **−8.7** | 0.12 | **1.00** |
+| nonrep + **useful** (real prose) | **−4.2** | 0.00 | **0.00** |
+| nonrep + useless (random tokens) | −8.3 | 0.00 | ~0.22 |
+
+**The dissociation holds: `corr(P, usefulness) = −0.20`, `corr(P, trust) = +0.54`.**
+Poisonability follows the repetition / induction-trust axis, **not** the usefulness axis
+(`results/e4_trust.png`). The headline contrast is stark: **repetitive gibberish (the
+*least* useful content, `U≈−9`) is fully poisonable (`P=1.0`), while non-repetitive real
+prose (useful, `U≈−4`) is not poisonable at all (`P=0.0`)**. Induction engagement (T) is
+present for *both* repetitive types — including the useless one — and absent for both
+non-repetitive types, exactly tracking P.
+
+This is the real-transformer analogue of the toy's central finding (exploitability tracks
+trust, not usefulness) and its defensive corollary: **the quantity to bound is trust on
+repeated/templated content, independent of whether that content is useful.** Boilerplate,
+duplicated RAG passages, and repeated instructions are poisonable *because they repeat*,
+not because they help.
+
+**Caveats.** Small N (16 contexts), GPT-2-small. "Usefulness" here is a *naturalness proxy*
+(content log-prob), not a real downstream-task benefit — a base model has no task, so the
+instruction-tuned version (Track B) is needed to test usefulness as actual task utility.
+Greedy copy-rate has occasional outliers (one rep+useful at 0.075, one nonrep+useless at
+0.875). The qualitative dissociation (P ⊥ usefulness, P ∥ repetition/induction) is clear.
