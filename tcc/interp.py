@@ -74,6 +74,25 @@ def make_ablation_hooks(model, heads):
     return [(f"blocks.{L}.attn.hook_z", hook_factory(hs)) for L, hs in by_layer.items()]
 
 
+def repeat_induction_profile(model, ids, heads):
+    """Per-position induction engagement: for each position, the mean attention the given
+    heads pay to the continuation of the most recent REPEATED BIGRAM ending there (0 if
+    none). High on a repeated/poisoned span, ~0 on natural non-repetitive text. This is the
+    detector signal -- the same induction-trust quantity that predicts poisonability (E4)."""
+    import numpy as np
+    import torch
+    with torch.no_grad():
+        _, cache = model.run_with_cache(torch.tensor([ids]), return_type=None)
+    prof = np.zeros(len(ids))
+    for i in range(2, len(ids)):
+        js = [j for j in range(1, i) if ids[j] == ids[i] and ids[j - 1] == ids[i - 1]]
+        if not js or js[-1] + 1 > i:
+            continue
+        k = js[-1] + 1
+        prof[i] = float(np.mean([cache["pattern", L][0, H, i, k].item() for L, H in heads]))
+    return prof
+
+
 def target_prob(model, context_ids, target_id, hooks=None):
     """Probability the model assigns to `target_id` as the next token after `context_ids`,
     optionally under ablation hooks. The logit-space analogue of `P(reproduce)`."""

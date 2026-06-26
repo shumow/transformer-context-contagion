@@ -376,3 +376,36 @@ suppress the hijack.
 
 **Caveats.** ~65-token "documents" (GPT-2-small, scaled down), p=3, occupancy metric, 12
 samples/cell. The realistic long-context (4k–128k) RAG version with retrieval is Track B.
+
+## E7 — the paired detector (defensive complement) (2026-06-26)
+
+The attacks (E4/E5/E6) all key on one quantity: induction trust earned by a repeated span.
+So the defense watches that same quantity. The detector scores a context by its mean
+**induction engagement** (attention the canonical GPT-2 induction heads pay to
+repeated-bigram continuations, `tcc.interp.repeat_induction_profile`) — high on a repeated
+/ poisoned span, ~0 on natural prose. Binary test: clean prose docs vs. the same docs with
+an OOD payload (p=3) repeated k times planted at the end.
+
+| | clean | k=2 | k=4 | k=8 | k=16 |
+|---|---|---|---|---|---|
+| mean detector score | ~0.001 | 0.015 | 0.038 | 0.053 | 0.057 |
+| AUC vs clean | — | **1.00** | **1.00** | **1.00** | **1.00** |
+
+**Perfect separation (AUC=1.0) at every k**, with the score rising monotonically with k
+(`results/e7_detector.png`). Natural prose has essentially zero repeated-bigram induction
+engagement, so any planted repeated span stands out — and the detector fires already at
+**k=2, well below the in-document hijack knee (~10–12, E5)**: it flags the poisonable
+configuration *before* it is dangerous. Detection sensitivity grows exactly as the context
+becomes more poisonable, and it operates on the **trust** signal, independent of usefulness
+(it would flag the E4 gibberish-poison and a coherent-looking repeated poison alike).
+
+**Defensive reading.** Flagging — or capping the trust earned by — repeated spans that
+approach the condensation knee is precisely what neutralizes the E5 hijack and the E6 worm,
+and it is the transformer realization of the toy's "bound trust, not usefulness" corollary.
+
+**Honest caveat.** The detector flags *any* induction-engaging repeated span, malicious or
+benign — repeated boilerplate, templates, repeated instructions, code. That is the
+*correct* behavior under the thesis (such spans are genuinely poisonable, E4), but it means
+the detector identifies the poisonable *configuration*, not malicious *intent*; a deployed
+version needs a benign-repetition allowlist or a trust cap rather than a hard block. ~65-token
+docs, GPT-2-small, p=3.
