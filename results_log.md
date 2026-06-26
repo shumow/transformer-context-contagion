@@ -189,3 +189,32 @@ arbitrarily long-range**. Security reading: a payload *buried* deep in a long co
 disentangling needs a position-matched control. Larger models have more / longer-range
 induction heads, so the distance limit is expected to extend with scale — a prediction for
 E1.3-lite / E2. 4 payloads × 10 trials, GPT-2-small, `T=1.0`.
+
+## E1.3-lite — size sweep, and an 8 GB hardware wall (2026-06-26)
+
+Intended a knee-vs-size sweep over GPT-2 {small, medium, large} and Pythia {160M, 410M}.
+**Hardware finding (the dominant outcome): an 8 GB machine cannot run gpt2-medium (355M)
+or larger.** gpt2-large (774M, 3 GB of weights) drove swap to 97% full and thrashed (47
+min wall, ~9 min CPU, nothing completed); even gpt2-medium thrashed once residual swap
+pressure built up. GPT-2-small (124M) and Pythia-160M (162M) run fine; everything above
+needs a bigger machine. The real size-scaling question (E1.3 proper) is therefore
+**deferred to more compute** — recorded as a constraint, not a result.
+
+What *did* run (gpt2 + pythia-160m, 3 payloads × 8 trials):
+
+| model | params | knee $N^*$ (p=1, 3, 5) |
+|---|---|---|
+| gpt2 | 124M | 6.2, 2.3, 1.6 |
+| pythia-160m | 162M | none (<0.5 at N≤32), 3.2, 1.9 |
+
+**Cross-family replication.** The condensation knee and its length-robustness
+(`N*` decreasing with `p`) appear in **both** model families, not just GPT-2
+(`results/e1_3.png`, left) — a (modest) generality check. The gpt2 knees here (6.2/2.3/1.6)
+also replicate E1.1 (7.2/3.0/1.9) under a smaller payload/trial budget. Pythia-160m fails
+to lock a single token within `N≤32` (knee undefined at p=1), i.e. it is *harder* to
+frequency-drive into repeating one token than GPT-2 — consistent with E1.2's reading that
+short-`p` reproduction has a model-dependent frequency component.
+
+**Caveat.** The "knee vs parameters" panel has only two near-identical sizes (124M, 162M);
+its apparent trend is **not** a scaling result. A genuine scaling sweep needs gpt2-medium+
+on hardware with more than 8 GB.
