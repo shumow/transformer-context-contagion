@@ -147,6 +147,29 @@ one tokenizer likely fragments under another — a predicted natural firebreak).
   on this machine — GPT-2 ↔ Pythia-160M (different tokenizers). **Deferred:** larger models,
   longer payloads, and larger host populations / contact graphs.
 
+### E8 — Self-extracting / staged payloads
+**Tests whether a payload can be high-entropy "nonsense" on the surface yet *unfold* into a
+payload via per-layer in-context substitution** (evasion: a content filter sees gibberish;
+the payload only materializes after the model decodes it). A substitution table is key/value
+pairs, and induction is exactly "saw `[key][value]` … see `[key]` → predict `[value]`," so
+the substitution step is an induction primitive. Iterated substitution is a tag/L-system —
+powerful in principle — but error/interference accumulates across layers, bounding the
+extraction depth like the brittleness ladder.
+- *Predicted:* induction carries single-step substitution; depth is sharply limited; a
+  *coherent* self-extracting payload needs a capable/instruct model.
+- **On 8 GB now (E8-lite).** With benign OOD markers (the "decoded" tokens are just other
+  random markers — no coherent or harmful payload), measure on GPT-2-small: single-step
+  substitution fidelity vs table size, its **induction attribution** (ablate the E2 heads),
+  and a direct 2-step cascade. *Result (done):* substitution **is** induction-carried
+  (ablating the induction heads collapses it, −57% to −68% at larger tables, vs random
+  heads); single-step fidelity is modest (~0.5/table, up to 0.97 with demonstration); but the
+  **2-step cascade succeeds only 0.19 (< f²)** — the binding limit is **cross-layer
+  interference** (an intermediate value collides as both value and key, splitting the
+  induction lookup), so self-extraction is sharply depth-limited and the cascade self-limits.
+- **Deferred (Track B):** unfolding into a *coherent natural-language* payload, and the
+  "decode this chunk → follow the decoded instruction" self-execution loop — both need a
+  capable / instruction-tuned model (a *capability*, not throughput, dependency).
+
 ## 4. Metrics and analysis
 - **Reproduction fidelity** (transition-level), **knee location** `N*(p)`,
   **reps-to-reproduce**, **induction-attribution fraction** (patching effect size),
@@ -176,23 +199,27 @@ and is **causally carried by the induction heads** (E2, C2 mechanistically); it 
 in Pythia-160M. The size sweep (E1.3) is **blocked by the 8 GB dev machine** (gpt2-medium+
 thrash on swap). The remaining work splits by hardware:
 
-### Track A — runnable now on the 8 GB machine (GPT-2-small, Pythia-160M)
-- **E6 — the worm** (best fit): serial passage, `R0`, critical length, and the
-  GPT-2 ↔ Pythia-160M **cross-tokenizer firebreak**. Generation-only; no size pressure.
-- **E4-lite — trust vs.\ usefulness:** the 2×2 of {repetitive, non-repetitive} ×
-  {useful, useless} contexts, scored by induction-attention (trust), perplexity reduction
-  (usefulness), and the knee (poisonability).
-- **E5-lite — scaled-down RAG hijack:** prose "warmed context" + a planted span; hijack
-  rate vs.\ placement/recency and repetition count.
-- **Cheap E1 refinements:** greedy vs.\ temperature sweep; more payloads/seeds to tighten CIs.
-- **The paired defense/detector** for each (bound longest-match trust on repeated spans),
-  which is small-model-friendly.
+### Track A — runnable now on the 8 GB machine (GPT-2-small, Pythia-160M) — **DONE**
+- **E6 — the worm** (done): critical string length and the GPT-2 ↔ Pythia-160M
+  cross-tokenizer firebreak.
+- **E4-lite — trust vs.\ usefulness** (done): poisonability ⊥ usefulness, ∥ induction trust.
+- **E5-lite — scaled-down RAG hijack** (done): hijack = entry (recency) × lock-in.
+- **E7 — paired detector** (done): flags poisonable repeated spans at AUC 1.0; the
+  bound-trust defense.
+- **E8-lite — self-extracting payloads** (done): substitution is induction-carried but
+  sharply depth-limited by cross-layer interference.
+- **E1 greedy refinement** (done): the knee persists under greedy decoding. (Remaining
+  cheap item: a full temperature sweep.)
 
 ### Track B — needs a bigger machine (≥24 GB unified RAM, or a 24 GB+ GPU)
 - **E1.3 proper** (size sweep, 355M–~7B) and **E1.4** (instruction-tuned / chat models).
 - **E4 and E5 at scale:** instruct models give a *real* task for "usefulness"; 4k–128k
   context gives a *real* long-context/RAG setting.
 - **Longer-range induction:** larger models should extend E1.5's distance limit.
+- **E8 capstone:** the *coherent* self-extracting payload (decodes into natural-language
+  text) and the self-execution loop (follow the decoded instruction) — a *capability*
+  dependency, not throughput; bigger models should also extend E8-lite's depth limit via
+  better table disambiguation.
 
 **Deliverables:** the harness repo, the running `results_log.md`, and the progress-report
 paper (`latex/transformer_context_contagion.tex`) extending the two toy write-ups with
