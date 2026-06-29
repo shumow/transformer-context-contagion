@@ -425,3 +425,47 @@ The knee **persists under greedy decoding** and length-robustness holds (N* decr
 p). Greedy knees are *lower* than sampled — with no sampling noise to break reproduction the
 payload locks in with fewer repetitions. So the condensation knee is a property of the model,
 not of stochastic decoding. (A full temperature sweep, 0 → 1.0+, remains future work.)
+
+## E8-lite — in-context substitution as an induction primitive, and the cascade limit (2026-06-26)
+
+Mechanistic core of the "self-extracting payload" idea (random tokens that unfold into a
+payload via per-layer substitution), on GPT-2-small with benign OOD markers — the "decoded"
+tokens are just other random markers, no coherent or harmful payload. A substitution table
+is key/value pairs; induction is "saw [key][value]…see [key]→predict [value]." Three measurements.
+
+**1. Single-step substitution is real and induction-carried.** Present a random OOD table
+(m pairs), query a key, measure top-1 accuracy of the value:
+
+| m | clean | ablate induction | ablate random |
+|---|---|---|---|
+| 2 | 0.31 | 0.19 | 0.38 |
+| 4 | 0.50 | 0.34 | 0.41 |
+| 8 | 0.47 | **0.20 (−57%)** | 0.44 (−6%) |
+| 16 | 0.47 | **0.15 (−68%)** | 0.31 |
+
+Ablating the (E2) induction heads collapses substitution far more than ablating the same
+number of random heads, sharply so at larger tables — **in-context substitution is an
+induction primitive.** But the absolute fidelity is *modest* (~0.5 for a single table):
+GPT-2-small does novel substitution only about half the time.
+
+**2. The binding constraint is cross-layer interference, not per-step fidelity.** With more
+in-context demonstration (two tables present), the *single* lookup jumps to **0.97** — so
+per-step fidelity is context-dependent and can be high. Yet the **2-step cascade succeeds
+only 0.19** (table1 `k→v`, table2 `v→w`, query `k`, decode two layers) — *below* the
+optimistic `f²=0.25`. The reason: the intermediate value `v` appears both as a value (table1)
+and a key (table2), so the induction lookup is **split** between the two — the cascade's own
+intermediate products create induction ambiguity. So self-extraction depth is bounded *worse*
+than the `f^(L·depth)` brittleness ladder predicts.
+
+**Answer to "is a self-extracting payload possible?"** Mechanistically yes — induction is
+exactly the substitution primitive — but on GPT-2-small it is **sharply depth-limited**: even
+two layers lose most of the signal, and the limiter is cross-layer interference, not raw
+fidelity. A deep self-extractor would need a model that both substitutes more reliably *and*
+disambiguates which table to use (likely positional/recency, stronger at scale). That extends
+the depth limit but is a Track-B (capability) question; the *coherent*-payload and
+self-execution capstone is also Track-B. **Defensive note:** the cascade self-limits — an
+attacker's own staging fights them — and the staging structure (an in-context lookup table) is
+itself a conspicuous, induction-engaging pattern the E7 detector keys on.
+
+**Caveats.** GPT-2-small, 8 tables × m queries/cell (small-m rows noisy), top-1 metric,
+greedy 2-step. Characterizes the primitive and the interference obstacle, not a working extractor.
