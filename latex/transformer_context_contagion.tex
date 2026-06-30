@@ -66,8 +66,13 @@ die out) and a \emph{cross-tokenizer firebreak} (GPT-2$\to$Pythia transmission c
 A \emph{paired detector} closes the loop: scoring contexts by induction-trust on repeated spans
 separates poisoned from clean documents perfectly (AUC $1.0$) and flags the poisonable
 configuration before it crosses the hijack knee---the transformer realization of the toy's
-\emph{bound-trust} defense. What remains is scale: a genuine size sweep and instruction-tuned
-models are capped by the 8\,GB development machine. This document will be revised as those land.
+\emph{bound-trust} defense. We then take the keystone to \emph{scale} on a cloud GPU: the
+condensation knee is low and length-robust across \mbox{355M--7B} in four model families and
+essentially \emph{flat with parameter count}---the copy mechanism is saturated by 355M (C3)---and
+it \emph{persists in instruction-tuned/chat models}, which copy rather than refuse, with only a
+modest threshold increase (E1.3/E1.4, \S\ref{sec:scale}). What remains is the mechanistic
+attribution \emph{at scale} (induction-head ablation on $\ge$24\,GB models) and the
+larger-context, retrieval-grounded versions of the downstream claims.
 \end{abstract}
 
 % ===========================================================================
@@ -100,8 +105,9 @@ E4-lite trust, not usefulness & done & poisonability $\perp$ usefulness, $\paral
 E5-lite delivery in a document & done & hijack $=$ entry $\times$ lock-in (\S\ref{sec:e5}). \\
 E6 the worm / $R_0$ & done & critical length; cross-tokenizer firebreak (\S\ref{sec:e6}). \\
 E7 paired detector & done & flags poisonable repeated spans, AUC $1.0$ (\S\ref{sec:e7}). \\
-E1.4 modern / chat models & \tbd & base vs.\ instruct (needs $>$8\,GB). \\
-E1.3 size sweep ($\ge$355M) & \tbd & how the knee moves with scale (needs $>$8\,GB). \\
+E1.4 modern / chat models & done & knee persists in chat models, base$\to$instruct (\S\ref{sec:scale}). \\
+E1.3 size sweep ($\ge$355M) & done & knee flat with scale, 355M--7B, 4 families (\S\ref{sec:scale}). \\
+E2 attribution at scale & \tbd & induction-head ablation on $\ge$24\,GB models. \\
 \bottomrule
 \end{tabular}
 \caption{Status of the experimental program. Stage numbering follows
@@ -339,6 +345,96 @@ a real sweep needs $>$8\,GB. Reproduced by \texttt{experiments/e1\_3\_size\_swee
 \end{figure}
 
 % ===========================================================================
+\section{At scale: the knee from 355M to 7B, base and chat (E1.3/E1.4)}\label{sec:scale}
+% ===========================================================================
+The size sweep the 8\,GB machine blocked (\S\ref{sec:e13}) was re-run on an Azure
+NC4as\_T4\_v3 (NVIDIA T4, 16\,GB), in \texttt{float16}, across \textbf{twelve base models in
+four families spanning 355M--7B}---GPT-2 \{medium, large, xl\}, Pythia \{410M, 1.4B, 2.8B\},
+Qwen2.5 \{0.5B, 1.5B, 3B, 7B\}, Llama-3.2 \{1B, 3B\}---and then on four
+\textbf{instruction-tuned} models (E1.4). Main condition only (controls validated on
+GPT-2-small); knee $N^*(p)$ for $p\in\{1,3,5,8\}$, $N\in\{1,\dots,32\}$.
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=0.86\textwidth]{e1_3_scale.png}
+\caption{E1.3 at scale. \emph{Left:} knee $N^*$ vs.\ string length for each model---low and
+roughly flat for $p\ge3$ at every size and in all four families. \emph{Right:} mean knee vs.\
+parameters---no downward trend for $p\ge3$; the copy mechanism is already saturated by 355M.
+Reproduced by \texttt{experiments/e1\_3\_size\_sweep.py}.}
+\label{fig:scale}
+\end{figure}
+
+\begin{table}[h]
+\centering\small
+\begin{tabular}{lccccc}
+\toprule
+model & params & $N^*(p{=}1)$ & $p{=}3$ & $p{=}5$ & $p{=}8$ \\
+\midrule
+GPT-2-medium & 355M & 5.1 & 2.7 & 1.8 & 1.7 \\
+GPT-2-large  & 774M & 6.3 & 1.9 & 1.6 & 1.6 \\
+GPT-2-xl     & 1.5B & 9.3 & 1.9 & 1.6 & 1.7 \\
+Pythia-410m  & 410M & --  & 2.4 & 1.7 & 1.9 \\
+Pythia-1.4b  & 1.4B & --  & 2.3 & 1.6 & 2.3 \\
+Pythia-2.8b  & 2.8B & --  & 2.3 & 1.5 & 1.8 \\
+Qwen2.5-0.5B & 0.5B & --  & 1.8 & 1.5 & 1.7 \\
+Qwen2.5-1.5B & 1.5B & --  & 1.8 & 1.9 & 1.6 \\
+Qwen2.5-3B   & 3B   & --  & 1.8 & 1.7 & 1.7 \\
+Qwen2.5-7B   & 7B   & --  & 1.5 & 1.6 & 1.6 \\
+Llama-3.2-1B & 1B   & --  & 1.9 & 2.7 & 1.9 \\
+Llama-3.2-3B & 3B   & --  & 1.7 & 1.9 & 1.6 \\
+\bottomrule
+\end{tabular}
+\caption{E1.3 size sweep (Track B, T4). ``--'' $=$ no knee ($P<\tfrac12$ for $N\le32$). The
+$p\ge3$ knee is low ($N^*\!\approx\!1.5$--$2.7$) and essentially size-independent.}
+\label{tab:scale}
+\end{table}
+
+\paragraph{C3 holds across scale and family.} For $p\ge3$ the knee is low and roughly flat
+everywhere ($N^*\!\approx\!1.5$--$2.7$, decreasing in $p$): a novel span of $\ge3$ tokens
+locks in after $\sim$2 presentations at every size up to 7B and in all four families
+(Fig.~\ref{fig:scale}). Induction-style length-robustness is not a small-model artifact.
+
+\paragraph{The knee does not fall with scale.} Contrary to the loose expectation that larger
+models give a lower or sharper knee, $N^*(p\ge3)$ is essentially flat in parameter count---the
+copy mechanism is already saturated by 355M. Any size dependence lives in \emph{single-token}
+lock-in: only the GPT-2 family locks $p{=}1$ within $N\le32$, and its knee \emph{rises} with
+size ($5.1\to6.3\to9.3$). This sharpens E1.2's reading---$p{=}1$ reproduction is a
+model-specific frequency-prior effect, not induction, while the induction-carried $p\ge3$ knee
+is universal.
+
+\paragraph{E1.4: instruction-tuning does not immunize.} The worry that chat models would
+refuse or summarize rather than copy did not materialize: all four ran clean and reproduced
+the planted span, with the knee in the same low regime (Table~\ref{tab:instruct}).
+Instruction-tuning \emph{raises} the threshold modestly---most for Llama-3.2-3B-Instruct
+($p{=}5$ knee $6.3$ vs.\ base $1.9$, the most resistant chat model)---but never removes it.
+The small instruct model gemma-2-2b-it is the most eager copier and the only model in either
+sweep to lock a \emph{single} token ($p{=}1$, $N^*{=}1.0$). C1/C3 thus extend to the realistic
+chat condition.
+
+\begin{table}[h]
+\centering\small
+\begin{tabular}{lcccccc}
+\toprule
+instruct model & params & $N^*(p{=}1)$ & $p{=}3$ & $p{=}5$ & $p{=}8$ & base $N^*(3/5/8)$ \\
+\midrule
+Qwen2.5-1.5B-Instruct & 1.5B & --  & 2.8 & 2.8 & 2.0 & 1.8 / 1.9 / 1.6 \\
+Qwen2.5-7B-Instruct   & 7B   & --  & 1.6 & 2.5 & 1.8 & 1.5 / 1.6 / 1.6 \\
+Llama-3.2-3B-Instruct & 3B   & --  & 3.2 & 6.3 & 2.0 & 1.7 / 1.9 / 1.6 \\
+gemma-2-2b-it         & 2B   & 1.0 & 3.0 & 1.8 & 1.4 & --- \\
+\bottomrule
+\end{tabular}
+\caption{E1.4 instruct models (Track B, T4), with base counterparts from
+Table~\ref{tab:scale}. The knee persists; instruction-tuning raises it modestly, most for
+Llama-3.2-3B-Instruct. Raw-context format (span as bare tokens, not a chat template).}
+\label{tab:instruct}
+\end{table}
+
+\paragraph{Setup.} \texttt{float16} keeps the 7B models at $\sim$14\,GB on the 16\,GB T4;
+gated weights (Llama, Gemma) load from cache offline. The mechanistic attribution at scale
+(E2 on a $\ge$24\,GB GPU) and the coherent self-extraction capstone (E8) remain---the
+24\,GB-GPU stage.
+
+% ===========================================================================
 \section{E2: induction-head attribution}\label{sec:e2}
 % ===========================================================================
 E1.2 showed reproduction is cue-triggered copy (behavioral induction); E2 asks whether the
@@ -513,12 +609,13 @@ in tokens and OOD spans tokenize unstably, addressed by a round-trip-stability f
 sampling noise to break reproduction), so it is a model property, not a sampling artifact; a
 full temperature sweep is still future work; \textbf{instruction-tuned models} may comment or
 refuse rather than copy, so
-base models are used for the clean mechanism and chat models are a separate condition
-(\tbd); \textbf{context-length vs.\ $N$}---addressed by E1.5 (\S\ref{sec:e15}): the knee
+base models are used for the clean mechanism and chat models are a separate condition---now
+run (E1.4, \S\ref{sec:scale}), where the knee persists with only a modest threshold rise;
+\textbf{context-length vs.\ $N$}---addressed by E1.5 (\S\ref{sec:e15}): the knee
 persists at fixed total length, so it is an $N$ effect, though reproduction is
-distance-sensitive; and \textbf{scale}---induction strengthens with model size, so the knee
-is expected to move, but the size sweep is capped at 162M by the 8\,GB machine
-(\S\ref{sec:e13}) and needs more compute.
+distance-sensitive; and \textbf{scale}---the behavioral knee now extends cleanly to 7B across four families and is
+flat with size (\S\ref{sec:scale}); what is still pending is the \emph{mechanistic}
+attribution at scale (E2 on a $\ge$24\,GB GPU).
 
 % ===========================================================================
 \section{What is established, and what is not}\label{sec:honesty}
@@ -536,12 +633,15 @@ generation as entry$\,\times\,$lock-in (C5, \S\ref{sec:e5}); and the worm has a 
 length and a cross-tokenizer firebreak (C6, \S\ref{sec:e6}). The phenomena replicate in a second
 model family (Pythia-160M). So all six conjectures C1--C6 have a qualitative real-transformer
 result, and a paired detector (\S\ref{sec:e7}) realizes the toy's bound-trust defense (poisoned
-vs.\ clean documents separate at AUC $1.0$ on the induction-trust signal). What is \emph{not}
-yet established is \textbf{scale}: how the knee, the worm's critical
-length, and the induction range move with model size (the sweep is capped at 162M by 8\,GB), and
-whether instruction-tuned models behave the same---plus the larger-context, retrieval-grounded
-versions of C5 and C6, and a real-task (not naturalness-proxy) usefulness for C4. Those need more
-than an 8\,GB machine and are the next stage.
+vs.\ clean documents separate at AUC $1.0$ on the induction-trust signal). The keystone now also holds \emph{at scale}: the condensation knee is low and length-robust
+from 355M to 7B across four model families and flat in parameter count (\S\ref{sec:scale}),
+and it persists in instruction-tuned models---chat models copy rather than refuse, with only a
+modest threshold rise (E1.4). What is \emph{not} yet established is the \textbf{mechanism at
+scale}: whether induction-head ablation collapses reproduction on the larger models as it does
+on GPT-2-small (E2 needs a $\ge$24\,GB GPU), together with the worm's critical length and
+induction range at scale, the larger-context retrieval-grounded versions of C5 and C6, a
+real-task (not naturalness-proxy) usefulness for C4, and the coherent self-extraction capstone
+(E8). Those are the 24\,GB-GPU stage, now under way.
 
 \begin{thebibliography}{9}
 \bibitem{shumow2026trust} D.\ Shumow. \emph{Trust Is the Attack Surface: A Cryptanalytic

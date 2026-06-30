@@ -518,3 +518,42 @@ anti-correlated with GPT-2 scale — while the induction-carried p ≥ 3 knee is
 wall for the 10 ungated models. Results: `results/e1_3_trackb_t4.{json,png}`; Llama in
 `results/e1_3_llama*`. Instruction-tuned models (E1.4) follow; the mechanistic/24 GB work
 (E2 at scale) is deferred to the A10.
+
+## E1.4 — does the knee survive instruction-tuning? (Track B, T4) (2026-06-30)
+
+Same knee measurement as E1.3 (fp16, T4, lengths p ∈ {1,3,5,8}, reps N ∈ {1,2,4,8,16,32},
+3 payloads × 8 trials) on four **instruction-tuned / chat** models across three families:
+Qwen2.5-{1.5B,7B}-Instruct, Llama-3.2-3B-Instruct, gemma-2-2b-it. Gated weights loaded from
+cache under `HF_HUB_OFFLINE=1`. The plan's worry: chat models might refuse, summarize, or
+comment rather than copy. They did **not** — all four ran clean and reproduced the span.
+
+| model | params | N*(p=1) | p=3 | p=5 | p=8 | base counterpart (p=3/5/8) |
+|---|---|---|---|---|---|---|
+| Qwen2.5-1.5B-Instruct | 1.5B | – | 2.8 | 2.8 | 2.0 | 1.8 / 1.9 / 1.6 |
+| Qwen2.5-7B-Instruct | 7B | – | 1.6 | 2.5 | 1.8 | 1.5 / 1.6 / 1.6 |
+| Llama-3.2-3B-Instruct | 3B | – | 3.2 | 6.3 | 2.0 | 1.7 / 1.9 / 1.6 |
+| gemma-2-2b-it | 2B | **1.0** | 3.0 | 1.8 | 1.4 | (no base run) |
+
+(– = no knee at N ≤ 32.)
+
+**Instruction-tuning does not immunize against context contagion.** The condensation knee
+persists in every chat model, in the same low regime as base models — a planted repeated
+span of length p ≥ 3 still gets reproduced after ~2–3 presentations. C1/C3 extend to the
+"more realistic" chat condition.
+
+**The effect is a modest *raising* of the threshold, not removal.** Instruct knees sit
+slightly above their base counterparts (e.g. Qwen2.5-7B 1.5/1.6/1.6 → 1.6/2.5/1.8). The
+exception is **Llama-3.2-3B-Instruct**, clearly the most resistant (p=5 knee 6.3 vs base 1.9)
+— instruction-tuning bought it the largest reps-to-reproduce penalty, but did not abolish the
+knee.
+
+**gemma-2-2b-it is the most eager copier** — the only model in either sweep to lock a
+*single* repeated token (p=1 N\* = 1.0). Single-token lock-in thus is not exclusively a GPT-2
+quirk (E1.3): a small instruct model also does it, reinforcing that p=1 reproduction tracks
+model-specific token priors rather than the universal induction-carried p ≥ 3 knee.
+
+**Setup/caveats.** Raw-context format (the planted span as bare tokens, not wrapped in a chat
+template); a chat-templated condition is a natural follow-up and may shift thresholds.
+Results: `results/e1_4.json` (with bootstrap CIs) on the VM's persistent disk — pulled next
+session; knees here are from the run log. T4 idle-deallocated itself after the run (cost
+safety worked).
