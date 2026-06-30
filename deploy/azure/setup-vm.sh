@@ -18,6 +18,10 @@ WITH_VLLM="${WITH_VLLM:-0}"   # set 1 to also install vLLM (heavy; only needed f
 echo "==> nvidia-smi"
 nvidia-smi --query-gpu=name,memory.total,driver_version --format=csv
 
+echo "==> ensure python venv + pip (ubuntu-hpc base image lacks ensurepip)"
+sudo apt-get update -qq
+sudo apt-get install -y -qq python3-venv python3-pip >/dev/null
+
 echo "==> clone $REPO"
 [ -d "$DIR/.git" ] || git clone "$REPO" "$DIR"
 cd "$DIR"
