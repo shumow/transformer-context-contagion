@@ -53,7 +53,8 @@ GATED=(
   google/gemma-2-2b google/gemma-2-2b-it
 )
 
-dl(){ echo "   -- $1"; huggingface-cli download "$1" --quiet >/dev/null 2>&1 || echo "      FAILED: $1"; }
+# huggingface_hub >=1.0 renamed the CLI to `hf` and dropped `--quiet` on download.
+dl(){ echo "   -- $1"; hf download "$1" >/dev/null 2>&1 || echo "      FAILED: $1"; }
 
 echo "==> pre-downloading ungated models"
 for m in "${UNGATED[@]}"; do dl "$m"; done
