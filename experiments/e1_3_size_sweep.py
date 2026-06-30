@@ -39,7 +39,10 @@ def measure_model(name, args):
     from tcc.models import LM
     import torch
     rng = np.random.default_rng(args.seed)
-    lm = LM(name, device=args.device)
+    dt = None
+    if args.dtype and args.dtype != 'float32':
+        dt = 'auto' if args.dtype == 'auto' else getattr(torch, args.dtype)
+    lm = LM(name, device=args.device, dtype=dt)
     pool = payloads.rare_token_pool(lm.tokenizer)
     out = {}
     for p in args.lengths:
@@ -84,6 +87,8 @@ def main():
     ap.add_argument('--temperature', type=float, default=1.0)
     ap.add_argument('--fid-threshold', type=float, default=0.5)
     ap.add_argument('--device', default=None)
+    ap.add_argument('--dtype', default='float16',
+                    help="load dtype: float16 (default; fits 7B on a 16GB T4), bfloat16, float32, or auto")
     ap.add_argument('--seed', type=int, default=7)
     ap.add_argument('--prefix', default='results/e1_3')
     args = ap.parse_args()
