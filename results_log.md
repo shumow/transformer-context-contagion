@@ -469,3 +469,52 @@ itself a conspicuous, induction-engaging pattern the E7 detector keys on.
 
 **Caveats.** GPT-2-small, 8 tables × m queries/cell (small-m rows noisy), top-1 metric,
 greedy 2-step. Characterizes the primitive and the interference obstacle, not a working extractor.
+
+## E1.3 — the size sweep at scale (Track B, Azure T4) (2026-06-30)
+
+E1.3-lite was blocked on the 8 GB dev machine (gpt2-medium+ thrashed swap). Re-run properly
+on an Azure NC4as_T4_v3 (Tesla T4, 16 GB), fp16, across **12 base models in four families,
+355M → 7B**: GPT-2 {medium, large, xl}, Pythia {410m, 1.4b, 2.8b}, Qwen2.5 {0.5B, 1.5B, 3B,
+7B}, Llama-3.2 {1B, 3B}. Main condition only (controls validated on GPT-2-small); 3 payloads
+× 8 trials, lengths p ∈ {1,3,5,8}, reps N ∈ {1,2,4,8,16,32}.
+
+| model | params | N*(p=1) | p=3 | p=5 | p=8 |
+|---|---|---|---|---|---|
+| gpt2-medium | 355M | 5.1 | 2.7 | 1.8 | 1.7 |
+| gpt2-large | 774M | 6.3 | 1.9 | 1.6 | 1.6 |
+| gpt2-xl | 1.5B | 9.3 | 1.9 | 1.6 | 1.7 |
+| pythia-410m | 410M | – | 2.4 | 1.7 | 1.9 |
+| pythia-1.4b | 1.4B | – | 2.3 | 1.6 | 2.3 |
+| pythia-2.8b | 2.8B | – | 2.3 | 1.5 | 1.8 |
+| Qwen2.5-0.5B | 0.5B | – | 1.8 | 1.5 | 1.7 |
+| Qwen2.5-1.5B | 1.5B | – | 1.8 | 1.9 | 1.6 |
+| Qwen2.5-3B | 3B | – | 1.8 | 1.7 | 1.7 |
+| Qwen2.5-7B | 7B | – | 1.5 | 1.6 | 1.6 |
+| Llama-3.2-1B | 1B | – | 1.9 | 2.7 | 1.9 |
+| Llama-3.2-3B | 3B | – | 1.7 | 1.9 | 1.6 |
+
+(– = no knee: P(reproduce) stays < 0.5 for N ≤ 32.)
+
+**C3 holds across scale and family.** For payloads of length p ≥ 3 the knee is **low and
+roughly flat — N\* ≈ 1.5–2.7 everywhere**, falling with p. A novel span of ≥ 3 tokens locks
+in after ~2 presentations at every size up to 7B and in all four families. Induction-style
+length-robustness is not a small-model artifact.
+
+**The knee does not fall with scale (for p ≥ 3).** Contrary to the plan's loose prediction
+that bigger = lower/sharper, N\*(p ≥ 3) is essentially size-independent — the copy mechanism
+is already saturated by 355M. Any scale effect lives in *single-token* lock-in, not
+multi-token.
+
+**Single-token lock-in is a GPT-2-family quirk, and it gets *harder* with scale.** Only the
+GPT-2 family locks a single repeated token within N ≤ 32, and its knee *rises* with size
+(5.1 → 6.3 → 9.3 for medium → large → xl). Pythia, Qwen2.5, and Llama-3.2 never lock p=1 by
+N ≤ 32. This sharpens E1.2's "short-p has a model-dependent frequency component": p=1
+reproduction is about token *frequency priors*, not induction — family-specific and
+anti-correlated with GPT-2 scale — while the induction-carried p ≥ 3 knee is universal.
+
+**Setup notes.** fp16 load (a `--dtype` flag added to the sweep) keeps 7B at ~14 GB on the
+16 GB T4. Gated models (Llama-3.2) load from cache under `HF_HUB_OFFLINE=1` — the experiment's
+`from_pretrained` otherwise does an online gating check that 401s without a token. ~28 min
+wall for the 10 ungated models. Results: `results/e1_3_trackb_t4.{json,png}`; Llama in
+`results/e1_3_llama*`. Instruction-tuned models (E1.4) follow; the mechanistic/24 GB work
+(E2 at scale) is deferred to the A10.
