@@ -32,8 +32,9 @@ python3 -m venv .venv
 pip install -q --upgrade pip
 # CUDA build of torch (cu121 wheels are broadly driver-compatible); then the rest.
 pip install -q --index-url https://download.pytorch.org/whl/cu121 torch
+# nnsight omitted -- unused in the repo (only transformer_lens) and slow to resolve.
 pip install -q numpy matplotlib "transformers>=4.44" "accelerate>=0.33" \
-               "transformer_lens>=2.0" "nnsight>=0.3" huggingface_hub
+               "transformer_lens>=2.0" huggingface_hub
 [ "$WITH_VLLM" = "1" ] && pip install -q vllm || true
 
 echo "==> sanity: torch sees the GPU"

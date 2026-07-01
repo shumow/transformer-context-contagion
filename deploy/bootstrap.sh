@@ -42,8 +42,10 @@ python3 -m venv .venv
 . .venv/bin/activate
 pip install -q --upgrade pip
 pip install -q --index-url "$TORCH_INDEX" torch
+# nnsight is intentionally omitted -- nothing in the repo imports it (only transformer_lens),
+# and it drags a heavy dep stack that makes pip backtrack for many minutes.
 pip install -q numpy matplotlib "transformers>=4.44" "accelerate>=0.33" \
-               "transformer_lens>=2.0" "nnsight>=0.3" "huggingface_hub>=0.34"
+               "transformer_lens>=2.0" "huggingface_hub>=0.34"
 [ "$WITH_VLLM" = "1" ] && pip install -q vllm || true
 
 echo "==> sanity: can torch see the GPU?"
