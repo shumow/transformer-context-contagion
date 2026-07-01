@@ -41,6 +41,8 @@ def main():
                     help="cpu recommended: TransformerLens warns MPS may be silently wrong on torch 2.8")
     ap.add_argument('--seed', type=int, default=7)
     ap.add_argument('--prefix', default='results/e2')
+    ap.add_argument('--fresh', action='store_true',
+                    help="ignore any existing results JSON and recompute all cells (default: resume)")
     args = ap.parse_args()
 
     try:
@@ -70,12 +72,41 @@ def main():
     # token pool for payloads (HF tokenizer lives on the hooked model)
     pool = payloads.rare_token_pool(model.tokenizer)
 
-    # 2. causal test: per length, sweep N (the circuit is necessary near the knee)
+    # 2. causal test: per length, sweep N (the circuit is necessary near the knee).
+    # Each (p,N) cell is independent forward passes, so we checkpoint after every cell:
+    # the grid is flushed to the output JSON as it fills, and on restart we skip cells
+    # already present (resume). A Spot eviction thus loses at most one in-flight cell.
+    outpath = f"{args.prefix}_{args.model.replace('/', '_')}.json"
+    os.makedirs(os.path.dirname(args.prefix) or '.', exist_ok=True)
+
     grid = {}
+    if os.path.exists(outpath) and not args.fresh:
+        try:
+            prev = json.load(open(outpath))
+            if prev.get('model') == args.model and prev.get('k_heads') == args.k_heads:
+                grid = prev.get('grid', {})
+                print(f"resuming: {sum(len(v) for v in grid.values())} (p,N) cells already done")
+            else:
+                print("existing results have a different config; starting fresh")
+        except Exception as e:
+            print(f"could not read {outpath} for resume ({e}); starting fresh")
+
+    out = dict(model=args.model, reps=args.reps, k_heads=args.k_heads,
+               induction_heads=[[int(L), int(H)] for L, H in ind_heads],
+               induction_scores_top=[float(scores[L, H]) for L, H in ind_heads],
+               random_heads=[[int(L), int(H)] for L, H in rand_heads], grid=grid)
+
+    def flush():
+        with open(outpath, 'w') as f:
+            json.dump(out, f, indent=2)
+
     for p in args.lengths:
         pls = payloads.sample_payloads(pool, p, args.payloads, rng, tokenizer=model.tokenizer)
-        grid[str(p)] = {}
+        cells = grid.setdefault(str(p), {})
         for N in args.reps:
+            if str(N) in cells:                            # already computed -- resume
+                print(f"p={p:2d} N={N:3d}  (cached, skip)")
+                continue
             base, abl_ind, abl_rand = [], [], []
             for S in pls:
                 ctx = payloads.build_context(S, N)
@@ -84,17 +115,14 @@ def main():
                 abl_ind.append(interp.target_prob(model, ctx, target, hooks=ind_hooks))
                 abl_rand.append(interp.target_prob(model, ctx, target, hooks=rand_hooks))
             b, ai, ar = float(np.mean(base)), float(np.mean(abl_ind)), float(np.mean(abl_rand))
-            grid[str(p)][str(N)] = dict(base=b, abl_induction=ai, abl_random=ar)
-            print(f"p={p:2d} N={N:3d}  base={b:.3f}  abl-induction={ai:.3f} "
-                  f"(-{100*(1-ai/b):.0f}%)  abl-random={ar:.3f} (-{100*(1-ar/b):.0f}%)")
+            cells[str(N)] = dict(base=b, abl_induction=ai, abl_random=ar)
+            flush()                                        # checkpoint: Spot-eviction safe
+            di = f"-{100*(1-ai/b):.0f}%" if b else "n/a"
+            dr = f"-{100*(1-ar/b):.0f}%" if b else "n/a"
+            print(f"p={p:2d} N={N:3d}  base={b:.3f}  abl-induction={ai:.3f} ({di})  "
+                  f"abl-random={ar:.3f} ({dr})")
 
-    os.makedirs(os.path.dirname(args.prefix) or '.', exist_ok=True)
-    out = dict(model=args.model, reps=args.reps, k_heads=args.k_heads,
-               induction_heads=[[int(L), int(H)] for L, H in ind_heads],
-               induction_scores_top=[float(scores[L, H]) for L, H in ind_heads],
-               random_heads=[[int(L), int(H)] for L, H in rand_heads], grid=grid)
-    with open(f"{args.prefix}_{args.model.replace('/', '_')}.json", 'w') as f:
-        json.dump(out, f, indent=2)
+    flush()
     plot(args, grid)
 
 
