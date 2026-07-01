@@ -3,7 +3,8 @@
 #
 #   ./up.sh            # create if absent, else just start an existing (deallocated) VM
 #
-# Override any of these via env:  RG=foo LOC=westus2 ./up.sh
+# Override any of these via env:  RG=foo LOC=westus3 ./up.sh
+# Spot (preemptible, cheaper):    LOC=westus3 PRIORITY=Spot ./up.sh
 set -euo pipefail
 
 RG="${RG:-tcc-trackb}"
@@ -13,6 +14,8 @@ SIZE="${SIZE:-Standard_NV36ads_A10_v5}"   # A10, 24 GB, on-demand
 IMAGE="${IMAGE:-microsoft-dsvm:ubuntu-hpc:2204:latest}"  # NVIDIA driver + CUDA preinstalled
 DISK_GB="${DISK_GB:-256}"
 ADMIN="${ADMIN:-azureuser}"
+PRIORITY="${PRIORITY:-Regular}"          # "Spot" for a preemptible (cheaper) VM; Spot draws the regional Low-priority/Spot quota
+MAX_PRICE="${MAX_PRICE:--1}"             # Spot price cap USD/hr; -1 = pay up to on-demand, never price-evicted
 SHUTDOWN_TIME="${SHUTDOWN_TIME:-0200}"    # daily hard backstop, HHMM UTC; set to "off" to disable
 SSH_KEY="${SSH_KEY:-$HOME/.ssh/tcc_a10}" # dedicated keypair for this VM (not your default id_rsa)
 CLOUD_INIT="$(dirname "$0")/cloud-init-idle-deallocate.yaml"
@@ -34,7 +37,14 @@ fi
 echo ">> creating resource group $RG in $LOC"
 az group create -n "$RG" -l "$LOC" -o none
 
-echo ">> creating $VM ($SIZE) with system-assigned identity + idle auto-deallocate"
+# Spot: eviction-policy Deallocate (not Delete) keeps the disk + all provisioning so an
+# evicted VM can just be restarted (./up.sh) and resume. Empty for a Regular VM.
+SPOT_FLAGS=""
+if [ "$PRIORITY" = "Spot" ]; then
+  SPOT_FLAGS="--priority Spot --eviction-policy Deallocate --max-price ${MAX_PRICE}"
+fi
+
+echo ">> creating $VM ($SIZE, priority=$PRIORITY) with system-assigned identity + idle auto-deallocate"
 az vm create \
   -g "$RG" -n "$VM" \
   --size "$SIZE" \
@@ -45,6 +55,7 @@ az vm create \
   --public-ip-sku Standard \
   --assign-identity \
   --custom-data "$CLOUD_INIT" \
+  $SPOT_FLAGS \
   -o none
 
 # Grant the VM's managed identity permission to deallocate ITSELF (scoped to this VM only).
@@ -76,6 +87,7 @@ Ready.  ssh -i ${SSH_KEY} ${ADMIN}@${IP}
   Provision once (clone + venv + CUDA torch + model pre-download):
     scp -i ${SSH_KEY} $(dirname "$0")/setup-vm.sh ${ADMIN}@${IP}:~
     ssh -i ${SSH_KEY} ${ADMIN}@${IP} 'HF_TOKEN=hf_xxx bash ~/setup-vm.sh'
+  Priority: ${PRIORITY} $([ "$PRIORITY" = Spot ] && echo "(preemptible; eviction deallocates -- restart with ./up.sh to resume)")
   Idle policy: deallocates after 30 min with GPU <5% and no logins.
   Nightly backstop: auto-deallocate at ${SHUTDOWN_TIME} UTC (set SHUTDOWN_TIME=off to disable).
   Tune:   ssh in, edit /etc/idle-deallocate.env (takes effect next 5-min tick)
