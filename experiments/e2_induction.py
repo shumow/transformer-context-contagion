@@ -36,6 +36,9 @@ def main():
                     help='sweep N: the circuit is load-bearing near the knee, redundant at saturation')
     ap.add_argument('--payloads', type=int, default=5)
     ap.add_argument('--k-heads', type=int, default=8, help='# top induction heads to ablate')
+    ap.add_argument('--k-frac', type=float, default=None,
+                    help='ablate this FRACTION of all heads (overrides --k-heads); scales the '
+                         'ablation set with model size for apples-to-apples comparison across scales')
     ap.add_argument('--ind-seqlen', type=int, default=50)
     ap.add_argument('--device', default=None,
                     help="cpu recommended: TransformerLens warns MPS may be silently wrong on torch 2.8")
@@ -54,10 +57,17 @@ def main():
     print(f"loaded {args.model}  ({model.cfg.n_layers}L x {model.cfg.n_heads}H)  "
           f"device={model.cfg.device}")
 
+    # effective ablation-set size: a fixed count (--k-heads) or a fraction of all heads
+    # (--k-frac). Fraction keeps the ablation comparable across scales -- a fixed 8 heads is
+    # load-bearing in GPT-2-small (144 heads) but negligible in a 1000+-head model (gpt2-xl).
+    n_heads_total = model.cfg.n_layers * model.cfg.n_heads
+    k = args.k_heads if args.k_frac is None else max(1, round(args.k_frac * n_heads_total))
+    print(f"ablating k={k} heads ({k}/{n_heads_total} = {k/n_heads_total:.1%} of all heads)")
+
     # 1. identify induction heads
     scores = interp.induction_scores(model, seq_len=args.ind_seqlen, seed=args.seed)
-    ind_heads = interp.top_heads(scores, args.k_heads)
-    print(f"\ntop {args.k_heads} induction heads (layer, head | score):")
+    ind_heads = interp.top_heads(scores, k)
+    print(f"\ntop {k} induction heads (layer, head | score):")
     for (L, H) in ind_heads:
         print(f"  L{L}H{H}  {scores[L,H]:.3f}")
     ind_hooks = interp.make_ablation_hooks(model, ind_heads)
@@ -66,7 +76,7 @@ def main():
     rng = np.random.default_rng(args.seed + 1)
     all_heads = [(L, H) for L in range(model.cfg.n_layers) for H in range(model.cfg.n_heads)]
     pool_heads = [h for h in all_heads if h not in set(ind_heads)]
-    rand_heads = [tuple(pool_heads[i]) for i in rng.choice(len(pool_heads), args.k_heads, replace=False)]
+    rand_heads = [tuple(pool_heads[i]) for i in rng.choice(len(pool_heads), k, replace=False)]
     rand_hooks = interp.make_ablation_hooks(model, rand_heads)
 
     # token pool for payloads (HF tokenizer lives on the hooked model)
@@ -83,7 +93,7 @@ def main():
     if os.path.exists(outpath) and not args.fresh:
         try:
             prev = json.load(open(outpath))
-            if prev.get('model') == args.model and prev.get('k_heads') == args.k_heads:
+            if prev.get('model') == args.model and prev.get('k_heads') == k:
                 grid = prev.get('grid', {})
                 print(f"resuming: {sum(len(v) for v in grid.values())} (p,N) cells already done")
             else:
@@ -91,7 +101,7 @@ def main():
         except Exception as e:
             print(f"could not read {outpath} for resume ({e}); starting fresh")
 
-    out = dict(model=args.model, reps=args.reps, k_heads=args.k_heads,
+    out = dict(model=args.model, reps=args.reps, k_heads=k, k_frac=args.k_frac,
                induction_heads=[[int(L), int(H)] for L, H in ind_heads],
                induction_scores_top=[float(scores[L, H]) for L, H in ind_heads],
                random_heads=[[int(L), int(H)] for L, H in rand_heads], grid=grid)

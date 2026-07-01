@@ -557,3 +557,34 @@ template); a chat-templated condition is a natural follow-up and may shift thres
 Results: `results/e1_4.json` (with bootstrap CIs) on the VM's persistent disk — pulled next
 session; knees here are from the run log. T4 idle-deallocated itself after the run (cost
 safety worked).
+
+## E2 at scale — induction-head causality past GPT-2-small (Track B, T4) (2026-07-01)
+
+Re-ran the E2 causal test (ablate top-k induction heads vs. k random heads, measure
+`P(correct next payload token)` across p ∈ {1,3,5}, N ∈ {2,3,4,8,16}, 4 payloads) on the
+larger models, on the T4 (fp32, `--k-heads 8`).
+
+| model | heads (L×H) | induction-ablation effect near knee | verdict |
+|---|---|---|---|
+| gpt2 (124M, prior) | 12×12=144 | −81% to −87% (p=3, low N) | C2 confirmed |
+| **Pythia-1.4B** | 24×16=384 | **p=3: −80% @N=2, −58% @N=3, −54% @N=4** (random ~0%) | **C2 confirmed at scale** |
+| GPT-2-xl (1.5B) | 48×25=**1200** | only −4% to −13% (random ~0%) | *inconclusive — see below* |
+| Pythia-2.8B, Qwen2.5-3B | — | OOM (fp32) on 16 GB T4 | needs ≥24–48 GB |
+| Llama-3.2-3B | — | gated 401 (missing `HF_HUB_OFFLINE=1`) | rerun offline |
+
+**C2 extends past GPT-2-small: Pythia-1.4B confirms it cleanly** — ablating its 8 induction
+heads collapses reproduction near the knee (−80% at p=3, N=2) while random-head ablation is
+~0%, exactly the GPT-2-small pattern. Induction-head causality is not a small-model artifact.
+
+**The GPT-2-xl null is a methods artifact, not a refutation — and it teaches the fix.** A
+*fixed* 8 heads is load-bearing in GPT-2-small (144 heads) but a vanishing **8/1200 = 0.7%**
+of GPT-2-xl's heads, so ablating them barely moves reproduction. The induction circuit is
+spread over far more heads at scale. **Fix implemented:** added `--k-frac` to
+`e2_induction.py` — ablate a *fraction* of all heads (scaled to the model) instead of a fixed
+count, so the ablation set is comparable across sizes. The 7B run (on a ≥24–48 GB GPU) should
+use `--k-frac` (e.g. 0.05–0.10), not `--k-heads 8`.
+
+**Ops.** 2.8B/3B OOM at fp32 on the 16 GB T4 (interp loads fp32; no `--dtype` there yet) —
+these move to the RunPod 48 GB box (A6000/L40S) alongside 7B. E2 now checkpoints per (p,N)
+cell and resumes, so it is Spot-eviction safe. Results: `results/e2_gpt2-xl.json`,
+`results/e2_EleutherAI_pythia-1.4b.json`.
