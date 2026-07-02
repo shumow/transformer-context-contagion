@@ -75,8 +75,12 @@ size ladder shows the copy is \emph{induction-head-mediated at every scale} (124
 Pythia, Qwen2.5): ablating the top few percent of heads by induction score collapses reproduction,
 while random heads do not (E2, \S\ref{sec:e2scale}). A capstone confirms that capable
 instruct models perform the coherent self-extraction the induction-only toy could not---unfolding
-nested substitution into text and self-executing a decoded benign instruction (E8). What remains
-is the larger-context, retrieval-grounded versions of the downstream claims.
+nested substitution into text and self-executing a decoded benign instruction (E8). Taking the
+downstream claims to scale gives mixed, informative outcomes: the trust-not-usefulness law holds
+with a real task (C4), the worm is \emph{more} transmissible at larger scale with only a partial
+tokenizer firebreak (C6), and the raw-repetition RAG hijack is \emph{bounded}---a task query
+defuses it on an instruct model (C5). What remains is the very-long-context and semantic-injection
+regimes.
 \end{abstract}
 
 % ===========================================================================
@@ -114,6 +118,9 @@ E1.3 size sweep ($\ge$355M) & done & knee flat with scale, 355M--7B, 4 families 
 E2 attribution at scale & done & induction heads carry the knee to 7B, three families (\S\ref{sec:e2scale}). \\
 E8-lite substitution & done & substitution is induction-carried, depth-limited on GPT-2. \\
 E8 capstone (instruct) & done & coherent self-extraction beats the toy depth limit (\S\ref{sec:e8}). \\
+E4 trust at scale & done & C4 holds with a real task, $\mathrm{corr}(P,U){\approx}0$ (\S\ref{sec:trackc}). \\
+E5 RAG hijack at scale & bound & a task query defuses the raw-copy hijack (\S\ref{sec:trackc}). \\
+E6 worm at scale & done & worm \emph{more} transmissible at scale; firebreak partial (\S\ref{sec:trackc}). \\
 \bottomrule
 \end{tabular}
 \caption{Status of the experimental program. Stage numbering follows
@@ -702,6 +709,48 @@ conspicuous, induction-engaging repeated-pair block, exactly the signal the pair
 greedy; benign markers by design.)
 
 % ===========================================================================
+\section{At scale: the downstream claims C4/C5/C6}\label{sec:trackc}
+% ===========================================================================
+The three downstream claims had lite/proxy results on GPT-2-small; we now test them in their
+real settings on instruct models (Qwen2.5-7B-Instruct unless noted). The outcomes are
+\emph{mixed}---one confirmation, one bound, one that is \emph{worse} than the toy predicted---
+which is exactly the pre-registered discipline: either direction is informative.
+
+\paragraph{C4 holds with a real task (\S~E4-scale).}\label{sec:e4scale}
+E4-lite used a naturalness \emph{proxy} for usefulness. Here usefulness is a genuine task:
+benign \emph{synthetic} facts the model cannot already know, so a context containing the fact is
+the only source of the answer. Across a $2\times2$ \{repetitive, non-repetitive\} $\times$
+\{useful, useless\}, poisonability $P$ (copy-rate) tracks the repetition/trust axis, not the task
+axis: repetitive \emph{useless} gibberish is fully poisonable ($P{=}1.0$, $U{=}0$) while the
+non-repetitive \emph{useful} fact is barely poisonable ($P{=}0.38$, $U{=}1.0$).
+$\mathrm{corr}(P,U){=}{+}0.09$, $\mathrm{corr}(P,T){=}{+}0.71$---the trust-not-usefulness
+conservation law holds on a capable instruct model with a genuine benefit (the OOD gibberish even
+draws \emph{more} induction attention than the repeated real fact).
+
+\paragraph{C5 is bounded: a task query defuses the raw-copy hijack (\S~E5-scale).}\label{sec:e5scale}
+E5-lite hijacked a base model's \emph{continuation} with a recent, repeated payload. At scale we
+plant an OOD payload $\times k$ inside a $\sim$4000-token benign retrieval dump on an instruct
+model and ask it to \emph{answer a query}: hijack (payload occupancy of the answer) is
+\textbf{$0.00$} at every placement and for $k$ up to 32. The same model reproduces a planted span
+in raw continuation (E1.4), so this is not an inability to copy---the \emph{task query anchors
+generation away from the payload}. The raw-repetition hijack is thus a base-model-continuation
+phenomenon; a capable instruct model doing a real task is not hijacked by it. A well-posed query
+is itself a mitigation; the residual RAG threat is \emph{semantic} injection, outside this
+project's benign-OOD copy-dynamics scope.
+
+\paragraph{C6 is worse: the worm scales up, the firebreak only partly holds (\S~E6-scale).}\label{sec:e6scale}
+Serial passage on larger/instruct models shows the worm's \emph{critical length grows with
+capability}: GPT-2-small and the smaller models (Pythia-2.8B, Llama-3.2-3B) kill it for
+$p\ge2$, but Qwen2.5-7B sustains it across all six hops for $p{=}2$--$8$ (viral load $\sim\!28$
+at $p{=}2$), and the instruct model transmits it too. A stronger copier is a better host, so
+scale makes transmission \emph{more}, not less, likely. (Single-token $p{=}1$ dies off the GPT-2
+family, which does not lock single tokens, so Track-A's ``$p{=}1$ endemic'' was a GPT-2 quirk.)
+The cross-tokenizer firebreak (a 5-family patient-zero\,$\times$\,host matrix) holds in
+\emph{direction}---the same-tokenizer diagonal is generally the strongest transmission---but is
+\emph{partial}: under strong seeding a re-tokenized payload still partly copies, so a
+heterogeneous-tokenizer pipeline is a worst-case-reducing measure, not a hard barrier.
+
+% ===========================================================================
 \section{Threats to validity}\label{sec:threats}
 % ===========================================================================
 Beyond the small scale (one model, $R\!\sim\!4$--$6$ payloads, $\sim\!72$--$128$ samples per
@@ -740,13 +789,17 @@ from 355M to 7B across four model families and flat in parameter count (\S\ref{s
 and it persists in instruction-tuned models---chat models copy rather than refuse, with only a
 modest threshold rise (E1.4). And ablating the induction heads \emph{causally} collapses
 reproduction across scale and three families (124M--7B; GPT-2, Pythia, Qwen2.5), so \textbf{C2 is now
-mechanistically established at scale} (\S\ref{sec:e2scale}), not just on GPT-2-small. What is
-\emph{not} yet established: the worm's critical length and induction range at scale, the
-larger-context retrieval-grounded versions of C5 and C6, and a real-task (not naturalness-proxy)
-usefulness for C4. The self-extraction capstone (E8, \S\ref{sec:e8}) is now done---capable
-instruct models unfold nested substitution into coherent text and self-execute a decoded benign
-instruction, far past the toy's depth limit, while the surface stays gibberish---so what remains
-is the larger-context, retrieval-grounded work.
+mechanistically established at scale} (\S\ref{sec:e2scale}), not just on GPT-2-small. The downstream claims are now tested \emph{at scale} too, with mixed and honest outcomes
+(\S\ref{sec:trackc}): the trust-not-usefulness law (C4) holds with a real task
+($\mathrm{corr}(P,U){\approx}0$, $\mathrm{corr}(P,T){=}{+}0.71$); the self-extraction capstone
+(E8) succeeds on instruct models; and---less comfortingly---the worm (C6) is \emph{more}
+transmissible at larger scale, its critical length growing with capability, with only a
+\emph{partial} cross-tokenizer firebreak. One claim was \emph{bounded}: the raw-repetition RAG
+hijack (C5) does \emph{not} transfer to a capable instruct model answering a real query---the
+task query defuses it, so the residual RAG threat is semantic rather than copy-dynamic. What
+genuinely \emph{remains} is the very-long-context (128k) and larger host-population regimes, and
+the \emph{semantic}-injection version of the RAG threat (a plausible planted instruction rather
+than an OOD span), which is outside this project's benign copy-dynamics scope.
 
 \begin{thebibliography}{9}
 \bibitem{shumow2026trust} D.\ Shumow. \emph{Trust Is the Attack Surface: A Cryptanalytic

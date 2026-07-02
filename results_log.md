@@ -683,3 +683,95 @@ families), and E8 (capstone) are all done. Setup: RunPod L40S 48 GB, fp16, chat 
 4 targets/instructions × 3 depths × 2 reps, greedy. Results: `results/e8_capstone.{json,png}`.
 Caveats: small n (fidelity + exec-rate are point estimates), single seed, benign markers by
 design; the depth-cliff locations may shift with more reps.
+
+## E4-scale — trust vs. usefulness with a REAL task (Track C, RunPod L40S) (2026-07-02)
+
+E4-lite showed poisonability P ⊥ usefulness U, ∥ trust T on GPT-2-small, but U was a
+*naturalness proxy*. E4-scale replaces it with a genuine task on **Qwen2.5-7B-Instruct**: benign
+**synthetic facts the model cannot already know** (so a context containing the fact is the
+*only* source of the answer — clean, confound-free usefulness), a 2×2 {rep, non-rep} × {useful,
+useless}, scored on U (chat-QA accuracy), P (copy-rate of a raw continuation), T (induction
+attention). 6 facts, k=8.
+
+| context | U (task) | P (poison) | T (trust) |
+|---|---|---|---|
+| repetitive + useful (fact ×k) | 0.83 | **1.00** | 0.073 |
+| repetitive + **useless** (gibberish ×k) | **0.00** | **1.00** | 0.153 |
+| non-repetitive + **useful** (fact once) | **1.00** | 0.38 | 0.058 |
+| non-repetitive + useless (prose) | 0.00 | 0.10 | 0.034 |
+
+**corr(P, U) = +0.09 (≈0)   corr(P, T) = +0.71.**
+
+**C4 confirmed at scale, with a real task.** Poisonability follows the *repetition/trust* axis,
+not *usefulness*: **repetitive gibberish (U=0) is fully poisonable (P=1.00)** while the
+**non-repetitive real fact (U=1.0) is barely poisonable (P=0.38)**. Even when usefulness is a
+genuine downstream benefit on a capable instruct model, exploitability is orthogonal to it and
+aligned with induction trust — the parent paper's conservation law holds at scale. The OOD
+gibberish even draws *more* induction attention than the repeated real fact (T=0.153 vs 0.073):
+trust is about repetition/surprise, not meaning. Caveats: 6 synthetic facts, one model, greedy;
+rep_useful U=0.83 (repetition slightly hurt QA on one fact). `results/e4_scale.json`.
+
+## E5-scale — RAG hijack in a long context: a bound on C5 (Track C) (2026-07-02)
+
+E5-lite (GPT-2-small, base, no query) showed a recent, repeated payload hijacks the
+*continuation*. E5-scale plants an OOD payload ×k inside a ~4000-token benign "retrieval dump"
+on **Qwen2.5-7B-Instruct** and asks it to answer a query; hijack = payload occupancy of the
+answer. Sweeps: placement (front→end, k=16) and repetition k (at the end).
+
+**Result: no hijack — occupancy = 0.00 at every placement, and 0.00 for k up to 32.**
+
+**This bounds C5: the raw-copy hijack does not transfer to instruct-RAG answering.** The *same*
+model reproduces a planted span in raw continuation (E1.4 — the knee survives instruction-
+tuning), yet here, asked to answer a question from the documents, it stays on task and never
+emits the payload, wherever it sits and however many times it repeats. **The task query anchors
+generation away from the payload** — instruction-following overrides the copy tendency.
+Defensively, a well-posed task query is itself a mitigation against pure-repetition hijack; the
+residual RAG threat is *semantic* (a plausible injected instruction — indirect prompt
+injection), which is outside this project's benign-OOD copy-dynamics scope. So E5-lite's hijack
+is a base-model-continuation phenomenon; a capable instruct model doing a real task is not
+hijacked by raw repetition. (Pre-registered as publishable either way — this refutes the naive
+transfer and bounds where the copy-dynamics story applies.) Caveats: one model, one query style,
+4k context, benign OOD payload; a no-query "continue the documents" framing would likely hijack
+(that is E1.4/E5-lite) — the finding is that the *task query* defuses it. `results/e5_scale.json`.
+
+## E6-scale — the worm at scale: it gets worse (Track C) (2026-07-02)
+
+**Part A — serial passage on larger/instruct models** (survival across 6 hops, sweep payload
+length p):
+
+| model | p=1 | p=2 | p=3 | p=5 | p=8 |
+|---|---|---|---|---|---|
+| Pythia-2.8B | 40%\* | 0% | 0% | 0% | 0% |
+| **Qwen2.5-7B** | 20%\* | **60%** | 40% | 40% | 40% |
+| Llama-3.2-3B | 20%\* | 0% | 0% | 0% | 0% |
+| **Qwen2.5-7B-Instruct** | 0% | 40% | 20% | 20% | 40% |
+
+**The worm's critical length EXTENDS with capability — scale makes it *more* transmissible.**
+GPT-2-small (Track A) and the smaller models here (Pythia-2.8B, Llama-3.2-3B) kill the worm for
+p≥2, but **Qwen2.5-7B sustains it across all 6 hops for p=2–8** (viral load holds near 28 for
+p=2), and **the instruct model transmits it too** (20–40% survival). A stronger copier is a
+better host: the critical length is not fixed — it grows with capability, the opposite of a
+comforting bound. (\*p=1 dies off the GPT-2 family — Pythia/Qwen/Llama don't lock single tokens,
+E1.3 — so Track-A's "p=1 endemic" was a GPT-2 quirk.)
+
+**Part B — cross-tokenizer firebreak matrix** (one small model per tokenizer family; patient-zero
+X → host Y; surviving load at 1 hop, host0-reps 32):
+
+| Xdown \ Yright | gpt2 | pythia | qwen | llama | gemma |
+|---|---|---|---|---|---|
+| **gpt2** | **13.4** | 8.0 | 4.4 | 9.9 | 12.1 |
+| **pythia** | 8.0 | **12.9** | 15.5 | 4.6 | 10.2 |
+| **qwen** | 13.5 | 9.6 | **15.3** | 16.9 | 6.6 |
+| **llama** | 2.4 | 10.9 | 6.1 | **12.1** | 6.1 |
+| **gemma** | 5.8 | 10.1 | 6.8 | 8.9 | **17.3** |
+
+**The firebreak is real in DIRECTION but PARTIAL, not absolute, at scale.** The same-tokenizer
+diagonal is generally the strongest transmission in its row (gpt2→gpt2 13.4, qwen→qwen 15.3,
+gemma→gemma 17.3), confirming re-tokenization attenuates transmission. But under strong seeding
+(32 copies) the off-diagonal does **not** collapse to 0 as in Track A (GPT-2→Pythia-160m) — a
+heavily-repeated payload re-tokenizes into pieces the new host still partly copies (qwen→llama
+16.9 and pythia→qwen 15.5 even exceed some diagonals). So a **heterogeneous-tokenizer pipeline
+helps (same-tokenizer is worst-case) but is not a hard firebreak** against a strongly-seeded
+payload; the clean Track-A collapse was the weak-signal regime. Caveats: small models (0.5–2B)
+per family, p=3, 8 trials; the diagonal/off-diagonal separation is a tendency, not a clean gap.
+`results/e6_scale.json`.

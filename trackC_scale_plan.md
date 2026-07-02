@@ -116,6 +116,12 @@ section. When all four land, C1–C6 all have an at-scale (or real-setting) resu
 
 ## Status
 - [x] 0. C2-tidy (Pythia-1.4B at k-frac 0.05) — done 2026-07-02; −88% at p=3 N=2 (19/384), ladder now uniform at 5%.
-- [~] 1. E6-scale (worm: serial passage + 5-tokenizer matrix) — built (`experiments/e6_scale.py`), running on pod.
-- [~] 2. E4-scale (trust vs usefulness, real task) — built (`experiments/e4_scale.py`, synthetic-fact QA + attention trust), ready to run.
-- [~] 3. E5-scale (RAG hijack, long context) — built (`experiments/e5_scale.py`, placement + repetition sweeps), ready to run.
+- [x] 1. E6-scale — done. **Part A: the worm gets WORSE at scale** (Qwen2.5-7B sustains p=2–8 across 6 hops; instruct transmits; critical length grows with capability). **Part B: firebreak is partial, not absolute** (same-tokenizer diagonal strongest, but strong seeding survives cross-tokenizer).
+- [x] 2. E4-scale — done. **C4 confirmed with a real task**: corr(P,U)=+0.09, corr(P,T)=+0.71; repetitive gibberish fully poisonable though useless.
+- [x] 3. E5-scale — done. **Informative null / bound on C5**: no hijack (occupancy 0) in instruct-RAG answering — the task query defuses the raw-copy hijack (same model copies in raw continuation, E1.4).
+
+**All four Track C items complete (2026-07-02).** Findings written into results_log.md + paper.
+Net: C4 confirmed at scale; C6 worm is *more* transmissible at scale (concerning) with only a
+partial tokenizer firebreak; C5 raw-copy hijack is *bounded* — defused by a real task query,
+leaving semantic injection as the residual threat. Remaining beyond Track C: 128k-context,
+larger host populations, and the semantic-injection version of C5.
