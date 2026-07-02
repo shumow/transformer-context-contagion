@@ -600,7 +600,7 @@ control, `P(correct next payload token)`, p ∈ {1,3,5}, N ∈ {2,3,4,8,16}, 4 p
 |---|---|---|---|---|---|---|
 | gpt2 | 124M | 8 / 144 (5.6%) | −87% | −25% | −63% | −18% |
 | gpt2-xl | 1.5B | 60 / 1200 (5%) | **−70%** | −6% | **−74%** | −2% |
-| pythia-1.4b | 1.4B | 8 / 384 (2.1%) | −80% | −2% | −58% | −2% |
+| pythia-1.4b | 1.4B | 19 / 384 (5%) | −88% | +18%† | −79% | +6% |
 | pythia-2.8b | 2.8B | 51 / 1024 (5%) | **−98%** | −28%† | **−87%** | +1% |
 | pythia-6.9b | 6.9B | 51 / 1024 (5%) | −82% | +25%† | −66% | +13% |
 | Qwen2.5-7B | 7B | 39 / 784 (5%) | −64% | −27%† | −39% | −9% |
@@ -634,8 +634,9 @@ redundant non-induction copy paths. Worth a follow-up.
 **Setup/caveats.** RunPod L40S 48 GB, fp16, `transformer_lens` HookedTransformer. **Qwen2.5-7B
 completed on a retry** (its HF weight download stalled once on the flaky host; TransformerLens
 does support the arch) — a genuine third family at 7B.
-`--k-frac` is uniform at 0.05 except gpt2 (8/144 ≈ 5.6%) and pythia-1.4b (8/384 ≈ 2.1%, from the
-T4); both still show the effect, though a clean re-run of 1.4b at 0.05 would tidy the ladder.
+`--k-frac` is uniform at 0.05 across the ladder (Pythia-1.4B re-run at 0.05 = 19/384; the
+effect is if anything stronger, −88% at p=3 N=2, than at the old 8/384); gpt2 is the one
+exception at 8/144 ≈ 5.6%.
 4 payloads, single seed, greedy — characterizes the causal effect; CIs modest. Results:
 `results/e2_{gpt2-xl,EleutherAI_pythia-2.8b,EleutherAI_pythia-6.9b}.json`.
 

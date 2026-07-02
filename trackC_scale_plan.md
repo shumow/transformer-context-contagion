@@ -115,7 +115,7 @@ section. When all four land, C1–C6 all have an at-scale (or real-setting) resu
 "what remains" shrinks to just larger host populations / 128k-context.
 
 ## Status
-- [ ] 0. C2-tidy (Pythia-1.4B at k-frac 0.05)
+- [x] 0. C2-tidy (Pythia-1.4B at k-frac 0.05) — done 2026-07-02; −88% at p=3 N=2 (19/384), ladder now uniform at 5%.
 - [ ] 1. E6-scale (worm: serial passage + 5-tokenizer matrix)
 - [ ] 2. E4-scale (trust vs usefulness, real task)
 - [ ] 3. E5-scale (RAG hijack, long context)
