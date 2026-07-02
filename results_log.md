@@ -638,3 +638,47 @@ does support the arch) — a genuine third family at 7B.
 T4); both still show the effect, though a clean re-run of 1.4b at 0.05 would tidy the ladder.
 4 payloads, single seed, greedy — characterizes the causal effect; CIs modest. Results:
 `results/e2_{gpt2-xl,EleutherAI_pythia-2.8b,EleutherAI_pythia-6.9b}.json`.
+
+## E8 capstone — coherent self-extraction and self-execution on instruct models (Track B, RunPod L40S) (2026-07-02)
+
+E8-lite found in-context substitution is induction-carried but sharply depth-limited on
+GPT-2-small (2-step cascade 0.19, below f²). The capstone tests the two pieces the toy deferred,
+on capable **instruct** models (chat-templated, fp16). **Strictly benign** (see SECURITY.md):
+the decoded payload is a harmless English sentence; the executed instruction is a harmless
+marker task ("reply with ACORN"); no harmful content anywhere. **E8a:** nested substitution
+tables + an encoded message, decode to English, fidelity (LCS) vs nesting depth. **E8b:** "decode
+this benign instruction and do what it says," self-execution rate. `surface-leak` = whether the
+marker is visible in the *encoded* form.
+
+| model | params | E8a unfold (d=1/2/3) | E8b self-exec (d=1/2/3) | surface-leak |
+|---|---|---|---|---|
+| Qwen2.5-7B-Instruct | 7B | 1.00 / 0.90 / 0.94 | **1.00 / 1.00 / 1.00** | 0.00 |
+| Llama-3.2-3B-Instruct | 3B | 0.91 / 0.82 / 0.69 | 1.00 / **0.00 / 0.00** | 0.00 |
+| gemma-2-2b-it | 2B | 0.87 / 0.95 / 0.87 | 1.00 / 0.88 / 0.50 | 0.00 |
+
+**The capability dependency is confirmed — coherent self-extraction needs a capable model, and
+capable models have it.** All three instruct models blow past the toy's 2-step 0.19 limit on
+pure unfolding (E8a 0.69–1.00 vs 0.19): a capable model decodes even 3-layer nested substitution
+into coherent English. What the induction-only toy couldn't do, an instruct model does easily.
+
+**Self-execution is the harder, capability-gated step — and it dissociates from decoding.** E8b
+(decode *and act*) is strictly harder than E8a (decode). Qwen-7B self-executes perfectly through
+depth 3 (1.00); gemma-2B degrades gracefully (1.00 → 0.88 → 0.50); Llama-3B falls off a **cliff**
+— 1.00 at depth 1, then **0.00 at depth ≥2** despite still *decoding* at 0.82 (E8a). So a model
+can produce the decoded text when asked to decode, yet fail to decode-**and**-follow at the same
+depth: "act on your own in-context decoding" is a compositional step more demanding than either
+decode or execute alone, and only the 7B does it robustly with depth.
+
+**The evasion surface is clean, and demonstrable benignly: surface-leak = 0.00 everywhere.** The
+marker/instruction is never present in the encoded form, at any depth or model — a surface
+content filter sees only gibberish; the payload materializes only after the model unfolds it.
+That is the threat the capstone characterizes (with harmless markers); its mitigation is
+**structural, not content-based** — the substitution-table + "decode and follow" scaffold is a
+conspicuous, induction-engaging repeated-pair block, exactly what the E7 detector / bound-trust
+flags regardless of the (hidden) payload.
+
+**This closes Track B.** E1.3 (size sweep 355M–7B), E1.4 (instruct), E2 (mechanism to 7B, three
+families), and E8 (capstone) are all done. Setup: RunPod L40S 48 GB, fp16, chat templates;
+4 targets/instructions × 3 depths × 2 reps, greedy. Results: `results/e8_capstone.{json,png}`.
+Caveats: small n (fidelity + exec-rate are point estimates), single seed, benign markers by
+design; the depth-cliff locations may shift with more reps.

@@ -73,8 +73,10 @@ it \emph{persists in instruction-tuned/chat models}, which copy rather than refu
 modest threshold increase (E1.3/E1.4, \S\ref{sec:scale}). Finally, activation-patching up the
 size ladder shows the copy is \emph{induction-head-mediated at every scale} (124M--7B; GPT-2,
 Pythia, Qwen2.5): ablating the top few percent of heads by induction score collapses reproduction,
-while random heads do not (E2, \S\ref{sec:e2scale}). What remains is the larger-context,
-retrieval-grounded versions of the downstream claims and the coherent self-extraction capstone.
+while random heads do not (E2, \S\ref{sec:e2scale}). A capstone confirms that capable
+instruct models perform the coherent self-extraction the induction-only toy could not---unfolding
+nested substitution into text and self-executing a decoded benign instruction (E8). What remains
+is the larger-context, retrieval-grounded versions of the downstream claims.
 \end{abstract}
 
 % ===========================================================================
@@ -110,6 +112,8 @@ E7 paired detector & done & flags poisonable repeated spans, AUC $1.0$ (\S\ref{s
 E1.4 modern / chat models & done & knee persists in chat models, base$\to$instruct (\S\ref{sec:scale}). \\
 E1.3 size sweep ($\ge$355M) & done & knee flat with scale, 355M--7B, 4 families (\S\ref{sec:scale}). \\
 E2 attribution at scale & done & induction heads carry the knee to 7B, three families (\S\ref{sec:e2scale}). \\
+E8-lite substitution & done & substitution is induction-carried, depth-limited on GPT-2. \\
+E8 capstone (instruct) & done & coherent self-extraction beats the toy depth limit (\S\ref{sec:e8}). \\
 \bottomrule
 \end{tabular}
 \caption{Status of the experimental program. Stage numbering follows
@@ -433,8 +437,8 @@ Llama-3.2-3B-Instruct. Raw-context format (span as bare tokens, not a chat templ
 
 \paragraph{Setup.} \texttt{float16} keeps the 7B models at $\sim$14\,GB on the 16\,GB T4;
 gated weights (Llama, Gemma) load from cache offline. The mechanistic attribution at scale
-is now done (E2 to 7B across three families, \S\ref{sec:e2scale}); the coherent self-extraction capstone (E8) remains---the
-24\,GB-GPU stage.
+is now done (E2 to 7B across three families, \S\ref{sec:e2scale}), and so is the coherent
+self-extraction capstone (E8, \S\ref{sec:e8})---the 24\,GB-GPU stage is complete.
 
 % ===========================================================================
 \section{E2: induction-head attribution}\label{sec:e2}
@@ -646,6 +650,58 @@ not malicious \emph{intent}, so a deployment needs a benign-repetition allowlist
 rather than a hard block.
 
 % ===========================================================================
+\section{E8 capstone: coherent self-extraction on instruct models}\label{sec:e8}
+% ===========================================================================
+E8-lite established that in-context substitution is induction-carried but sharply
+depth-limited on GPT-2-small (a 2-step cascade succeeds only $0.19$, below $f^2$, from
+cross-layer interference), predicting that a \emph{coherent} self-extracting payload---and the
+``decode this, then follow it'' self-execution loop---would need a capable, instruction-tuned
+model. We test both on three chat models, \emph{strictly benignly}: the decoded payload is a
+harmless English sentence and the executed instruction is a harmless marker task (``reply with
+ACORN''); there is no harmful content by design---the aim is to characterize the mechanism and
+its detection surface, not to build an attack. \textbf{E8a} gives the model $d$ nested
+substitution tables and an encoded message, scoring the LCS fidelity of its decode to plain
+English; \textbf{E8b} asks it to decode a benign instruction \emph{and act on it}, scoring the
+self-execution rate; \texttt{surface-leak} records whether the benign marker is visible in the
+\emph{encoded} form.
+
+\begin{table}[h]
+\centering\small
+\begin{tabular}{lccc}
+\toprule
+instruct model & E8a unfold ($d{=}1/2/3$) & E8b self-exec ($d{=}1/2/3$) & surface-leak \\
+\midrule
+Qwen2.5-7B-Instruct   & 1.00 / 0.90 / 0.94 & \textbf{1.00 / 1.00 / 1.00} & 0.00 \\
+Llama-3.2-3B-Instruct & 0.91 / 0.82 / 0.69 & 1.00 / \textbf{0.00 / 0.00} & 0.00 \\
+gemma-2-2b-it         & 0.87 / 0.95 / 0.87 & 1.00 / 0.88 / 0.50 & 0.00 \\
+\bottomrule
+\end{tabular}
+\caption{E8 capstone (benign payloads). E8a: LCS fidelity of unfolding $d$-layer nested
+substitution into coherent English (toy 2-step limit $0.19$). E8b: rate of decoding a benign
+instruction \emph{and} executing it. surface-leak: fraction of encoded payloads in which the
+marker is visible pre-decode ($0$---the surface is gibberish).}
+\label{tab:e8}
+\end{table}
+
+\textbf{The capability dependency holds: coherent self-extraction needs a capable model, and
+capable models have it.} All three instruct models shatter the toy's $0.19$ limit on unfolding
+(E8a $0.69$--$1.00$)---a capable model decodes even three nested substitution layers into
+coherent English, exactly what the induction-only toy could not.
+\textbf{Self-execution is the harder, capability-gated step, and it dissociates from decoding.}
+Decode-\emph{and}-act (E8b) is strictly harder than decode (E8a): Qwen2.5-7B self-executes
+perfectly through depth 3 ($1.00$), gemma-2-2B degrades gracefully
+($1.00\!\to\!0.88\!\to\!0.50$), and Llama-3.2-3B falls off a cliff---$1.00$ at depth 1 then
+$0.00$ at depth ${\ge}2$ while it is still \emph{decoding} at $0.82$. Acting on one's own
+in-context decoding is a compositional step more demanding than either half alone, and only the
+7B does it robustly with depth. \textbf{The evasion surface is clean, but its mitigation is
+structural.} \texttt{surface-leak}${=}0$ everywhere: a content filter sees only gibberish
+because the payload materializes only after decoding. The defense is therefore not content
+inspection but \emph{structure}---the substitution-table and ``decode and follow'' scaffold is a
+conspicuous, induction-engaging repeated-pair block, exactly the signal the paired detector
+(\S\ref{sec:e7}) keys on, independent of the hidden payload. (Caveats: small $n$, single seed,
+greedy; benign markers by design.)
+
+% ===========================================================================
 \section{Threats to validity}\label{sec:threats}
 % ===========================================================================
 Beyond the small scale (one model, $R\!\sim\!4$--$6$ payloads, $\sim\!72$--$128$ samples per
@@ -686,8 +742,11 @@ modest threshold rise (E1.4). And ablating the induction heads \emph{causally} c
 reproduction across scale and three families (124M--7B; GPT-2, Pythia, Qwen2.5), so \textbf{C2 is now
 mechanistically established at scale} (\S\ref{sec:e2scale}), not just on GPT-2-small. What is
 \emph{not} yet established: the worm's critical length and induction range at scale, the
-larger-context retrieval-grounded versions of C5 and C6, a real-task (not naturalness-proxy)
-usefulness for C4, and the coherent self-extraction capstone (E8). Those remain the next stage.
+larger-context retrieval-grounded versions of C5 and C6, and a real-task (not naturalness-proxy)
+usefulness for C4. The self-extraction capstone (E8, \S\ref{sec:e8}) is now done---capable
+instruct models unfold nested substitution into coherent text and self-execute a decoded benign
+instruction, far past the toy's depth limit, while the surface stays gibberish---so what remains
+is the larger-context, retrieval-grounded work.
 
 \begin{thebibliography}{9}
 \bibitem{shumow2026trust} D.\ Shumow. \emph{Trust Is the Attack Surface: A Cryptanalytic
