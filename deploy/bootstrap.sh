@@ -30,7 +30,9 @@ nvidia-smi --query-gpu=name,memory.total,driver_version --format=csv 2>/dev/null
 echo "==> base packages (git, python venv/pip)"
 if command -v apt-get >/dev/null 2>&1 && { [ "$(id -u)" = 0 ] || [ -n "$SUDO" ]; }; then
   $SUDO apt-get update -qq || true
-  $SUDO DEBIAN_FRONTEND=noninteractive apt-get install -y -qq git python3-venv python3-pip >/dev/null || true
+  # `env` (not a bare VAR= prefix) so an empty $SUDO doesn't make bash treat the
+  # assignment as the command name.
+  $SUDO env DEBIAN_FRONTEND=noninteractive apt-get install -y -qq git python3-venv python3-pip >/dev/null || true
 fi
 
 echo "==> clone $REPO -> $DIR"
