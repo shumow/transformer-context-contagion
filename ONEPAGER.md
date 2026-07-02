@@ -68,14 +68,33 @@ if so, by what mechanism?**
   scale on cloud GPUs**: the knee and its length-robustness hold **355M–7B across four
   families**, **survive instruction-tuning**, and the induction-head cause is confirmed **to
   ~7B in three families**. The self-extraction **capstone** is established on instruct models.
-- The downstream claims are established on GPT-2-small: poisonability tracks **trust, not
-  usefulness**; a planted span **hijacks** generation as *entry × lock-in*; output fed back
-  propagates as a **worm** with a critical string length and a **cross-tokenizer firebreak**;
-  and a paired **detector** separates poisoned from clean documents at **AUC 1.0** (the
-  bound-trust defense).
-- **What remains:** the realistic **long-context / RAG** versions at scale (4k–128k retrieval),
-  a real downstream task (not a naturalness proxy) for the trust-vs-usefulness law, and larger
-  host populations for the worm.
+- The downstream claims began as GPT-2-small proxies and were then pushed to their real
+  settings (instruct models, long-context RAG, multi-tokenizer populations). The outcomes are
+  **mixed, and reported as such** — one confirmation, one bound, one that is *worse* than the
+  toy predicted:
+  - **Trust, not usefulness — confirmed, including with a real task.** Poisonability tracks
+    repetition/induction-trust, not task usefulness, even when usefulness is a genuine
+    downstream benefit on an instruct model (`corr(P,trust)=+0.71`, `corr(P,usefulness)=+0.09`;
+    repetitive gibberish is fully poisonable while a useful one-shot fact is barely).
+  - **RAG hijack — bounded at scale.** A recent, repeated span hijacks a *base model's
+    continuation* (entry × lock-in), but on an **instruct model asked to answer a query the
+    hijack vanishes (occupancy 0.00)**: the task query anchors generation away from the payload.
+    Raw-repetition hijack is a continuation phenomenon; the residual RAG threat is *semantic*
+    injection, outside this project's benign-copy scope.
+  - **Worm — confirmed, and worse at scale.** Output fed back propagates as a worm with a
+    critical string length, but that length **grows with model capability**: a 7B model (base
+    *and* instruct) sustains the worm where small models kill it. The **cross-tokenizer
+    firebreak is only partial** under strong seeding — a worst-case-reducing measure, not a
+    hard barrier.
+  - A paired **detector** flags the poisonable (repeated-span) configuration — the bound-trust
+    defense — separating planted-payload from clean documents (AUC 1.0 on that clean-vs-planted
+    contrast; it flags any induction-engaging repeated span, so a deployment needs a
+    benign-repetition allowlist rather than a hard block).
+- **What remains:** the **128k-context** and **larger host-population** versions; the
+  **semantic-injection** form of the RAG threat (beyond benign OOD copy); the cross-tokenizer
+  firebreak matrix re-run *at scale* (it was measured on small models); and higher-`n`
+  replication of the Track C reversals, which currently rest on the thinnest samples in the
+  project. See `trackC_scale_plan.md` for the running open-experiments list.
 - Reported honestly as a progress report — the *qualitative* phenomena and mechanism are solid
   across scale; absolute numbers shift with model and setup.
 

@@ -43,9 +43,9 @@ rather than usefulness, and that self-reproducing token strings (\emph{quines}) 
 planted in a cache, hijack an occupied one, and spread between caches as a
 context-window worm---all cheapest and most transmissible under a longest-match
 (\emph{induction-head}) surrogate. Those results were stated as \emph{conjectures} for real
-transformers. This report is the running status of testing them on real models. So far we
-have built the harness and run the first two stages of the keystone experiment on
-GPT-2-small. We find (i) a clear \emph{condensation knee}: a repeated out-of-distribution
+transformers. This report is the running status of testing them on real models---established
+end to end on GPT-2-small, then taken to scale (355M--7B, four families, instruct models) and
+to the downstream claims' real settings. We find (i) a clear \emph{condensation knee}: a repeated out-of-distribution
 string begins to be regenerated past a sharp threshold in the repetition count, with the
 threshold \emph{decreasing} in string length (the induction-like, length-robust signature,
 opposite of fixed-order brittleness); and (ii) that reproduction is predominantly
@@ -151,9 +151,60 @@ C6 & worm with $R_0\approx T/(p\,k_{\mathrm{thresh}})$ & output fed back propaga
 \caption{The conjecture, claim by claim. All six now have a real-transformer result on
 GPT-2-small: \textbf{C1}, \textbf{C3} (\S\ref{sec:e1}); \textbf{C2} behaviorally (\S\ref{sec:e1b})
 and mechanistically (\S\ref{sec:e2}); \textbf{C4} (\S\ref{sec:e4}); \textbf{C5} (\S\ref{sec:e5});
-\textbf{C6} (\S\ref{sec:e6}). What remains is scale (size sweep, instruct models).}
+\textbf{C6} (\S\ref{sec:e6}); and all six are then taken to scale / real settings
+(\S\ref{sec:scale},~\S\ref{sec:e2scale},~\S\ref{sec:trackc}).}
 \label{tab:claims}
 \end{table}
+
+% ===========================================================================
+\section{Related work, and our delta}\label{sec:related}
+% ===========================================================================
+Every ingredient here is known; the contribution is the \emph{framing} that connects them and
+makes the connection measurable, plus the at-scale tests of that framing---some of which
+falsify its own comforting predictions.
+
+\paragraph{Induction heads.} Olsson et al.~\cite{olsson2022} identified induction heads as the
+in-context copy circuit (``saw $AB$, now see $A\!\to$ predict $B$''), and Bietti et
+al.~\cite{bietti2023} gave a memory-viewpoint account of how such copying is learned. We do
+\emph{not} claim to discover this mechanism. Our delta is to recast in-context copying as a
+\emph{security} phenomenon: it has a sharp threshold in the repetition count (the
+\emph{condensation knee}, C1) whose position \emph{decreases} with payload length (C3, the
+signature that distinguishes an induction surrogate from a fixed-order count model), and it is
+the \emph{same} circuit that carries reproduction of an \emph{injected, out-of-distribution}
+payload---which we establish causally by ablation and show holds from 124M to 7B across three
+families (C2, \S\ref{sec:e2scale}). The mechanism is borrowed; that it is the engine of
+context-poisoning \emph{persistence}, with a measurable threshold, is the claim.
+
+\paragraph{Indirect prompt injection.} Greshake et al.~\cite{greshake2023} established that
+retrieved / tool-supplied content can compromise LLM-integrated applications. That work
+characterizes the \emph{threat}; we add a \emph{mechanistic} account of one axis of it---why a
+\emph{repeated} payload persists and gets re-emitted---and a defensive corollary that follows
+from the mechanism rather than from content: the quantity that predicts poisonability is
+\emph{induction trust on a repeated span}, and we show it is empirically \emph{decoupled from
+content usefulness} ($\mathrm{corr}(P,\text{useful}){\approx}0$ vs.\ $\mathrm{corr}(P,\text{trust})
+{=}{+}0.71$ with a real task, C4, \S\ref{sec:e4scale}). This motivates a \emph{structural}
+detector (\S\ref{sec:e7}) that watches the trust signal, not the content. We also \emph{bound}
+the injection story honestly: for a benign OOD span, a real task query on an instruct model
+defuses the raw-copy hijack (C5, \S\ref{sec:e5scale})---so the copy-dynamics account applies to
+the persistence/echo of repeated spans, and the residual RAG threat of a \emph{semantically
+plausible} planted instruction is a distinct problem we do not claim to cover.
+
+\paragraph{GenAI worms.} Cohen et al.~\cite{cohen2024} demonstrated self-propagating worms in
+GenAI-powered application pipelines (e.g.\ via RAG/embedding stores). We study the copy dynamics
+\emph{underneath} such propagation on the models themselves: a critical string length (short
+strings reach an endemic load, long ones die out), a reproduction number that falls with length,
+and a \emph{cross-tokenizer firebreak}. At scale these become \emph{less} comforting than the toy
+predicted: the critical length \emph{grows} with model capability (a 7B host sustains a worm that
+smaller hosts kill), and the firebreak is only \emph{partial} under strong seeding
+(\S\ref{sec:trackc}).
+
+\paragraph{Toy companions.} The two companion analyses~\cite{shumow2026trust,shumow2026contagion}
+work all of this out \emph{exactly} on a global-plus-cache Markov model and state each result as a
+conjecture for real transformers. This paper is the real-transformer test---confirming C1--C4,
+bounding C5, and finding C6 worse than conjectured. The frame's three non-obvious predictions
+(the length-robustness sign, trust~$\perp$~usefulness, and the tokenizer firebreak) are exactly
+what we put at risk at scale; two held (one strengthened) and one held only partially, which is
+the evidence that the framing does work rather than merely relabel a known circuit.
 
 % ===========================================================================
 \section{Method}\label{sec:method}
@@ -764,9 +815,11 @@ base models are used for the clean mechanism and chat models are a separate cond
 run (E1.4, \S\ref{sec:scale}), where the knee persists with only a modest threshold rise;
 \textbf{context-length vs.\ $N$}---addressed by E1.5 (\S\ref{sec:e15}): the knee
 persists at fixed total length, so it is an $N$ effect, though reproduction is
-distance-sensitive; and \textbf{scale}---the behavioral knee now extends cleanly to 7B across four families and is
-flat with size (\S\ref{sec:scale}); what is still pending is the \emph{mechanistic}
-attribution at scale (E2 on a $\ge$24\,GB GPU).
+distance-sensitive; and \textbf{scale}---the behavioral knee extends cleanly to 7B across four
+families and is flat with size (\S\ref{sec:scale}), and the \emph{mechanistic} attribution now
+holds there too (E2 to 7B in three families, \S\ref{sec:e2scale}); what remains is thin-$n$: the
+Track C reversals (\S\ref{sec:trackc}) rest on $\sim$4--8 payloads/facts per cell and warrant
+higher-power replication.
 
 % ===========================================================================
 \section{What is established, and what is not}\label{sec:honesty}

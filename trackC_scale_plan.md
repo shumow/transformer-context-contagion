@@ -125,3 +125,65 @@ Net: C4 confirmed at scale; C6 worm is *more* transmissible at scale (concerning
 partial tokenizer firebreak; C5 raw-copy hijack is *bounded* — defused by a real task query,
 leaving semantic injection as the residual threat. Remaining beyond Track C: 128k-context,
 larger host populations, and the semantic-injection version of C5.
+
+---
+
+## Open experiments — the running list (post–Track C)
+
+Ordered by priority. These came out of a critical review of the Track C results (2026-07-02):
+the science strengthened, but the newest, most surprising findings are the least-replicated in
+the project and their raw data is not durably stored. Items marked **[data]** are integrity/ops,
+not new science; the rest are experiments to run (all on the RunPod L40S unless noted).
+
+### P0 — durability / integrity (do first; cheap)
+- [ ] **[data] Recover and commit the Track C raw JSONs.** `results/` is gitignored and
+  `e4_scale.json` / `e5_scale.json` / `e6_scale.json` exist *nowhere* on the local machine —
+  only on the (ephemeral) RunPod pod. The worm-worse, C5-null, and partial-firebreak findings
+  currently survive only as hand-transcribed tables in `results_log.md`. **Action:** pull the
+  JSONs (+PNGs) off the pod before teardown; commit them to a *non-ignored* `data/trackC/`
+  snapshot (add a `!data/` exception to `.gitignore`), so Track C is reproducible-from-artifact
+  like Track A/B. If the pod is already gone, **re-run E4/E5/E6-scale from the committed scripts**
+  and capture the JSONs this time — the scripts are deterministic (greedy, fixed seed).
+- [ ] **[data] Stop losing at-scale outputs generally.** Adopt a convention: every pod run
+  copies its `results/*.json` into the committed `data/` snapshot as part of the run script
+  (`deploy/run_*.sh`), not by hand afterward.
+
+### P1 — higher-power replication of the Track C reversals
+The three headline Track C results each rest on ~4–8 samples/cell — the thinnest `n` in the
+project — and two of them (worm-worse, partial-firebreak) are *surprising/alarming* claims that
+deserve a higher bar than the comforting versions they overturned.
+- [ ] **E6-scale Part A at higher `n` + CIs.** Worm survival on Qwen2.5-7B (base + instruct),
+  Pythia-2.8B, Llama-3.2-3B, p∈{1,2,3,5,8}. Current survival %s are ~5 trials (a "40%" = 2
+  events). Raise to ≥20 trials/cell, report Wilson CIs on survival and bootstrap CIs on per-hop
+  viral load, multiple seeds. Confirm/deny "critical length grows with capability" with error bars.
+- [ ] **E4-scale with more facts.** Currently 6 synthetic facts on one model. Raise to ≥30 facts,
+  add a second instruct family (Llama-3.2-3B-Instruct / gemma-2-2b-it), report CIs on
+  corr(P,U) and corr(P,T). The dissociation is the paper's strongest claim — over-power *it*.
+- [ ] **E5-scale robustness of the null.** occupancy=0.00 is a strong null on 4 trials/cell, one
+  query style, 4k context. Vary: query style (summarize vs extract vs open-ended), a second
+  model, more trials. Include the pre-registered positive control (a no-query "continue the
+  documents" framing *should* hijack) in the same run so the null is clearly not a harness bug.
+
+### P2 — fix the E6 scale/model confound
+- [ ] **Cross-tokenizer firebreak matrix at scale.** Part A (worm worse) ran on 7B; Part B (the
+  5×5 firebreak matrix) ran on *small* models (0.5–2B). So "the firebreak is partial **at scale**"
+  is not what was measured. **Action:** re-run the 5×5 matrix with one ≥7B host per tokenizer
+  family where weights allow (Qwen2.5-7B, Llama-3.x, Pythia-6.9b, gpt2-xl, gemma-2-9b), strong
+  seeding, ≥8 trials. Either the partial-firebreak claim becomes a real scale claim or it stays a
+  small-model/strong-seeding claim — say which.
+
+### P3 — the genuinely-remaining regimes (new science, heavier)
+- [ ] **128k-context RAG (C5, extended).** E5-scale was 4k. Push to 32k/128k (quantized or
+  smaller model) to test the lost-in-the-middle recency profile and whether the task-query
+  defense still holds at extreme length.
+- [ ] **Larger host populations for the worm (C6).** Beyond serial passage: N hosts on a random
+  contact graph, endemic prevalence vs die-out as a function of p and mixing (the optional Part C
+  from the E6-scale plan, never run).
+- [ ] **Semantic-injection boundary (C5 residual).** E5-scale showed a *task query* defuses the
+  benign-OOD raw-copy hijack, handing the residual threat to *semantic* injection. Characterizing
+  that boundary (a plausible planted instruction vs. an OOD span) is out of the current benign-copy
+  scope — flag as a scope decision, not a queued run, and keep it under SECURITY.md review.
+
+### Notes / smaller items
+- [x] Paper `tab:e2scale` and the `results_log.md` E2-at-scale table both reflect the C2-tidy
+  re-run (Pythia-1.4B at k-frac 0.05 = 19/384, −88% @p=3 N=2) — verified consistent 2026-07-02.
