@@ -222,8 +222,8 @@ def main():
     outpath = f"{args.prefix}.json"
     results = json.load(open(outpath)) if os.path.exists(outpath) else {}
     for name in args.models:
-        if name in results:
-            print(f"{name}: cached, skip"); continue
+        if name in results and "error" not in results[name]:
+            print(f"{name}: cached, skip"); continue     # retry models that previously errored
         try:
             lm = ChatLM(name, device=args.device, dtype=args.dtype)
             print(f"\n=== {name} ===")
