@@ -7,7 +7,7 @@
 numpy>=1.24
 matplotlib>=3.7
 torch>=2.2
-transformers>=4.44
+transformers>=4.45,<5  # <5: transformer_lens 2.x needs transformers 4.x (v5 removed TRANSFORMERS_CACHE etc.)
 accelerate>=0.33
 
 # Mechanistic tier (E2: induction-head attribution, activation patching). Optional until

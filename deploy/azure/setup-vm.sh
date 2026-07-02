@@ -34,7 +34,7 @@ pip install -q --upgrade pip
 pip install -q --index-url https://download.pytorch.org/whl/cu121 torch
 # nnsight omitted -- unused in the repo (only transformer_lens) and slow to resolve.
 # Constrain torch to the CUDA build just installed so pip doesn't re-download a second torch.
-pip install -q numpy matplotlib "transformers>=4.44" "accelerate>=0.33" \
+pip install -q numpy matplotlib "transformers>=4.45,<5" "accelerate>=0.33" \
                "transformer_lens>=2.0" huggingface_hub \
                -c <(pip freeze | grep -iE '^torch==')
 [ "$WITH_VLLM" = "1" ] && pip install -q vllm || true
