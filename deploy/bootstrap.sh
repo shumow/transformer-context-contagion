@@ -46,8 +46,11 @@ pip install -q --upgrade pip
 pip install -q --index-url "$TORCH_INDEX" torch
 # nnsight is intentionally omitted -- nothing in the repo imports it (only transformer_lens),
 # and it drags a heavy dep stack that makes pip backtrack for many minutes.
+# Constrain torch to the CUDA build just installed, so this resolve does NOT re-download a
+# second (default-index) torch -- that's a 500+ MB pull and can clobber the CUDA build.
 pip install -q numpy matplotlib "transformers>=4.44" "accelerate>=0.33" \
-               "transformer_lens>=2.0" "huggingface_hub>=0.34"
+               "transformer_lens>=2.0" "huggingface_hub>=0.34" \
+               -c <(pip freeze | grep -iE '^torch==')
 [ "$WITH_VLLM" = "1" ] && pip install -q vllm || true
 
 echo "==> sanity: can torch see the GPU?"
