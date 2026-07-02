@@ -603,14 +603,16 @@ control, `P(correct next payload token)`, p ∈ {1,3,5}, N ∈ {2,3,4,8,16}, 4 p
 | pythia-1.4b | 1.4B | 8 / 384 (2.1%) | −80% | −2% | −58% | −2% |
 | pythia-2.8b | 2.8B | 51 / 1024 (5%) | **−98%** | −28%† | **−87%** | +1% |
 | pythia-6.9b | 6.9B | 51 / 1024 (5%) | −82% | +25%† | −66% | +13% |
+| Qwen2.5-7B | 7B | 39 / 784 (5%) | −64% | −27%† | −39% | −9% |
 
 († random-ablation noise at N=2 with only 4 payloads; the induction effect dwarfs it and the
-control is clean by N=3.)
+control is clean by N=3.) Qwen2.5-7B is more modest at p=3 but the **strongest of all at p=5**
+(N=2: base 0.940 → 0.039, **−96%** induction vs −24% random; N=3 −78% vs −4%).
 
-**C2 (induction-head causality) holds across scale and family — 124M → 6.9B, GPT-2 and Pythia.**
-Ablating the top ~5% of heads by induction score collapses reproduction near the knee (−70% to
-−98% at p≥3, low N); ablating the same number of *random* heads barely moves it. The copy
-mechanism is the induction heads, at every scale we can reach.
+**C2 (induction-head causality) holds across scale and three families — 124M → 7B, GPT-2,
+Pythia, and Qwen2.5.** Ablating the top ~5% of heads by induction score collapses reproduction
+near the knee (−64% to −98% at p≥3–5, low N); ablating the same number of *random* heads barely
+moves it. The copy mechanism is the induction heads, at every scale we can reach.
 
 **The `--k-frac` fix was essential — the earlier gpt2-xl "null" was a measurement artifact.**
 With the old fixed `--k-heads 8` (0.7% of gpt2-xl's 1200 heads) the effect was −4% to −13% (a
@@ -619,9 +621,9 @@ count doesn't scale — the induction circuit spreads over more heads in larger 
 ablation budget must scale with the model. **Methodology takeaway for any scaling study: ablate a
 fraction of heads, not a fixed count.**
 
-**Single-token (p=1) is the frequency tail, not induction, and is family-specific.** Pythia never
-locks p=1 (base ≈ 0.000 at every scale); GPT-2 does, but that is the weakest-induction /
-largest-frequency-tail regime (E1.2). Consistent with E1.3's p=1 reading.
+**Single-token (p=1) reproduction is the frequency tail, not induction — and only GPT-2 shows it.**
+Pythia *and* Qwen2.5 never lock p=1 (base ≈ 0.000 at every scale); GPT-2 does, but that is its
+weakest-induction / largest-frequency-tail regime (E1.2). Consistent with E1.3's p=1 reading.
 
 **A scale/family difference at saturation.** For GPT-2 the induction dependence fades once the
 copy is over-determined (gpt2-xl p=5, N=16: only −6%). Pythia *keeps* a strong dependence even at
@@ -629,8 +631,9 @@ high N (pythia-2.8b p=5 N=16: **−82%**; pythia-6.9b: **−54%**) — the large
 repeated-span copying through induction heads even when saturated, rather than developing
 redundant non-induction copy paths. Worth a follow-up.
 
-**Setup/caveats.** RunPod L40S 48 GB, fp16, `transformer_lens` HookedTransformer. **Qwen2.5-7B did
-not complete** (TransformerLens arch support / run not finished) — no third family at 7B.
+**Setup/caveats.** RunPod L40S 48 GB, fp16, `transformer_lens` HookedTransformer. **Qwen2.5-7B
+completed on a retry** (its HF weight download stalled once on the flaky host; TransformerLens
+does support the arch) — a genuine third family at 7B.
 `--k-frac` is uniform at 0.05 except gpt2 (8/144 ≈ 5.6%) and pythia-1.4b (8/384 ≈ 2.1%, from the
 T4); both still show the effect, though a clean re-run of 1.4b at 0.05 would tidy the ladder.
 4 payloads, single seed, greedy — characterizes the causal effect; CIs modest. Results:
