@@ -588,3 +588,50 @@ use `--k-frac` (e.g. 0.05–0.10), not `--k-heads 8`.
 these move to the RunPod 48 GB box (A6000/L40S) alongside 7B. E2 now checkpoints per (p,N)
 cell and resumes, so it is Spot-eviction safe. Results: `results/e2_gpt2-xl.json`,
 `results/e2_EleutherAI_pythia-1.4b.json`.
+
+## E2 at scale — the full ladder (RunPod L40S 48 GB, `--k-frac`) (2026-07-02)
+
+Completed E2 on a RunPod L40S (48 GB), resolving the gpt2-xl question above and adding the
+larger Pythia models that OOM'd on the T4. The ablation set is now scaled by **`--k-frac 0.05`**
+(≈5% of all heads) instead of a fixed 8. Induction-head ablation vs. a matched random-head
+control, `P(correct next payload token)`, p ∈ {1,3,5}, N ∈ {2,3,4,8,16}, 4 payloads.
+
+| model | params | ablated (k / total) | p=3 N=2 induction | random | p=3 N=3 induction | random |
+|---|---|---|---|---|---|---|
+| gpt2 | 124M | 8 / 144 (5.6%) | −87% | −25% | −63% | −18% |
+| gpt2-xl | 1.5B | 60 / 1200 (5%) | **−70%** | −6% | **−74%** | −2% |
+| pythia-1.4b | 1.4B | 8 / 384 (2.1%) | −80% | −2% | −58% | −2% |
+| pythia-2.8b | 2.8B | 51 / 1024 (5%) | **−98%** | −28%† | **−87%** | +1% |
+| pythia-6.9b | 6.9B | 51 / 1024 (5%) | −82% | +25%† | −66% | +13% |
+
+(† random-ablation noise at N=2 with only 4 payloads; the induction effect dwarfs it and the
+control is clean by N=3.)
+
+**C2 (induction-head causality) holds across scale and family — 124M → 6.9B, GPT-2 and Pythia.**
+Ablating the top ~5% of heads by induction score collapses reproduction near the knee (−70% to
+−98% at p≥3, low N); ablating the same number of *random* heads barely moves it. The copy
+mechanism is the induction heads, at every scale we can reach.
+
+**The `--k-frac` fix was essential — the earlier gpt2-xl "null" was a measurement artifact.**
+With the old fixed `--k-heads 8` (0.7% of gpt2-xl's 1200 heads) the effect was −4% to −13% (a
+false negative in the prior entry); with `--k-frac 0.05` it jumps to −70% to −74%. A fixed head
+count doesn't scale — the induction circuit spreads over more heads in larger models, so the
+ablation budget must scale with the model. **Methodology takeaway for any scaling study: ablate a
+fraction of heads, not a fixed count.**
+
+**Single-token (p=1) is the frequency tail, not induction, and is family-specific.** Pythia never
+locks p=1 (base ≈ 0.000 at every scale); GPT-2 does, but that is the weakest-induction /
+largest-frequency-tail regime (E1.2). Consistent with E1.3's p=1 reading.
+
+**A scale/family difference at saturation.** For GPT-2 the induction dependence fades once the
+copy is over-determined (gpt2-xl p=5, N=16: only −6%). Pythia *keeps* a strong dependence even at
+high N (pythia-2.8b p=5 N=16: **−82%**; pythia-6.9b: **−54%**) — the larger Pythia models route
+repeated-span copying through induction heads even when saturated, rather than developing
+redundant non-induction copy paths. Worth a follow-up.
+
+**Setup/caveats.** RunPod L40S 48 GB, fp16, `transformer_lens` HookedTransformer. **Qwen2.5-7B did
+not complete** (TransformerLens arch support / run not finished) — no third family at 7B.
+`--k-frac` is uniform at 0.05 except gpt2 (8/144 ≈ 5.6%) and pythia-1.4b (8/384 ≈ 2.1%, from the
+T4); both still show the effect, though a clean re-run of 1.4b at 0.05 would tidy the ladder.
+4 payloads, single seed, greedy — characterizes the causal effect; CIs modest. Results:
+`results/e2_{gpt2-xl,EleutherAI_pythia-2.8b,EleutherAI_pythia-6.9b}.json`.

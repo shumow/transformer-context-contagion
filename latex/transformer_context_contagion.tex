@@ -70,9 +70,11 @@ configuration before it crosses the hijack knee---the transformer realization of
 condensation knee is low and length-robust across \mbox{355M--7B} in four model families and
 essentially \emph{flat with parameter count}---the copy mechanism is saturated by 355M (C3)---and
 it \emph{persists in instruction-tuned/chat models}, which copy rather than refuse, with only a
-modest threshold increase (E1.3/E1.4, \S\ref{sec:scale}). What remains is the mechanistic
-attribution \emph{at scale} (induction-head ablation on $\ge$24\,GB models) and the
-larger-context, retrieval-grounded versions of the downstream claims.
+modest threshold increase (E1.3/E1.4, \S\ref{sec:scale}). Finally, activation-patching up the
+size ladder shows the copy is \emph{induction-head-mediated at every scale} (124M--6.9B, GPT-2
+and Pythia): ablating the top few percent of heads by induction score collapses reproduction,
+while random heads do not (E2, \S\ref{sec:e2scale}). What remains is the larger-context,
+retrieval-grounded versions of the downstream claims and the coherent self-extraction capstone.
 \end{abstract}
 
 % ===========================================================================
@@ -107,7 +109,7 @@ E6 the worm / $R_0$ & done & critical length; cross-tokenizer firebreak (\S\ref{
 E7 paired detector & done & flags poisonable repeated spans, AUC $1.0$ (\S\ref{sec:e7}). \\
 E1.4 modern / chat models & done & knee persists in chat models, base$\to$instruct (\S\ref{sec:scale}). \\
 E1.3 size sweep ($\ge$355M) & done & knee flat with scale, 355M--7B, 4 families (\S\ref{sec:scale}). \\
-E2 attribution at scale & \tbd & induction-head ablation on $\ge$24\,GB models. \\
+E2 attribution at scale & done & induction heads carry the knee to 6.9B, GPT-2+Pythia (\S\ref{sec:e2scale}). \\
 \bottomrule
 \end{tabular}
 \caption{Status of the experimental program. Stage numbering follows
@@ -431,7 +433,7 @@ Llama-3.2-3B-Instruct. Raw-context format (span as bare tokens, not a chat templ
 
 \paragraph{Setup.} \texttt{float16} keeps the 7B models at $\sim$14\,GB on the 16\,GB T4;
 gated weights (Llama, Gemma) load from cache offline. The mechanistic attribution at scale
-(E2 on a $\ge$24\,GB GPU) and the coherent self-extraction capstone (E8) remain---the
+is now done (E2 to 6.9B, \S\ref{sec:e2scale}); the coherent self-extraction capstone (E8) remains---the
 24\,GB-GPU stage.
 
 % ===========================================================================
@@ -464,6 +466,49 @@ far below baseline and below random ablation, most strongly near the knee (low $
 Reproduced by \texttt{experiments/e2\_induction.py}.}
 \label{fig:e2}
 \end{figure}
+
+\subsection{E2 at scale: the mechanism holds to 6.9B, across families}\label{sec:e2scale}
+The GPT-2-small result above is one model; does the \emph{mechanism} scale? We repeat the
+causal test up the size ladder, on a cloud GPU. One methodological fix is essential: a
+\emph{fixed} ablation count does not scale---8 heads is $5.6\%$ of GPT-2-small's 144 heads but
+only $0.7\%$ of GPT-2-xl's 1200, and ablating $8/1200$ moves reproduction by a mere
+$4$--$13\%$ (a false null). We therefore ablate a fixed \emph{fraction} of heads
+($\approx\!5\%$, the top-scoring induction heads), matched by a random-head control of the
+same size.
+
+\begin{table}[h]
+\centering\small
+\begin{tabular}{lcccc}
+\toprule
+model & params & ablated & induction $\Delta$ (p{=}3, near knee) & random $\Delta$ \\
+\midrule
+GPT-2-small   & 124M & 8/144 & $-87\%$ & $-25\%$ \\
+GPT-2-xl      & 1.5B & 60/1200 & $\mathbf{-70\%}$ & $-6\%$ \\
+Pythia-1.4B   & 1.4B & 8/384 & $-80\%$ & $-2\%$ \\
+Pythia-2.8B   & 2.8B & 51/1024 & $\mathbf{-98\%}$ & $-28\%^\dagger$ \\
+Pythia-6.9B   & 6.9B & 51/1024 & $-82\%$ & $+25\%^\dagger$ \\
+\bottomrule
+\end{tabular}
+\caption{E2 at scale: drop in $P(\text{correct next payload token})$ from ablating the top
+induction heads vs.\ the same number of random heads, at $p{=}3$ near the knee ($N{=}2$).
+Induction ablation collapses reproduction at every scale and in both families; random ablation
+barely moves it. ($\dagger$ random-control noise at $N{=}2$ with 4 payloads; clean by $N{=}3$.)}
+\label{tab:e2scale}
+\end{table}
+
+\textbf{C2 holds across scale and family (124M--6.9B, GPT-2 and Pythia).} Ablating the top
+$\sim\!5\%$ of heads by induction score collapses reproduction near the knee ($-70\%$ to
+$-98\%$ at $p\ge3$), while an equal-sized random ablation barely dents it
+(Table~\ref{tab:e2scale})---the copy mechanism is the induction heads, at every size we can
+reach. Two refinements: single-token ($p{=}1$) reproduction is the frequency tail, not
+induction (Pythia never locks $p{=}1$ at any scale; GPT-2's $p{=}1$ is its weakest-induction
+regime, consistent with \S\ref{sec:e1b}); and the two families \emph{differ at saturation}---
+for GPT-2 the induction dependence fades once the copy is over-determined (GPT-2-xl, $p{=}5$,
+$N{=}16$: only $-6\%$), whereas Pythia retains a strong dependence even at high $N$
+(Pythia-2.8B: $-82\%$), suggesting larger Pythia models route repeated-span copying through
+induction heads rather than redundant alternative paths. (Caveats: \texttt{transformer\_lens}
+via HookedTransformer, fp16; Qwen2.5-7B did not load, so no third family at 7B; 4 payloads,
+single seed, greedy.)
 
 % ===========================================================================
 \section{E4-lite: poisonability tracks trust, not usefulness}\label{sec:e4}
@@ -636,12 +681,12 @@ result, and a paired detector (\S\ref{sec:e7}) realizes the toy's bound-trust de
 vs.\ clean documents separate at AUC $1.0$ on the induction-trust signal). The keystone now also holds \emph{at scale}: the condensation knee is low and length-robust
 from 355M to 7B across four model families and flat in parameter count (\S\ref{sec:scale}),
 and it persists in instruction-tuned models---chat models copy rather than refuse, with only a
-modest threshold rise (E1.4). What is \emph{not} yet established is the \textbf{mechanism at
-scale}: whether induction-head ablation collapses reproduction on the larger models as it does
-on GPT-2-small (E2 needs a $\ge$24\,GB GPU), together with the worm's critical length and
-induction range at scale, the larger-context retrieval-grounded versions of C5 and C6, a
-real-task (not naturalness-proxy) usefulness for C4, and the coherent self-extraction capstone
-(E8). Those are the 24\,GB-GPU stage, now under way.
+modest threshold rise (E1.4). And ablating the induction heads \emph{causally} collapses
+reproduction across scale and family (124M--6.9B, GPT-2 and Pythia), so \textbf{C2 is now
+mechanistically established at scale} (\S\ref{sec:e2scale}), not just on GPT-2-small. What is
+\emph{not} yet established: the worm's critical length and induction range at scale, the
+larger-context retrieval-grounded versions of C5 and C6, a real-task (not naturalness-proxy)
+usefulness for C4, and the coherent self-extraction capstone (E8). Those remain the next stage.
 
 \begin{thebibliography}{9}
 \bibitem{shumow2026trust} D.\ Shumow. \emph{Trust Is the Attack Surface: A Cryptanalytic
