@@ -64,6 +64,10 @@ if not ok:
     raise SystemExit(1)
 PY
 
+# Some images set HF_HUB_ENABLE_HF_TRANSFER=1 without shipping hf_transfer -> HF downloads
+# error. Disable it if the package is missing (default download path is fast enough).
+python -c "import hf_transfer" 2>/dev/null || export HF_HUB_ENABLE_HF_TRANSFER=0
+
 # --- model pre-download (HF cache; set HF_HOME to a persistent volume to keep it across boxes) ---
 UNGATED=(
   gpt2-medium gpt2-large gpt2-xl

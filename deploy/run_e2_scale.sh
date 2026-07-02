@@ -17,6 +17,11 @@ cd "$(dirname "$0")/.."                          # repo root
 . .venv/bin/activate
 git pull --ff-only 2>/dev/null || echo "(git pull skipped -- using local code)"
 
+# RunPod (and some images) set HF_HUB_ENABLE_HF_TRANSFER=1 but don't ship hf_transfer, which
+# makes every HF download error out. Disable it if the package is missing -- the default
+# download path is plenty fast.
+python -c "import hf_transfer" 2>/dev/null || { export HF_HUB_ENABLE_HF_TRANSFER=0; echo "hf_transfer absent -> HF_HUB_ENABLE_HF_TRANSFER=0"; }
+
 K_FRAC="${K_FRAC:-0.05}"                          # fraction of all heads to ablate
 LENGTHS="${LENGTHS:-1 3 5}"
 REPS="${REPS:-2 3 4 8 16}"
