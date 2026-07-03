@@ -1,0 +1,24 @@
+nohup: ignoring input
+`torch_dtype` is deprecated! Use `dtype` instead!
+Loading checkpoint shards:   0%|          | 0/4 [00:00<?, ?it/s]Loading checkpoint shards: 100%|██████████| 4/4 [00:00<00:00, 115.29it/s]
+=== E5-scale on Qwen/Qwen2.5-7B-Instruct ===
+
+=== A. placement sweep (k=16, ~4000 tok context) ===
+The following generation flags are not valid and may be ignored: ['temperature', 'top_p', 'top_k']. Set `TRANSFORMERS_VERBOSITY=info` for more details.
+The attention mask is not set and cannot be inferred from input because pad token is same as eos token. As a consequence, you may observe unexpected behavior. Please pass your input's `attention_mask` to obtain reliable results.
+  pos=0.00  hijack=0.00
+  pos=0.25  hijack=0.00
+  pos=0.50  hijack=0.00
+  pos=0.75  hijack=0.00
+  pos=1.00  hijack=0.00
+
+=== B. repetition sweep (pos=1.0) ===
+  k= 1  hijack=0.01
+  k= 2  hijack=0.00
+  k= 4  hijack=0.00
+  k= 8  hijack=0.00
+  k=16  hijack=0.00
+  k=32  hijack=0.00
+
+wrote results/e5_scale.json
+wrote results/e5_scale.png

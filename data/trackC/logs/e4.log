@@ -1,0 +1,46 @@
+nohup: ignoring input
+`torch_dtype` is deprecated! Use `dtype` instead!
+Loading checkpoint shards:   0%|          | 0/4 [00:00<?, ?it/s]Loading checkpoint shards: 100%|██████████| 4/4 [00:00<00:00, 127.35it/s]
+=== E4-scale on Qwen/Qwen2.5-7B-Instruct (k=8) ===
+The following generation flags are not valid and may be ignored: ['temperature', 'top_p', 'top_k']. Set `TRANSFORMERS_VERBOSITY=info` for more details.
+The attention mask is not set and cannot be inferred from input because pad token is same as eos token. As a consequence, you may observe unexpected behavior. Please pass your input's `attention_mask` to obtain reliable results.
+  fact: 'The Vantor crystal emits light at 512 na'...
+    rep_useful       U=1  P=1.00  T=0.083
+    rep_useless      U=0  P=1.00  T=0.171
+    nonrep_useful    U=1  P=0.27  T=0.066
+    nonrep_useless   U=0  P=0.10  T=0.034
+  fact: 'Professor Quilby discovered the element '...
+    rep_useful       U=1  P=1.00  T=0.052
+    rep_useless      U=0  P=1.00  T=0.161
+    nonrep_useful    U=1  P=0.19  T=0.062
+    nonrep_useless   U=0  P=0.10  T=0.034
+  fact: 'The city of Marnth has a population of 8'...
+    rep_useful       U=0  P=1.00  T=0.076
+    rep_useless      U=0  P=1.00  T=0.161
+    nonrep_useful    U=1  P=0.31  T=0.051
+    nonrep_useless   U=0  P=0.10  T=0.034
+  fact: 'The Glimmer protocol uses a key length o'...
+    rep_useful       U=1  P=1.00  T=0.080
+    rep_useless      U=0  P=1.00  T=0.130
+    nonrep_useful    U=1  P=1.00  T=0.057
+    nonrep_useless   U=0  P=0.10  T=0.034
+  fact: 'The Drenn spacecraft reached a speed of '...
+    rep_useful       U=1  P=1.00  T=0.072
+    rep_useless      U=0  P=1.00  T=0.156
+    nonrep_useful    U=1  P=0.33  T=0.057
+    nonrep_useless   U=0  P=0.10  T=0.034
+  fact: 'The Ostara festival is celebrated on the'...
+    rep_useful       U=1  P=1.00  T=0.073
+    rep_useless      U=0  P=1.00  T=0.139
+    nonrep_useful    U=1  P=0.19  T=0.055
+    nonrep_useless   U=0  P=0.10  T=0.034
+
+2x2 means:
+  rep_useful       U=0.83  P=1.00  T=0.073
+  rep_useless      U=0.00  P=1.00  T=0.153
+  nonrep_useful    U=1.00  P=0.38  T=0.058
+  nonrep_useless   U=0.00  P=0.10  T=0.034
+
+corr(P,U) = +0.09   corr(P,T) = +0.71  (prediction: P ⊥ U, P ∥ T)
+wrote results/e4_scale.json
+wrote results/e4_scale.png

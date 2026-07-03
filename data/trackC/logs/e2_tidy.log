@@ -1,0 +1,43 @@
+nohup: ignoring input
+`torch_dtype` is deprecated! Use `dtype` instead!
+Loaded pretrained model EleutherAI/pythia-1.4b into HookedTransformer
+loaded EleutherAI/pythia-1.4b  (24L x 16H)  device=cuda
+ablating k=19 heads (19/384 = 4.9% of all heads)
+
+top 19 induction heads (layer, head | score):
+  L10H0  0.963
+  L5H8  0.951
+  L5H4  0.897
+  L7H3  0.876
+  L10H9  0.860
+  L13H1  0.765
+  L14H11  0.705
+  L4H1  0.598
+  L7H10  0.592
+  L2H7  0.539
+  L10H4  0.507
+  L12H7  0.406
+  L13H15  0.391
+  L10H8  0.347
+  L12H11  0.333
+  L4H8  0.326
+  L16H0  0.323
+  L3H13  0.313
+  L15H3  0.287
+p= 1 N=  2  base=0.000  abl-induction=0.000 (-56%)  abl-random=0.000 (--84%)
+p= 1 N=  3  base=0.000  abl-induction=0.000 (-56%)  abl-random=0.000 (--84%)
+p= 1 N=  4  base=0.000  abl-induction=0.000 (-56%)  abl-random=0.000 (--84%)
+p= 1 N=  8  base=0.000  abl-induction=0.000 (-56%)  abl-random=0.000 (--84%)
+p= 1 N= 16  base=0.000  abl-induction=0.000 (-56%)  abl-random=0.000 (--84%)
+p= 3 N=  2  base=0.409  abl-induction=0.050 (-88%)  abl-random=0.481 (--18%)
+p= 3 N=  3  base=0.760  abl-induction=0.158 (-79%)  abl-random=0.803 (--6%)
+p= 3 N=  4  base=0.867  abl-induction=0.222 (-74%)  abl-random=0.889 (--2%)
+p= 3 N=  8  base=0.955  abl-induction=0.358 (-62%)  abl-random=0.964 (--1%)
+p= 3 N= 16  base=0.984  abl-induction=0.434 (-56%)  abl-random=0.991 (--1%)
+p= 5 N=  2  base=0.645  abl-induction=0.137 (-79%)  abl-random=0.680 (--5%)
+p= 5 N=  3  base=0.857  abl-induction=0.348 (-59%)  abl-random=0.868 (--1%)
+p= 5 N=  4  base=0.922  abl-induction=0.495 (-46%)  abl-random=0.922 (--0%)
+p= 5 N=  8  base=0.976  abl-induction=0.627 (-36%)  abl-random=0.977 (--0%)
+p= 5 N= 16  base=0.986  abl-induction=0.641 (-35%)  abl-random=0.990 (--0%)
+
+wrote results/e2_EleutherAI_pythia-1.4b.png
