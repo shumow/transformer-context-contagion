@@ -3,7 +3,7 @@
 # pod as its start command (deploy/runpod_pod.py creates the pod with this as dockerArgs via
 # a git clone). Everything is driven by env:
 #
-#   TCC_JOB             smoke | p1 | e4e5          (what to run; see run_job below)
+#   TCC_JOB             diag | smoke | p1 | e4e5   (what to run; see run_job below)
 #   TCC_BRANCH          code branch to run         (the clone is made by the start command)
 #   TCC_RESULTS_BRANCH  branch to push results to  (created here from TCC_BRANCH)
 #   TCC_MAX_HOURS       watchdog: terminate the pod after this many hours no matter what
@@ -74,7 +74,7 @@ log "bootstrap"
 PREDOWNLOAD=0 DIR="$REPO_DIR" bash deploy/bootstrap.sh || { log "BOOTSTRAP FAILED"; }
 . .venv/bin/activate
 python -c "import hf_transfer" 2>/dev/null || export HF_HUB_ENABLE_HF_TRANSFER=0
-pip freeze > "$STATUS_DIR/pip-freeze.txt"
+python -m pip freeze > "$STATUS_DIR/pip-freeze.txt"
 python -m tests.test_scoring && python -m tests.test_corpus && python -m tests.test_snapshot \
   && python -m experiments.e6_scale --selftest && python -m experiments.e4_scale --selftest \
   && python -m experiments.e5_scale --selftest || log "SELFTESTS FAILED (continuing so the log is pushed)"
@@ -90,6 +90,35 @@ run_one() {                           # run_one <label> <python -m args...>  (co
 
 run_job() {
   case "$JOB" in
+    diag)
+      # why did a gated model fail to load? identity of the HF token and the exact error (no values printed)
+      log "HF_TOKEN present: $([ -n "${HF_TOKEN:-}" ] && echo yes len=${#HF_TOKEN} || echo NO)"
+      log "HF env: $(env | grep -oE '^(HF_[A-Z_]*|HUGGINGFACE[A-Z_]*|TRANSFORMERS_OFFLINE)=' | tr '\n' ' ')"
+      python -m pip show huggingface_hub transformers tokenizers 2>/dev/null | grep -E "^(Name|Version)"
+      for url in https://huggingface.co/api/whoami-v2 https://huggingface.co/api/models/meta-llama/Llama-3.2-1B \
+                 https://huggingface.co/api/models/google/gemma-2-2b https://huggingface.co/meta-llama/Llama-3.2-1B/resolve/main/config.json; do
+        log "curl (auth)   $url -> HTTP $(curl -sS -o /tmp/r.json -w '%{http_code}' -H "Authorization: Bearer ${HF_TOKEN:-}" "$url"); $(python3 -c "
+import json,sys
+try: d=json.load(open('/tmp/r.json'))
+except Exception as e: print('non-json body'); sys.exit()
+if 'auth' in d: a=d['auth'].get('accessToken',{}); print('type',d.get('type'),'role',a.get('role'),'fineGrained',json.dumps(a.get('fineGrained',{}))[:300])
+else: print({k:d[k] for k in ('error','gated','private','id') if k in d})
+")"
+        log "curl (noauth) $url -> HTTP $(curl -sS -o /dev/null -w '%{http_code}' "$url")"
+      done
+      python - <<'PY'
+import traceback, os
+from huggingface_hub import whoami, hf_hub_download
+try: print("whoami:", {k: v for k, v in whoami().items() if k in ("type", "name")})
+except Exception: traceback.print_exc()
+for repo in ("meta-llama/Llama-3.2-1B", "google/gemma-2-2b", "Qwen/Qwen2.5-0.5B"):
+    try: print("hf_hub_download OK:", repo, hf_hub_download(repo, "config.json"))
+    except Exception: traceback.print_exc()
+from transformers import AutoTokenizer
+try: print("AutoTokenizer OK:", AutoTokenizer.from_pretrained("meta-llama/Llama-3.2-1B").__class__.__name__)
+except Exception: traceback.print_exc()
+PY
+      ;;
     smoke)
       # bootstrap check: all five tokenizer-family models (two gated), bf16, snapshot, push
       run_one smoke_e6B -m experiments.e6_scale --part B --trials 2 --cross-hops 1 \
