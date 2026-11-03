@@ -67,7 +67,9 @@ def experiment_A(gpt2, args, rng):
                                       args.hops, rng, args.temperature))
         arr = np.array(runs, float)
         survive = float(np.mean(arr[:, -1] >= 1))             # fraction alive at last hop
-        curves[str(p)] = dict(mean=arr.mean(axis=0).tolist(), survive=survive)
+        # 'runs' = per-trial trajectories, so R0 / survival CIs can be computed afterwards
+        # (experiments/analysis_e6_r0.py); means alone cannot support a CI.
+        curves[str(p)] = dict(mean=arr.mean(axis=0).tolist(), survive=survive, runs=arr.tolist())
         print(f"  p={p:2d}  mean load/hop: " +
               " -> ".join(f"{v:.1f}" for v in arr.mean(axis=0)) +
               f"   survive(last hop)={survive:.0%}")
@@ -89,6 +91,7 @@ def experiment_B(gpt2, pythia, args, rng):
                                       args.hops, rng, args.temperature))
         arr = np.array(runs, float)
         out[label] = arr.mean(axis=0).tolist()
+        out[label + " [runs]"] = arr.tolist()                  # per-trial trajectories
         print(f"  {label:26s} load per hop: " +
               " -> ".join(f"{v:.1f}" for v in arr.mean(axis=0)))
     return out

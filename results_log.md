@@ -756,6 +756,101 @@ transfer and bounds where the copy-dynamics story applies.) Caveats: one model, 
 4k context, benign OOD payload; a no-query "continue the documents" framing would likely hijack
 (that is E1.4/E5-lite) — the finding is that the *task query* defuses it. `results/e5_scale.json`.
 
+## Analyses of committed data, following the critical review (2026-11-03)
+
+Three re-analyses of data already in the repository, no new model runs. Scripts:
+`experiments/analysis_knee_floor.py`, `analysis_e6_firebreak.py`, `analysis_e6_r0.py`; outputs
+under `data/*/analysis_*.json`. Where the raw JSON was never committed, the inputs are
+transcriptions of the tables in this log (`data/trackA/e6_worm_transcribed.json`,
+`data/trackB/e1_3_e1_4_knees_transcribed.json`, `data/trackC/e6_scale_partB_3hop_reps16.json`),
+each with a `_provenance` field saying so.
+
+### A. The "knee" for multi-token payloads is the grid floor
+
+For p ≥ 2 the transition S[-1]→S[0] has never occurred in a context of N=1 copies, so copying
+it at N=1 is impossible except by chance; at N=2 it has occurred once. Any copy mechanism
+therefore jumps between N=1 and N=2, and the interpolated N* lands in (1, 2] whenever the
+**one-shot copy rate** P(reproduce | N=2) ≥ ½. In that regime N* is a re-parameterization of
+that rate (N* = 1 + ½ / P(N=2) when P(N=1)=0), not an independently measured threshold.
+
+Applied to the E1.3/E1.4 knee tables (48 multi-token cells, 16 models, p ∈ {3,5,8}):
+
+| | cells | at the floor (N* ≤ 2) | implied one-shot rate P(N=2), floor cells |
+|---|---|---|---|
+| p ≥ 3, base + instruct | 48 | **36 (75%)** | median 0.71, min 0.50 |
+
+The 12 cells not at the floor: gpt2-medium p=3 (2.7); pythia-410m p=3 (2.4); pythia-1.4b p=3,
+p=8 (2.3, 2.3); pythia-2.8b p=3 (2.3); Llama-3.2-1B p=5 (2.7); Qwen2.5-1.5B-Instruct p=3, p=5
+(2.8, 2.8); Qwen2.5-7B-Instruct p=5 (2.5); Llama-3.2-3B-Instruct p=3, p=5 (3.2, 6.3);
+gemma-2-2b-it p=3 (3.0). One cell (gemma-2-2b-it p=8, N*=1.4) inverts to P(N=2) > 1, meaning
+P(N=1) was not zero there; the inversion is marked invalid.
+
+**What this changes.** "A sharp knee at N*≈1.5–1.9 that is flat from 355M to 7B" is the
+statement "one prior occurrence of a ≥3-token span suffices more often than not in every
+model" — which is what an induction head is defined to do. The sharpness and the scale-flatness
+are properties of the grid, not findings. The defensible summary is the one-shot rate (≈0.5–1.0
+across models, from the inversion; a direct measurement needs the per-N curves, which E1.3 did
+not store). The cells *above* the floor are the informative ones: three of the four instruct
+models and the smaller Pythia models need more than one prior occurrence at p=3, which is a
+real, if modest, difference. The p=1 and p=2 knees are not floor effects and remain as logged
+(frequency-prior / copy-suppression regime). `e1_3_size_sweep.py` should store the per-N
+curves on its next run so P(N=2) can be reported directly with a Wilson interval.
+
+### B. The cross-tokenizer firebreak: both 2026-07-02 runs, with a test
+
+Two Part-B runs are in `data/trackC/logs/e6.log`; only the second was reported above. Exact
+permutation test, null = host tokenizer identity is irrelevant (columns exchangeable within a
+row), statistic = diagonal mean − off-diagonal mean, 5⁵ = 3125 assignments:
+
+| run | hops | seed copies | trials | diag mean | off-diag mean | ratio | diag is row-max | diag = 0 | one-sided p |
+|---|---|---|---|---|---|---|---|---|---|
+| first (script defaults, **unreported**) | 3 | 16 | 5 | 4.00 | 2.44 | 1.64 | 2 / 5 | pythia, llama | **0.238** |
+| second (reported, `e6_scale.json`) | 1 | 32 | 8 | 14.18 | 8.82 | 1.61 | 3 / 5 | none | **0.004** |
+
+Off-diagonal entries exceeding their row's diagonal: first run, six of them (pythia→qwen 13.6
+vs pythia→pythia 0.0; llama→pythia 6.4 vs llama→llama 0.0; gemma→gpt2 and gemma→pythia 6.4 vs
+gemma→gemma 0.8); second run, two (pythia→qwen 15.5, qwen→llama 16.9).
+
+**What this changes.** At 3 hops on 0.5–2B hosts with 16 seed copies, there is no detectable
+same-tokenizer advantage: the diagonal-vs-off-diagonal gap is what a random assignment of
+"diagonal" produces about one time in four. The reported "partial firebreak" comes from a
+re-run at 1 hop with double the seeding, where the advantage is significant (p = 0.004, ratio
+1.6). One hop is the weakest possible transmission test (patient zero's output re-tokenized
+once). The protocol change between the runs was not recorded in this log or the paper; it is
+now. The claim should read: *under heavy seeding, a single re-tokenization attenuates
+transmission by roughly 1.6× on average; over three hops on small models, transmission is too
+weak in both conditions to measure a firebreak.* The queued `deploy/run_trackC_p1.sh` sweeps
+seeding strength at 3 hops with 30 trials and should settle which description holds.
+
+### C. R0 was never computed; here is what the mean trajectories support
+
+Per (model, p): R_geo = geometric mean of k_{t+1}/k_t over hops where both loads ≥ 1 (the
+per-hop multiplication while alive); R_tail = the ratio at the last hop with k_t ≥ 1 (the step
+nearest threshold; 0 for chains that die). Computed from the **mean** load per hop, since no
+per-trial trajectories were stored (both E6 scripts now store them under `runs`).
+
+| model | p=1 | p=2 | p=3 | p=5 | p=8 |
+|---|---|---|---|---|---|
+| GPT-2 (Track A) | 0.81 / endemic at 12 | 0.16 / dies hop 2 | 0.60 / dies hop 6 | 0.54 / dies hop 5 | 0.33 / dies hop 2 |
+| Pythia-2.8B | – / dead | 0.60 / dies hop 5 | 0.50 / dies hop 3 | 0.66 / dies hop 5 | 0.66 / dies hop 4 |
+| Qwen2.5-7B | – / dies hop 1 | 0.90 / endemic | 0.91 / endemic | 0.93 / endemic | 0.86 / endemic |
+| Llama-3.2-3B | – / dead | 0.60 / dies hop 3 | – / dies hop 1 | 0.71 / dies hop 5 | 0.27 / dies hop 2 |
+| Qwen2.5-7B-Instruct | 0.20 / dies hop 2 | 0.89 / endemic | 0.70 / endemic (load 2 at hop 6) | 0.77 / endemic | 0.89 / endemic |
+
+(cell = R_geo / verdict; "–" = no living hop pair.)
+
+**What this changes.** No cell has R > 1: nothing amplifies. The "endemic" cells are chains whose
+mean load is *flat* across hops (Qwen2.5-7B p=2: 29, 29, 29, 29; p=5: 8, 8, 8, 8), which is the
+signature of hosts emitting their full T=96 tokens as pure payload every hop — a locked
+repetition loop whose load is fixed by T/p, not an epidemic with a reproduction number. The
+dying chains decay by ≈0.5–0.7× per hop until extinction. So the toy's "R0 ≈ T/(p·k_thresh),
+falling with length" is not what the transformer data show: what varies with model and p is
+the *probability of locking* (binary per trial, hence the 20–60% survival figures on 5 trials),
+and the decay rate of unlocked chains. The "worm gets worse at scale" claim reduces to "a 7B
+model locks into a payload loop more readily than a 3B one", which the per-trial rerun with
+CIs (`deploy/run_trackC_p1.sh`) can test directly, and which should be read against Holtzman
+et al. (2019) on degenerate repetition rather than against an epidemic model.
+
 ## E6-scale — the worm at scale: it gets worse (Track C) (2026-07-02)
 
 **Part A — serial passage on larger/instruct models** (survival across 6 hops, sweep payload

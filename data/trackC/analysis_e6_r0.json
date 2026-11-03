@@ -1,0 +1,221 @@
+{
+  "data/trackA/e6_worm_transcribed.json": {
+    "gpt2": {
+      "1": {
+        "R_geo": 0.8115625398010615,
+        "R_tail": 1.0,
+        "endemic": true,
+        "extinction_hop": null,
+        "last_load": 12.0,
+        "n_hops": 6
+      },
+      "2": {
+        "R_geo": 0.15999999999999998,
+        "R_tail": 0.0,
+        "endemic": false,
+        "extinction_hop": 2,
+        "last_load": 0.0,
+        "n_hops": 6
+      },
+      "3": {
+        "R_geo": 0.6034176336545163,
+        "R_tail": 0.0,
+        "endemic": false,
+        "extinction_hop": 6,
+        "last_load": 0.0,
+        "n_hops": 6
+      },
+      "5": {
+        "R_geo": 0.537284965911771,
+        "R_tail": 0.0,
+        "endemic": false,
+        "extinction_hop": 5,
+        "last_load": 0.0,
+        "n_hops": 6
+      },
+      "8": {
+        "R_geo": 0.3333333333333333,
+        "R_tail": 0.0,
+        "endemic": false,
+        "extinction_hop": 2,
+        "last_load": 0.0,
+        "n_hops": 6
+      },
+      "_largest_endemic_p": 1
+    }
+  },
+  "data/trackC/e6_scale.json": {
+    "EleutherAI/pythia-2.8b": {
+      "1": {
+        "R_geo": null,
+        "R_tail": null,
+        "endemic": false,
+        "extinction_hop": 0,
+        "last_load": 0.6,
+        "n_hops": 6
+      },
+      "2": {
+        "R_geo": 0.6042750794713536,
+        "R_tail": 0.18749999999999997,
+        "endemic": false,
+        "extinction_hop": 5,
+        "last_load": 0.0,
+        "n_hops": 6
+      },
+      "3": {
+        "R_geo": 0.49574460346473437,
+        "R_tail": 0.0,
+        "endemic": false,
+        "extinction_hop": 3,
+        "last_load": 0.0,
+        "n_hops": 6
+      },
+      "5": {
+        "R_geo": 0.6629664670975194,
+        "R_tail": 0.0,
+        "endemic": false,
+        "extinction_hop": 5,
+        "last_load": 0.0,
+        "n_hops": 6
+      },
+      "8": {
+        "R_geo": 0.6586337560083495,
+        "R_tail": 0.0,
+        "endemic": false,
+        "extinction_hop": 4,
+        "last_load": 0.0,
+        "n_hops": 6
+      },
+      "_largest_endemic_p": null
+    },
+    "Qwen/Qwen2.5-7B": {
+      "1": {
+        "R_geo": null,
+        "R_tail": 0.0,
+        "endemic": false,
+        "extinction_hop": 1,
+        "last_load": 0.4,
+        "n_hops": 6
+      },
+      "2": {
+        "R_geo": 0.9004380638814834,
+        "R_tail": 0.7291666666666666,
+        "endemic": true,
+        "extinction_hop": null,
+        "last_load": 21.0,
+        "n_hops": 6
+      },
+      "3": {
+        "R_geo": 0.9069437568898862,
+        "R_tail": 1.0,
+        "endemic": true,
+        "extinction_hop": null,
+        "last_load": 12.8,
+        "n_hops": 6
+      },
+      "5": {
+        "R_geo": 0.9284687986656754,
+        "R_tail": 0.976190476190476,
+        "endemic": true,
+        "extinction_hop": null,
+        "last_load": 8.2,
+        "n_hops": 6
+      },
+      "8": {
+        "R_geo": 0.858374218932557,
+        "R_tail": 0.7058823529411765,
+        "endemic": true,
+        "extinction_hop": null,
+        "last_load": 4.8,
+        "n_hops": 6
+      },
+      "_largest_endemic_p": 8
+    },
+    "meta-llama/Llama-3.2-3B": {
+      "1": {
+        "R_geo": null,
+        "R_tail": null,
+        "endemic": false,
+        "extinction_hop": 0,
+        "last_load": 0.2,
+        "n_hops": 6
+      },
+      "2": {
+        "R_geo": 0.5987408170800917,
+        "R_tail": 0.0,
+        "endemic": false,
+        "extinction_hop": 3,
+        "last_load": 0.0,
+        "n_hops": 6
+      },
+      "3": {
+        "R_geo": null,
+        "R_tail": 0.0,
+        "endemic": false,
+        "extinction_hop": 1,
+        "last_load": 0.0,
+        "n_hops": 6
+      },
+      "5": {
+        "R_geo": 0.7098962112020106,
+        "R_tail": 0.18749999999999997,
+        "endemic": false,
+        "extinction_hop": 5,
+        "last_load": 0.0,
+        "n_hops": 6
+      },
+      "8": {
+        "R_geo": 0.26666666666666666,
+        "R_tail": 0.08333333333333334,
+        "endemic": false,
+        "extinction_hop": 2,
+        "last_load": 0.0,
+        "n_hops": 6
+      },
+      "_largest_endemic_p": null
+    },
+    "Qwen/Qwen2.5-7B-Instruct": {
+      "1": {
+        "R_geo": 0.2,
+        "R_tail": 0.06666666666666667,
+        "endemic": false,
+        "extinction_hop": 2,
+        "last_load": 0.0,
+        "n_hops": 6
+      },
+      "2": {
+        "R_geo": 0.8855974542386525,
+        "R_tail": 1.0,
+        "endemic": true,
+        "extinction_hop": null,
+        "last_load": 19.2,
+        "n_hops": 6
+      },
+      "3": {
+        "R_geo": 0.7034895899442668,
+        "R_tail": 0.22641509433962265,
+        "endemic": true,
+        "extinction_hop": null,
+        "last_load": 2.4,
+        "n_hops": 6
+      },
+      "5": {
+        "R_geo": 0.7707708420955104,
+        "R_tail": 0.5909090909090908,
+        "endemic": true,
+        "extinction_hop": null,
+        "last_load": 2.6,
+        "n_hops": 6
+      },
+      "8": {
+        "R_geo": 0.8878423567247768,
+        "R_tail": 1.0,
+        "endemic": true,
+        "extinction_hop": null,
+        "last_load": 4.8,
+        "n_hops": 6
+      },
+      "_largest_endemic_p": 8
+    }
+  }
+}

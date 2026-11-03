@@ -1,0 +1,13 @@
+{
+  "_provenance": "TRANSCRIBED from data/trackC/logs/e6.log (first Part B run, RunPod L40S, 2026-07-02). This is the cross-tokenizer firebreak matrix at the SCRIPT DEFAULTS: p=3, 3 hops, host0-reps 16, 5 trials. Its results/e6_scale.json was overwritten by the second Part B run (1 hop, host0-reps 32, 8 trials), which is the matrix committed as data/trackC/e6_scale.json and the only one reported in results_log.md and the paper. Both runs are in the log; this file makes the first one analyzable. Entry = mean surviving load at the last hop; rows = patient-zero tokenizer family, columns = host family.",
+  "config": {"cross_p": 3, "cross_hops": 3, "host0_reps": 16, "trials": 5, "T": 96, "temperature": 1.0},
+  "models": {"gpt2": "gpt2", "pythia": "EleutherAI/pythia-410m", "qwen": "Qwen/Qwen2.5-0.5B",
+             "llama": "meta-llama/Llama-3.2-1B", "gemma": "google/gemma-2-2b"},
+  "cross": {
+    "gpt2":   {"gpt2": 6.4, "pythia": 2.0, "qwen": 0.0,  "llama": 0.0, "gemma": 0.0},
+    "pythia": {"gpt2": 0.0, "pythia": 0.0, "qwen": 13.6, "llama": 3.2, "gemma": 5.0},
+    "qwen":   {"gpt2": 0.0, "pythia": 0.0, "qwen": 12.8, "llama": 0.6, "gemma": 5.2},
+    "llama":  {"gpt2": 0.0, "pythia": 6.4, "qwen": 0.0,  "llama": 0.0, "gemma": 0.0},
+    "gemma":  {"gpt2": 6.4, "pythia": 6.4, "qwen": 0.0,  "llama": 0.0, "gemma": 0.8}
+  }
+}
