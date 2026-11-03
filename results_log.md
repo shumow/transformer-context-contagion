@@ -379,11 +379,14 @@ samples/cell. The realistic long-context (4k–128k) RAG version with retrieval 
 
 ## E7 — the paired detector (defensive complement) (2026-06-26)
 
-> **Status (2026-11-03): superseded pending rerun.** This run had 3 clean documents (an AUC
-> over 3 negatives is not a measurement), no model-free baseline, and no false-positive rate
-> on legitimately repetitive text. `experiments/e7_detector.py` now scores 32 clean
-> paragraphs, an n-gram-repeat baseline, and 8 benign-repetitive negatives, with bootstrap
-> CIs (see `review_remediation_plan.md` §0.3). The numbers below stand until it is rerun.
+> **Status (2026-11-03): SUPERSEDED by the rerun below** ("E7 rerun — detector vs n-gram
+> baseline, 32 negatives"). This run had 3 clean documents (an AUC over 3 negatives is not a
+> measurement), no model-free baseline, and no false-positive rate on legitimately repetitive
+> text. The rerun scores 32 clean paragraphs against an n-gram-repeat baseline and 8
+> benign-repetitive negatives with bootstrap CIs, and overturns the headline: the induction
+> detector does **not** beat a model-free n-gram-repeat count (both AUC 1.0 at every k), and is
+> marginally worse on benign-repetitive false positives. The "AUC=1.0" and "fires at k=2" claims
+> below are real but say nothing the n-gram baseline does not; read the rerun entry instead.
 
 The attacks (E4/E5/E6) all key on one quantity: induction trust earned by a repeated span.
 So the defense watches that same quantity. The detector scores a context by its mean
@@ -892,3 +895,47 @@ helps (same-tokenizer is worst-case) but is not a hard firebreak** against a str
 payload; the clean Track-A collapse was the weak-signal regime. Caveats: small models (0.5–2B)
 per family, p=3, 8 trials; the diagonal/off-diagonal separation is a tendency, not a clean gap.
 `results/e6_scale.json`.
+
+## E7 rerun — detector vs n-gram baseline, 32 negatives (2026-11-03, local CPU)
+
+Supersedes the E7 run above (3 clean negatives, no baseline, no FPR). Command (the only change
+from defaults is `HF_HUB_OFFLINE=1`, to force the cached gpt2 and make the run offline — it does
+not affect the computation):
+
+```
+HF_HUB_OFFLINE=1 python -m experiments.e7_detector --snapshot trackA
+# defaults: payload-p=3, ks=[2,4,8,16], instances=2, k-heads=8, ngram=3, seed=7
+```
+
+Induction heads scored: `[(5,5),(7,10),(6,9),(5,1),(7,2),(9,6),(10,1),(9,9)]`. 32 clean
+paragraphs (negatives), 8 benign-repetitive controls, 2 payloads × 32 docs = 64 poisoned
+instances per k. AUC = P(poisoned > clean), bootstrap 95% CI in brackets.
+
+| detector | clean mean (max=thr) | k=2 | k=4 | k=8 | k=16 | benign-rep. FPR @thr |
+|---|---|---|---|---|---|---|
+| **induction** (mean head engagement) | 0.0001 (0.0022) | 0.0229 | 0.0606 | 0.0779 | 0.0800 | **1.00 (8/8)** |
+| induction **AUC** | — | 1.000 [1.000,1.000] | 1.000 [1.000,1.000] | 1.000 [1.000,1.000] | 1.000 [1.000,1.000] | |
+| **ngram3_repeat** (model-free) | 0.0000 (0.0000) | 0.0267 | 0.1609 | 0.3420 | 0.5402 | 0.88 (7/8) |
+| ngram3 **AUC** | — | 1.000 [1.000,1.000] | 1.000 [1.000,1.000] | 1.000 [1.000,1.000] | 1.000 [1.000,1.000] | |
+
+**Does the induction score beat the n-gram count? No.** Both detectors separate poisoned from
+clean *perfectly* — AUC = 1.000 with a degenerate [1.000, 1.000] bootstrap CI at every k, from
+k=2 up. They are statistically indistinguishable on the discrimination task because clean prose
+carries essentially zero of either signal (induction clean mean 1e-4, n-gram clean mean exactly
+0), so any planted repeated span is trivially separable by either. The honest reading is the one
+the task anticipated: **the detector is an n-gram repeat detector; the induction machinery
+explains *why* repetition is dangerous (E4) but is not a better alarm than a model-free count of
+repeated 3-grams.** The one place they differ, the n-gram baseline is slightly *better*: at the
+zero-FP-on-clean operating threshold the benign-repetitive false-positive rate is **1.00 for the
+induction detector (8/8: license_header, email_footer, code_loop, numbered_list, chorus,
+csv_dump, form_letter, menu) vs 0.88 for n-gram (7/8 — it alone does not flag the license
+header)**. The induction score's advertised edge (keying on *trust* independent of usefulness)
+buys nothing here and costs one extra false positive. The only qualitative difference is dynamic
+range — the n-gram mean climbs 0.03→0.54 across k while induction saturates ~0.08 — but since
+both already reach AUC 1.0 at k=2, that range does not translate into better detection on this
+benchmark.
+
+Caveats: GPT-2-small, CPU, ~65-token docs, p=3, 2 payloads/doc, seed 7; 71 s. Both detectors are
+evaluated against the *same* benign-repetitive controls, so the FPR gap is not a sampling
+artifact of different thresholds. Raw: `data/trackA/e7_detector.json` (+ `.png`); the superseded
+June 3-negative run is preserved as `data/trackA/e7_detector_2026-06-26_3neg.json`.

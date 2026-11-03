@@ -33,7 +33,7 @@ the detail lives:
 | C4 trust, not usefulness | Holds on the GPT-2-small proxy. The at-scale real-task version had repeating "non-repetitive" cells and a copy-rate that is ~1 by construction; redesigned, **rerun pending**. | log: E4-lite, E4-scale (status note) |
 | C5 RAG hijack | Holds on a base-model continuation (entry × lock-in); **bounded** at scale: a task query on an instruct model defuses raw-repetition hijack. | log: E5-lite, E5-scale |
 | C6 worm / firebreak | Re-analyzed: no cell has a per-hop reproduction ratio above one; "endemic" 7B chains are locked repetition loops at a load set by T/p. Firebreak: significant in the reported 1-hop run (p=0.004), undetectable in the unreported 3-hop run (p=0.24). Higher-n rerun queued. | log: E6, E6-scale, *Analyses* §B–C |
-| E7 detector | AUC 1.0 was on three negatives with no baseline; rewritten with 32 negatives, an n-gram baseline and a false-positive rate, **rerun pending**. | log: E7 (status note) |
+| E7 detector | **Reran (32 negatives + model-free n-gram baseline + FPR):** the induction detector does **not** beat a model-free n-gram-repeat count — both separate poisoned from clean perfectly (AUC 1.0 at every k≥2), and the induction score is marginally *worse* on benign-repetitive text (FPR 1.00 vs 0.88). It is an n-gram repeat detector; induction explains *why* repetition is dangerous, not a better alarm. | log: E7 rerun (2026-11-03) |
 | E8 self-extraction | Instruct models decode and execute nested benign substitution. E8-lite's "random" control was the lowest-induction heads; **rerun pending**. | log: E8-lite (status note), E8 capstone |
 
 Sample sizes are small throughout (3–8 payloads, facts or trials per cell, single seeds); read

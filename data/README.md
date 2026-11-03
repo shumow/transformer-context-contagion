@@ -39,6 +39,11 @@ The original Track A/B runs' JSON/PNG/log files were found still present in the 
 | `trackB/e1_3_trackb_t4.json` (+ PNG), `e1_3_llama_t4.json`, `e2_gpt2-xl.json`, `e2_EleutherAI_pythia-1.4b.json`, `e2_EleutherAI_pythia-2.8b.json`, `e2_EleutherAI_pythia-6.9b.json`, `e2_Qwen_Qwen2.5-7B.json`, `e8_capstone.json` | **raw**, recovered 2026-11-03 from `results/`; T4/L40S cloud runs scp'd to the Mac, 2026-06-30–07-02 |
 | `trackB/e1_3_trackb_t4.json` | raw E1.3 scale-knee run; **partially supersedes** `trackB/e1_3_e1_4_knees_transcribed.json` (the E1.3 half only — E1.4 raw is still missing, so the transcription is kept) |
 
+**Note on `trackA/e7_detector.json`:** the E7 rerun (2026-11-03, Task 2) writes to this same
+filename, so `trackA/e7_detector.json` (+ `.png`) now holds the **32-negative rerun**, not the
+recovered June run. The recovered June 3-negative run is preserved beside it as
+`trackA/e7_detector_2026-06-26_3neg.json` (+ `.png`). See `results_log.md`, "E7 rerun".
+
 ## Still missing (raw data lost unless recovered from the Azure disk)
 Track A: none — all recovered 2026-11-03 (see above).
 Track B: `e1_4` only (searched the dev Mac 2026-11-03, not found; its numbers remain in
