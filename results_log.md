@@ -991,3 +991,53 @@ Caveats: GPT-2-small, CPU, 8 tables × m queries/cell (small-m rows noisy), top-
 2-step, seed 7; 92 s. No bootstrap CIs — point estimates only, so read the −3%/−33% random-column
 swings between m=8 and m=16 as sampling noise, not structure. Raw: `data/trackA/e8_substitution.json`
 (+ `.png`); the superseded June run is preserved as `data/trackA/e8_substitution_2026-06-26.json`.
+
+## E1.1 rerun — curves committed, direct one-shot rate (2026-11-03)
+
+Not a supersession — the same command as the original E1.1 (2026-06-25), rerun so the per-N
+*curves* are committed as raw data for the first time (`data/trackA/e1_1_gpt2.json`) and the
+direct one-shot copy rate P(N=2) is reported with Wilson intervals. It is sampled (T=1.0), so
+the numbers differ slightly from the June entry. Command (only `HF_HUB_OFFLINE=1` added):
+
+```
+HF_HUB_OFFLINE=1 python -m experiments.e1_condensation_knee --model gpt2 \
+    --lengths 1 2 3 5 --reps 1 2 4 8 16 32 --payloads 4 --trials 10 --max-new 48 --snapshot trackA
+HF_HUB_OFFLINE=1 python -m experiments.analysis_knee_floor data/trackA/e1_1_gpt2.json \
+    --out data/trackA/analysis_knee_floor_gpt2.json
+```
+
+Device MPS (generation-only), 4 payloads × 10 trials = 40 samples/cell, 990 s.
+
+**Knee table** (reproduces the June shape: N\* decreases with length):
+
+| p | knee N* (95% CI) | width | scrambled P@N=32 | no-payload P | June N* |
+|---|---|---|---|---|---|
+| 1 | 7.1 (4.7–9.7) | 8.0 | 0.95 | 0.00 | 7.2 |
+| 2 | 3.6 (1.6–5.3) | 4.2 | 0.78 | 0.00 | 4.3 |
+| 3 | 3.2 (2.7–4.8) | 3.4 | 0.03 | 0.00 | 3.0 |
+| 5 | 1.8 (1.6–2.3) | 1.8 | 0.00 | 0.025 | 1.9 |
+
+**Direct one-shot copy rate** (Wilson 95% intervals, from the committed curves):
+
+| p | P(N=1) | P(N=2) = one prior occurrence | at grid floor? |
+|---|---|---|---|
+| 1 | 0.00 [0.00, 0.09] | 0.00 [0.00, 0.09] | no |
+| 2 | 0.00 [0.00, 0.09] | 0.28 [0.16, 0.43] | no |
+| 3 | 0.00 [0.00, 0.09] | 0.20 [0.11, 0.35] | no |
+| 5 | 0.03 [0.00, 0.13] | **0.60 [0.45, 0.74]** | **yes** |
+
+**The one-shot copy rate on GPT-2-small is modest and length-dependent.** A single prior
+occurrence of the span (N=2) suffices more than half the time only at p=5 (0.60 [0.45, 0.74]);
+at p=2 and p=3 it is 0.28 and 0.20, with Wilson intervals that exclude 1/2. So on GPT-2-small
+alone only 1 of the 2 multi-token cells (p≥3) sits at the grid floor, and the direct one-shot
+rate over p≥3 cells has median 0.40. This does **not** contradict the README C1/C3 status
+(which attributes "one occurrence suffices in 36/48 cells" to the *at-scale* models, not
+GPT-2-small) — it quantifies, with intervals, that the small model is the weak end of that
+range. Separately, P(N=1) ≈ 0 at every length (≤0.03), which is the assumption the knee-floor
+analysis relies on to invert N\* into an implied one-shot rate; the committed curves now
+confirm it directly rather than by stipulation.
+
+Caveats: GPT-2-small, MPS, T=1.0, 40 samples/cell, seed 7 — intervals are wide; the p=2 vs p=3
+inversion (0.28 vs 0.20) is within overlapping CIs, not a real ordering. Raw curves + analysis:
+`data/trackA/e1_1_gpt2.json`, `data/trackA/analysis_knee_floor_gpt2.json` (+ the `_knee_`/`_Nstar_`
+PNGs). The recovered June run is preserved as `data/trackA/e1_1_gpt2_2026-06-25.json` (+ PNGs).

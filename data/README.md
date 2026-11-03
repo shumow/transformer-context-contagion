@@ -49,6 +49,12 @@ to this filename, so `trackA/e8_substitution.json` (+ `.png`) now holds the **tr
 rerun**. The recovered June run is preserved as `trackA/e8_substitution_2026-06-26.json` (+ `.png`).
 See `results_log.md`, "E8-lite rerun".
 
+**Note on `trackA/e1_1_gpt2.json`:** the E1.1 rerun (2026-11-03, Task 4) writes to this filename,
+so `trackA/e1_1_gpt2.json` (+ `_knee_`/`_Nstar_` PNGs) now holds the **2026-11-03 sampled rerun**
+whose per-N curves are committed for the first time; `trackA/analysis_knee_floor_gpt2.json` is its
+knee-floor analysis. The recovered June run is preserved as `trackA/e1_1_gpt2_2026-06-25.json`
+(+ dated PNGs). See `results_log.md`, "E1.1 rerun".
+
 ## Still missing (raw data lost unless recovered from the Azure disk)
 Track A: none — all recovered 2026-11-03 (see above).
 Track B: `e1_4` only (searched the dev Mac 2026-11-03, not found; its numbers remain in
