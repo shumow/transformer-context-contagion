@@ -46,3 +46,24 @@ all 4 tests passed
 selftest: count_payload + passage_chain plumbing OK; ks(sustain)= [5, 5, 5, 5]
 selftest: 32 facts, 2x2 construction (distinct, length-matched), answer matching, correlation + bootstrap OK
 selftest: long-context construction (placement) + occupancy + cell + prompts OK
+remote:      https://github.com/shumow/transformer-context-contagion/pull/new/claude/fervent-ritchie-l5m9uw-iter7-pod-smoke        
+remote: 
+[2026-11-03T23:03:36Z] >>> smoke_e6B :: -m experiments.e6_scale --part B --trials 2 --cross-hops 1 --device cuda --prefix results/smoke_e6B --snapshot trackC
+`torch_dtype` is deprecated! Use `dtype` instead!
+
+=== B. cross-tokenizer firebreak matrix (p=3, 1 hops) ===
+  loaded gpt2 (gpt2)
+  loaded pythia (EleutherAI/pythia-410m)
+  loaded qwen (Qwen/Qwen2.5-0.5B)
+  SKIP llama (meta-llama/Llama-3.2-1B): We couldn't connect to 'https://huggingface.co' to load the files, and couldn't find them in the cac
+  SKIP gemma (google/gemma-2-2b): We couldn't connect to 'https://huggingface.co' to load the files, and couldn't find them in the cac
+  gpt2    -> gpt2:16.0  pythia:16.0  qwen:16.0
+  pythia  -> gpt2:7.5  pythia:0.0  qwen:15.0
+  qwen    -> gpt2:16.5  pythia:28.5  qwen:5.5
+
+wrote results/smoke_e6B.json  [52s]
+wrote results/smoke_e6B.png
+[snapshot] copied 3 file(s) to data/trackC/: smoke_e6B.console.log, smoke_e6B.json, smoke_e6B.png
+[snapshot] next: git add data/trackC && git commit -m 'Snapshot trackC results'
+[2026-11-03T23:04:31Z] <<< smoke_e6B exit=0
+[2026-11-03T23:04:31Z] job body finished after 2 min
