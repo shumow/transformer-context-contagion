@@ -94,6 +94,44 @@ def knee_width(ns, probs, lo=0.25, hi=0.75):
     return n_star, width
 
 
+def one_shot_rate(ns, probs):
+    """The quantity the 'knee' tables actually measure for multi-token payloads.
+
+    At N=1 the cyclic transition S[-1]->S[0] has never occurred in context, so copying it is
+    structurally impossible except by chance; at N=2 it has occurred exactly once. So for any
+    payload an induction mechanism can copy, P(reproduce) jumps between N=1 and N=2 and the
+    interpolated N* lands in (1, 2] -- the grid FLOOR, not a discovered threshold. The honest
+    summary statistic is P(reproduce | N=2): the one-shot copy rate. Returns
+    (P at N=1, P at N=2) or None where the grid lacks those points."""
+    d = {int(n): float(p) for n, p in zip(ns, probs)}
+    if 1 not in d or 2 not in d:
+        return None
+    return d[1], d[2]
+
+
+def knee_at_floor(n_star, ns):
+    """True if the interpolated knee lies at or below the second grid point, i.e. the curve
+    crosses 1/2 within the first interval. With the standard grid (1, 2, ...) that means the
+    one-shot copy rate is already >= 1/2 and the knee carries no information beyond that."""
+    if n_star is None:
+        return False
+    ns = sorted(int(n) for n in ns)
+    return len(ns) >= 2 and n_star <= ns[1]
+
+
+def implied_one_shot_rate(n_star, ns=(1, 2), p_at_first=0.0, threshold=0.5):
+    """Invert the linear interpolation that defines N*: if the knee lies in the first grid
+    interval [n0, n1] and P(n0) = p_at_first (0 at N=1, structurally), then
+        N* = n0 + (threshold - p0) / (P(n1) - p0) * (n1 - n0)
+    so  P(n1) = p0 + (threshold - p0) * (n1 - n0) / (N* - n0).
+    Returns the implied P(n1), or None if N* is outside the first interval (then P(n1) <
+    threshold and only an upper bound is known)."""
+    n0, n1 = float(ns[0]), float(ns[1])
+    if n_star is None or n_star <= n0 or n_star > n1:
+        return None
+    return float(p_at_first + (threshold - p_at_first) * (n1 - n0) / (n_star - n0))
+
+
 def wilson_interval(k, n, z=1.96):
     """Wilson score interval for a binomial proportion (better than normal near 0/1 and
     for small n). Returns (phat, lo, hi)."""
@@ -143,6 +181,18 @@ def _selftest():
     pay2 = [1, 2, 1, 3]                        # order-1 ambiguous (1->2 and 1->3); order-2 exact
     perfect2 = [pay2[i % len(pay2)] for i in range(20)]
     assert reproduction_metrics(perfect2, pay2, k=2)['transition_fidelity'] == 1.0
+
+    # floor diagnostics: a curve that jumps 0 -> 0.8 between N=1 and N=2 has N*=1.625,
+    # sits at the floor, and inverts back to the one-shot rate 0.8
+    ns, ps = [1, 2, 4, 8], [0.0, 0.8, 1.0, 1.0]
+    ks = knee(ns, ps)
+    assert abs(ks - 1.625) < 1e-9, ks
+    assert knee_at_floor(ks, ns)
+    assert abs(implied_one_shot_rate(ks) - 0.8) < 1e-9
+    assert one_shot_rate(ns, ps) == (0.0, 0.8)
+    # a curve crossing between N=2 and N=4 is NOT at the floor and has no implied rate
+    ks2 = knee(ns, [0.0, 0.3, 0.9, 1.0])
+    assert not knee_at_floor(ks2, ns) and implied_one_shot_rate(ks2) is None
     print("tcc.scoring self-test: OK")
 
 
