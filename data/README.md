@@ -44,6 +44,11 @@ filename, so `trackA/e7_detector.json` (+ `.png`) now holds the **32-negative re
 recovered June run. The recovered June 3-negative run is preserved beside it as
 `trackA/e7_detector_2026-06-26_3neg.json` (+ `.png`). See `results_log.md`, "E7 rerun".
 
+**Note on `trackA/e8_substitution.json`:** likewise the E8-lite rerun (2026-11-03, Task 3) writes
+to this filename, so `trackA/e8_substitution.json` (+ `.png`) now holds the **true-random-control
+rerun**. The recovered June run is preserved as `trackA/e8_substitution_2026-06-26.json` (+ `.png`).
+See `results_log.md`, "E8-lite rerun".
+
 ## Still missing (raw data lost unless recovered from the Azure disk)
 Track A: none — all recovered 2026-11-03 (see above).
 Track B: `e1_4` only (searched the dev Mac 2026-11-03, not found; its numbers remain in

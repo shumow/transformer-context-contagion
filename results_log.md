@@ -437,12 +437,14 @@ not of stochastic decoding. (A full temperature sweep, 0 → 1.0+, remains futur
 
 ## E8-lite — in-context substitution as an induction primitive, and the cascade limit (2026-06-26)
 
-> **Status (2026-11-03): control mislabeled; superseded pending rerun.** The "ablate random"
-> column below was in fact the 8 *lowest*-induction-score heads (see the old
-> `e8_substitution.py:103`), a control biased toward unimportant heads. The script now runs a
-> genuinely random matched control (seeded, excluding the induction set, as in E2) *and* the
-> lowest-induction set, under their true names (`review_remediation_plan.md` §0.1). The
-> "induction-carried" conclusion is held open until the rerun.
+> **Status (2026-11-03): SUPERSEDED by the rerun below** ("E8-lite rerun — true random
+> control"). The "ablate random" column below was in fact the 8 *lowest*-induction-score heads,
+> a control biased toward unimportant heads. The rerun adds a genuinely random matched control
+> (seeded, excluding the induction set, as in E2) alongside the lowest-induction set. Outcome:
+> the induction-carried claim **survives** at the reliable table sizes (m=8: −57% vs a true
+> random −33%; m=16: −68% vs −3%), but is **weaker** than this entry implies — a real random
+> ablation removes ~33% at m=8, not the −6% the mislabeled column showed, so the "−6% random"
+> numbers below overstate the induction-specific effect. Read the rerun entry instead.
 
 Mechanistic core of the "self-extracting payload" idea (random tokens that unfold into a
 payload via per-layer substitution), on GPT-2-small with benign OOD markers — the "decoded"
@@ -939,3 +941,53 @@ Caveats: GPT-2-small, CPU, ~65-token docs, p=3, 2 payloads/doc, seed 7; 71 s. Bo
 evaluated against the *same* benign-repetitive controls, so the FPR gap is not a sampling
 artifact of different thresholds. Raw: `data/trackA/e7_detector.json` (+ `.png`); the superseded
 June 3-negative run is preserved as `data/trackA/e7_detector_2026-06-26_3neg.json`.
+
+## E8-lite rerun — true random control (2026-11-03, local CPU)
+
+Supersedes the E8-lite run above, whose "ablate random" column was in fact the 8 *lowest*-
+induction heads (a control biased toward unimportant heads). This run ablates the induction set
+against **both** a genuinely random matched control (8 heads drawn, seeded, from the
+non-induction heads, as in E2) **and** the lowest-induction set, under their true names. Command
+(only `HF_HUB_OFFLINE=1` added to defaults):
+
+```
+HF_HUB_OFFLINE=1 python -m experiments.e8_substitution --snapshot trackA
+# defaults: ms=[2,4,8,16], n-tables=8, k-heads=8, seed=7
+```
+
+Induction heads `[(5,5),(7,10),(6,9),(5,1),(7,2),(9,6),(10,1),(9,9)]`; random control
+`[(11,6),(9,4),(1,11),(2,6),(3,6),(8,1),(7,6),(11,9)]`; lowest-induction control
+`[(4,11),(3,3),(3,7),(3,2),(3,8),(2,2),(4,0),(3,6)]`. Substitution top-1 accuracy (8 tables × m
+queries/cell; Δ vs clean in parentheses):
+
+| m | clean | ablate induction | ablate TRUE random | ablate lowest-induction |
+|---|---|---|---|---|
+| 2 | 0.312 | 0.188 (−40%) | 0.125 (−60%) | 0.375 (+20%) |
+| 4 | 0.500 | 0.344 (−31%) | 0.438 (−12%) | 0.406 (−19%) |
+| 8 | 0.469 | **0.203 (−57%)** | 0.312 (−33%) | 0.438 (−7%) |
+| 16 | 0.469 | **0.148 (−68%)** | 0.453 (−3%) | 0.312 (−33%) |
+
+**Is the induction-ablation drop still much larger than the random-ablation drop? Yes at the
+reliable table sizes, but the claim is weaker than the old mislabeled comparison implied.** At
+the two largest, least-noisy cells the induction ablation collapses substitution far more than a
+*true* random ablation: m=8, −57% vs −33%; m=16, −68% vs −3% (random is essentially unchanged
+from clean at m=16). The lowest-induction control barely moves (−7% at m=8), confirming the
+original intuition that unimportant heads are harmless — the old run's only error was calling
+*that* set "random". But the honest correction is that a genuine random non-induction ablation is
+**not** harmless: it removes ~33% of accuracy at m=8 (the old mislabeled column showed only −6%),
+so the induction-specific effect is the *gap* between the induction drop and a real random drop,
+not the near-total contrast the first write-up suggested. The m=2–4 rows are noisy (16–32 lookups)
+and even invert at m=2; the induction>random ordering only stabilizes at m≥8. **In-context
+substitution is induction-carried, but the effect size is moderate and the earlier "−6% random"
+baseline overstated it.**
+
+The cascade finding is unchanged: single-step fidelity with two tables present is high
+(step-1 acc **0.969**), yet the direct 2-step cascade succeeds only **0.188**, *below* the
+optimistic `f²=0.250` (f=0.500) — self-extraction depth is bounded worse than the `f^(L·depth)`
+ladder predicts, because the intermediate value is both a value and a key and splits the
+induction lookup.
+
+Caveats: GPT-2-small, CPU, 8 tables × m queries/cell (small-m rows noisy), top-1 metric, greedy
+2-step, seed 7; 92 s. No bootstrap CIs — point estimates only, so read the −3%/−33% random-column
+swings between m=8 and m=16 as sampling noise, not structure. Raw: `data/trackA/e8_substitution.json`
+(+ `.png`); the superseded June run is preserved as `data/trackA/e8_substitution_2026-06-26.json`.
