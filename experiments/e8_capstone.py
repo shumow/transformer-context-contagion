@@ -32,6 +32,7 @@ import json
 import os
 import re
 import numpy as np
+from tcc import snapshot
 
 # Benign target sentences for E8a (harmless English, ~6-9 words).
 TARGETS = [
@@ -212,8 +213,10 @@ def main():
     ap.add_argument("--dtype", default="float16")
     ap.add_argument("--seed", type=int, default=7)
     ap.add_argument("--prefix", default="results/e8_capstone")
+    snapshot.add_args(ap)
     ap.add_argument("--selftest", action="store_true")
     args = ap.parse_args()
+    snapshot.arm(args)
 
     if args.selftest:
         selftest()

@@ -27,6 +27,7 @@ import os
 import numpy as np
 
 from tcc import payloads
+from tcc import snapshot
 
 # A small pool of benign, generic sentences; repeated/sampled to fill a long "retrieval dump".
 SENTENCES = [
@@ -148,8 +149,10 @@ def main():
     ap.add_argument("--device", default="cuda")
     ap.add_argument("--seed", type=int, default=7)
     ap.add_argument("--prefix", default="results/e5_scale")
+    snapshot.add_args(ap)
     ap.add_argument("--selftest", action="store_true")
     args = ap.parse_args()
+    snapshot.arm(args)
 
     if args.selftest:
         selftest()

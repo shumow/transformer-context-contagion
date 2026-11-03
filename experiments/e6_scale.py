@@ -29,6 +29,7 @@ import time
 import numpy as np
 
 from tcc import payloads
+from tcc import snapshot
 from experiments.e6_worm import passage_chain, count_payload
 
 # one small model per distinct tokenizer family for the cross-tokenizer matrix (Part B).
@@ -117,8 +118,10 @@ def main():
     ap.add_argument("--device", default="cuda")
     ap.add_argument("--seed", type=int, default=7)
     ap.add_argument("--prefix", default="results/e6_scale")
+    snapshot.add_args(ap)
     ap.add_argument("--selftest", action="store_true")
     args = ap.parse_args()
+    snapshot.arm(args)
 
     if args.selftest:
         selftest()

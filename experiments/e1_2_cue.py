@@ -32,6 +32,7 @@ import time
 import numpy as np
 
 from tcc import payloads, scoring
+from tcc import snapshot
 
 
 def pr(lm, ctx, S, prefix, args):
@@ -56,7 +57,9 @@ def main():
     ap.add_argument('--device', default=None)
     ap.add_argument('--seed', type=int, default=7)
     ap.add_argument('--prefix', default='results/e1_2')
+    snapshot.add_args(ap)
     args = ap.parse_args()
+    snapshot.arm(args)
 
     try:
         from tcc.models import LM

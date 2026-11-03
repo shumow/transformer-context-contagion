@@ -34,6 +34,7 @@ import numpy as np
 import torch
 
 from tcc import payloads, interp
+from tcc import snapshot
 
 
 def make_table(pool, m, rng):
@@ -96,7 +97,9 @@ def main():
     ap.add_argument('--k-heads', type=int, default=8)
     ap.add_argument('--seed', type=int, default=7)
     ap.add_argument('--prefix', default='results/e8_substitution')
+    snapshot.add_args(ap)
     args = ap.parse_args()
+    snapshot.arm(args)
 
     rng = np.random.default_rng(args.seed)
     model = interp.load_hooked("gpt2", device="cpu")
