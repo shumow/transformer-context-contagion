@@ -1,0 +1,19 @@
+/Users/dbone/Claude/Projects/transformer-context-contagion/.venv/lib/python3.9/site-packages/urllib3/__init__.py:35: NotOpenSSLWarning: urllib3 v2 only supports OpenSSL 1.1.1+, currently the 'ssl' module is compiled with 'LibreSSL 2.8.3'. See: https://github.com/urllib3/urllib3/issues/3020
+  warnings.warn(
+loaded gpt2 (device=mps)
+
+=== A. same-model serial passage (GPT-2), sweep payload length ===
+  p= 1  mean load/hop: 41.6 -> 17.9 -> 12.1 -> 12.1 -> 11.9 -> 12.1 -> 12.1   survive(last hop)=25%
+  p= 2  mean load/hop: 25.1 -> 4.2 -> 0.0 -> 0.0 -> 0.0 -> 0.0 -> 0.0   survive(last hop)=0%
+  p= 3  mean load/hop: 25.4 -> 14.9 -> 10.8 -> 7.9 -> 6.2 -> 1.8 -> 0.0   survive(last hop)=0%
+  p= 5  mean load/hop: 12.4 -> 4.6 -> 4.5 -> 2.6 -> 0.9 -> 0.0 -> 0.0   survive(last hop)=0%
+  p= 8  mean load/hop: 6.1 -> 1.5 -> 0.0 -> 0.0 -> 0.0 -> 0.0 -> 0.0   survive(last hop)=0%
+wrote results/e6_worm_serial.png
+loaded pythia-160m (device=mps)  [460s]
+
+=== B. cross-tokenizer firebreak (GPT-2 patient zero) ===
+  same (GPT-2 hosts)         load per hop: 15.4 -> 8.8 -> 8.0 -> 6.0 -> 4.0 -> 4.0 -> 1.9
+  cross (Pythia-160M hosts)  load per hop: 21.1 -> 4.1 -> 0.0 -> 0.0 -> 0.0 -> 0.0 -> 0.0
+wrote results/e6_worm_crosstok.png
+
+wrote results/e6_worm.json  [680s]

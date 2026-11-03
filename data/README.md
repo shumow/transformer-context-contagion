@@ -28,8 +28,19 @@ or impossible to reproduce locally. Unlike `results/`, it is tracked by git.
 | `trackB/e1_3_e1_4_knees_transcribed.json` | transcribed from `results_log.md` (E1.3 / E1.4 knee tables); raw files on the Azure VM disk were not recovered |
 | `trackB/analysis_knee_floor.json`, `trackC/analysis_e6_firebreak.json`, `trackC/analysis_e6_r0.json` | analysis outputs, see `results_log.md` "Analyses of committed data" |
 
-## Still missing (raw data lost unless recovered from the dev Mac / Azure disk)
-Track A: `e1_1_gpt2`, `e1_2_gpt2`, `e1_5_gpt2`, `e1_3`, `e2_gpt2`, `e4_trust`, `e5_hijack`,
-`e6_worm`, `e7_detector`, `e8_substitution`. Track B: `e1_3_trackb_t4`, `e1_3_llama*`, `e1_4`,
-`e2_gpt2-xl`, `e2_EleutherAI_pythia-*`, `e2_Qwen_Qwen2.5-7B`, `e8_capstone`. If any survive,
-commit them here unmodified; otherwise their log tables stay marked "from run log, raw data lost."
+## Recovered from the dev Mac (2026-11-03)
+The original Track A/B runs' JSON/PNG/log files were found still present in the gitignored
+`results/` directory on the author's MacBook and copied here unmodified (`cp -p`, byte-identical).
+| file | status |
+|---|---|
+| `trackA/e1_1_gpt2.json`, `e1_2_gpt2.json`, `e1_3.json`, `e1_5_gpt2.json`, `e2_gpt2.json`, `e4_trust.json`, `e5_hijack.json`, `e6_worm.json`, `e7_detector.json`, `e8_substitution.json` (+ their PNGs and `*_run.log`) | **raw**, recovered 2026-11-03 from `results/`; original local GPT-2-small / Pythia-160m runs, 2026-06-25–29 |
+| `trackA/e6_worm.json` | raw E6 worm; **supersedes** `trackA/e6_worm_transcribed.json` (transcription kept per convention, now superseded by this raw file) |
+| `trackA/e1_greedy_gpt2.json` (+ `e1_greedy_*.png`, `e1_knee.png`) | raw GPT-2 greedy-decoding companion run to E1.1; recovered 2026-11-03; was not on the missing list below but preserved as raw output |
+| `trackB/e1_3_trackb_t4.json` (+ PNG), `e1_3_llama_t4.json`, `e2_gpt2-xl.json`, `e2_EleutherAI_pythia-1.4b.json`, `e2_EleutherAI_pythia-2.8b.json`, `e2_EleutherAI_pythia-6.9b.json`, `e2_Qwen_Qwen2.5-7B.json`, `e8_capstone.json` | **raw**, recovered 2026-11-03 from `results/`; T4/L40S cloud runs scp'd to the Mac, 2026-06-30–07-02 |
+| `trackB/e1_3_trackb_t4.json` | raw E1.3 scale-knee run; **partially supersedes** `trackB/e1_3_e1_4_knees_transcribed.json` (the E1.3 half only — E1.4 raw is still missing, so the transcription is kept) |
+
+## Still missing (raw data lost unless recovered from the Azure disk)
+Track A: none — all recovered 2026-11-03 (see above).
+Track B: `e1_4` only (searched the dev Mac 2026-11-03, not found; its numbers remain in
+`trackB/e1_3_e1_4_knees_transcribed.json`, "from run log, raw data lost"). If it survives on the
+Azure VM disk, commit it here unmodified.
