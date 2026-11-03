@@ -46,3 +46,11 @@ all 4 tests passed
 selftest: count_payload + passage_chain plumbing OK; ks(sustain)= [5, 5, 5, 5]
 selftest: 32 facts, 2x2 construction (distinct, length-matched), answer matching, correlation + bootstrap OK
 selftest: long-context construction (placement) + occupancy + cell + prompts OK
+remote:      https://github.com/shumow/transformer-context-contagion/pull/new/claude/fervent-ritchie-l5m9uw-iter7-pod-p1        
+remote: 
+Already up to date.
+hf_transfer absent -> HF_HUB_ENABLE_HF_TRANSFER=0
+=================== Track C / P1  (Tue Nov  3 23:28:04 UTC 2026) ===================
+device=cuda  seeds=[7 8 9] trials_A=20  reps_sweep=[8 16 32] trials_B=30
+--- Part A: worm at scale (7B serial, higher n) ---
+[23:28:04] >>> e6A_hiN_s7  ::  --part A --seed 7 --trials 20
