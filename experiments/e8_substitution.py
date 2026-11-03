@@ -10,8 +10,12 @@ markers):
 
   1. Single-step fidelity: present a random OOD substitution table (m key->value pairs),
      query a key, measure P(correct value) and top-1 accuracy, swept over table size m.
-  2. Induction attribution: ablate the E2 induction heads vs the same number of random heads
-     -- does the substitution collapse? (Is the lookup really induction?)
+  2. Induction attribution: ablate the E2 induction heads vs two matched controls -- the
+     same number of RANDOM non-induction heads (seeded, as in E2), and the same number of
+     LOWEST-induction-score heads -- does the substitution collapse? (Is the lookup really
+     induction?) NOTE: an earlier version of this script used only the lowest-induction set
+     but labeled it "random"; that control is biased toward unimportant heads, so its
+     numbers in results_log.md are superseded by a rerun of this version.
   3. The cascade limit: a d-layer self-extractor needs all layers to decode, so its success
      decays ~ f^(L*d) in the single-step fidelity f -- the same brittleness ladder that caps
      quine reproduction. We measure a direct 2-step cascade (table1 k->v, table2 v->w) to
@@ -100,20 +104,28 @@ def main():
     ind_heads = interp.top_heads(scores, args.k_heads)
     flat = sorted(((float(scores[L, H]), L, H) for L in range(scores.shape[0])
                    for H in range(scores.shape[1])))
-    rand_heads = [(L, H) for _, L, H in flat[:args.k_heads]]      # lowest-induction heads
+    low_heads = [(L, H) for _, L, H in flat[:args.k_heads]]       # lowest-induction heads
+    # a genuinely RANDOM matched control: k heads drawn uniformly from the non-induction
+    # heads, seeded -- the same construction as e2_induction.py.
+    rng_h = np.random.default_rng(args.seed + 1)
+    all_heads = [(L, H) for L in range(scores.shape[0]) for H in range(scores.shape[1])]
+    pool_heads = [h for h in all_heads if h not in set(ind_heads)]
+    rand_heads = [tuple(pool_heads[i]) for i in rng_h.choice(len(pool_heads), args.k_heads, replace=False)]
     ind_hooks = interp.make_ablation_hooks(model, ind_heads)
     rand_hooks = interp.make_ablation_hooks(model, rand_heads)
-    pool = payloads.rare_token_pool(tokenizer=model.tokenizer)
-    print(f"induction heads: {ind_heads}\n")
+    low_hooks = interp.make_ablation_hooks(model, low_heads)
+    pool = payloads.short_token_pool(tokenizer=model.tokenizer)
+    print(f"induction heads: {ind_heads}\nrandom control:  {rand_heads}\nlowest-induction control: {low_heads}\n")
 
     grid = {}
-    print(f"{'m':>3} {'P(clean)':>9} {'acc(clean)':>10} {'acc(ind-abl)':>12} {'acc(rand-abl)':>13}")
+    print(f"{'m':>3} {'P(clean)':>9} {'acc(clean)':>10} {'acc(ind-abl)':>12} {'acc(rand-abl)':>13} {'acc(low-abl)':>12}")
     for m in args.ms:
         pc, ac = single_step(model, pool, m, args.n_tables, np.random.default_rng(args.seed), None)
         _, ai = single_step(model, pool, m, args.n_tables, np.random.default_rng(args.seed), ind_hooks)
         _, ar = single_step(model, pool, m, args.n_tables, np.random.default_rng(args.seed), rand_hooks)
-        grid[str(m)] = dict(P=pc, acc=ac, acc_ind=ai, acc_rand=ar)
-        print(f"{m:>3} {pc:>9.3f} {ac:>10.3f} {ai:>12.3f} {ar:>13.3f}")
+        _, al = single_step(model, pool, m, args.n_tables, np.random.default_rng(args.seed), low_hooks)
+        grid[str(m)] = dict(P=pc, acc=ac, acc_ind=ai, acc_rand=ar, acc_low=al)
+        print(f"{m:>3} {pc:>9.3f} {ac:>10.3f} {ai:>12.3f} {ar:>13.3f} {al:>12.3f}")
 
     s1, s2 = two_step(model, pool, 4, args.n_tables, np.random.default_rng(args.seed + 1))
     f = grid['4']['acc']
@@ -123,7 +135,8 @@ def main():
     os.makedirs(os.path.dirname(args.prefix) or '.', exist_ok=True)
     with open(f"{args.prefix}.json", 'w') as fjson:
         json.dump(dict(grid=grid, two_step=dict(s1=s1, s2=s2, f=f),
-                       ind_heads=ind_heads), fjson, indent=2)
+                       ind_heads=ind_heads, rand_heads=rand_heads, low_heads=low_heads,
+                       seed=args.seed), fjson, indent=2)
     plot(args, grid, s1, s2, f)
 
 
@@ -138,11 +151,12 @@ def plot(args, grid, s1, s2, f):
     ax.plot(ms, [grid[str(m)]['acc_ind'] for m in ms], 's--', color='navy', lw=1.8,
             label='ablate induction heads')
     ax.plot(ms, [grid[str(m)]['acc_rand'] for m in ms], '^:', color='gray', lw=1.5,
-            label='ablate random heads')
+            label='ablate random non-induction heads')
+    ax.plot(ms, [grid[str(m)]['acc_low'] for m in ms], 'v-.', color='darkgoldenrod', lw=1.3,
+            label='ablate lowest-induction heads')
     ax.set_xscale('log', base=2); ax.set_xlabel('table size $m$ (key$\\to$value pairs)')
     ax.set_ylabel('substitution accuracy (top-1)'); ax.set_ylim(-0.02, 1.04)
-    ax.set_title('In-context substitution is an induction primitive\n'
-                 '(ablating induction heads collapses it; random heads do not)')
+    ax.set_title('In-context substitution: induction ablation vs two matched controls')
     ax.legend(fontsize=8); ax.grid(alpha=0.3, which='both')
 
     # cascade: optimistic f^(L*d) per-layer-length L, plus the measured 2-step penalty

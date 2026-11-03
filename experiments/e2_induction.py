@@ -80,7 +80,7 @@ def main():
     rand_hooks = interp.make_ablation_hooks(model, rand_heads)
 
     # token pool for payloads (HF tokenizer lives on the hooked model)
-    pool = payloads.rare_token_pool(model.tokenizer)
+    pool = payloads.short_token_pool(model.tokenizer)
 
     # 2. causal test: per length, sweep N (the circuit is necessary near the knee).
     # Each (p,N) cell is independent forward passes, so we checkpoint after every cell:

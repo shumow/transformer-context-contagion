@@ -55,7 +55,7 @@ def passage_chain(hosts, S0_ids, payload_text, host0_reps, T, n_hops, rng, tempe
 
 def experiment_A(gpt2, args, rng):
     print("\n=== A. same-model serial passage (GPT-2), sweep payload length ===")
-    pool = payloads.rare_token_pool(gpt2.tokenizer)
+    pool = payloads.short_token_pool(gpt2.tokenizer)
     curves = {}
     for p in args.lengths:
         runs = []
@@ -76,7 +76,7 @@ def experiment_A(gpt2, args, rng):
 
 def experiment_B(gpt2, pythia, args, rng):
     print("\n=== B. cross-tokenizer firebreak (GPT-2 patient zero) ===")
-    pool = payloads.rare_token_pool(gpt2.tokenizer)
+    pool = payloads.short_token_pool(gpt2.tokenizer)
     p = args.cross_p
     out = {}
     for label, hosts_after in [('same (GPT-2 hosts)', gpt2), ('cross (Pythia-160M hosts)', pythia)]:

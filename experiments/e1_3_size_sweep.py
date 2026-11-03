@@ -43,7 +43,7 @@ def measure_model(name, args):
     if args.dtype and args.dtype != 'float32':
         dt = 'auto' if args.dtype == 'auto' else getattr(torch, args.dtype)
     lm = LM(name, device=args.device, dtype=dt)
-    pool = payloads.rare_token_pool(lm.tokenizer)
+    pool = payloads.short_token_pool(lm.tokenizer)
     out = {}
     for p in args.lengths:
         pls = payloads.sample_payloads(pool, p, args.payloads, rng, tokenizer=lm.tokenizer)
@@ -51,8 +51,8 @@ def measure_model(name, args):
         for j, N in enumerate(args.reps):
             for pi, S in enumerate(pls):
                 ctx = payloads.build_context(S, N)
-                conts = lm.continue_ids(ctx, args.max_new, n=args.trials,
-                                        temperature=args.temperature)
+                conts = lm.continue_ids(ctx, args.max_new, n=1 if args.greedy else args.trials,
+                                        temperature=args.temperature, greedy=args.greedy)
                 per_pl[pi, j] = np.mean([scoring.reproduces(c, S, k=1, prefix=ctx[-1:],
                                          fid_threshold=args.fid_threshold) for c in conts])
         curve = per_pl.mean(axis=0)
@@ -85,6 +85,8 @@ def main():
     ap.add_argument('--trials', type=int, default=8)
     ap.add_argument('--max-new', type=int, default=48)
     ap.add_argument('--temperature', type=float, default=1.0)
+    ap.add_argument('--greedy', action='store_true',
+                    help='deterministic decoding (one continuation per cell), as in the other E1 scripts')
     ap.add_argument('--fid-threshold', type=float, default=0.5)
     ap.add_argument('--device', default=None)
     ap.add_argument('--dtype', default='float16',

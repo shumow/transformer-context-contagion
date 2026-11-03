@@ -5,7 +5,9 @@ project `trust-is-the-attack-surface`.
 Submodules are imported explicitly by callers so that `import tcc` stays torch-free:
   tcc.scoring   -- transition-level reproduction metrics (numpy only)
   tcc.payloads  -- out-of-distribution token payload construction (numpy only)
+  tcc.corpus    -- benign sentence / paragraph banks for controls (pure Python)
   tcc.models    -- HuggingFace model wrapper (needs torch)
+  tcc.interp    -- TransformerLens induction-head helpers (needs transformer_lens)
 """
 __version__ = "0.0.1"
 

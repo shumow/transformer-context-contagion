@@ -91,6 +91,7 @@ knee. Writes `results/e1_knee.png` and a table of `P(reproduce)` vs `N` per stri
 | `latex/transformer_context_contagion.tex` | Progress-report write-up of the current state (built PDF alongside). |
 | `tcc/payloads.py` | Token-level out-of-distribution payload construction. |
 | `tcc/scoring.py` | Transition-level reproduction scoring + knee location (numpy-only, self-testing). |
+| `tcc/corpus.py` | Benign sentence / paragraph banks for controls: distinct non-repetitive prose (E4-scale), clean and benign-repetitive negatives (E7). Pure Python. |
 | `tcc/models.py` | Minimal model loader / generation wrapper (HF; TransformerLens added for E2). |
 | `tcc/interp.py` | Induction-head scoring / ablation helpers (TransformerLens) used by E2/E4/E7. |
 | `experiments/e1_condensation_knee.py` | E1 keystone: P(reproduce) vs repetition count, per string length. |
@@ -102,5 +103,6 @@ knee. Writes `results/e1_knee.png` and a table of `P(reproduce)` vs `N` per stri
 | `experiments/e7_detector.py` | E7: the paired bound-trust detector (defensive complement). |
 | `experiments/e8_substitution.py`, `e8_capstone.py` | E8: in-context substitution primitive, then coherent self-extraction on instruct models. |
 | `deploy/` | Provider-agnostic GPU bootstrap + Azure/RunPod run scripts for the at-scale tiers. |
-| `tests/test_scoring.py` | Unit checks for the scorer (no torch needed); most `experiments/*.py` also have a `--selftest`. |
+| `tests/test_scoring.py`, `tests/test_corpus.py` | Unit checks for the scorer and the text banks (no torch needed; `python -m tests.test_scoring`); most `experiments/*.py` also have a `--selftest`. |
+| `review_remediation_plan.md` | Work plan from the 2026-11-03 critical review: which results are being re-measured and why. |
 | `SECURITY.md` | Defensive scope, dual-use posture, disclosure policy. |
