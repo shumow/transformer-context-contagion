@@ -129,9 +129,11 @@ PY
       deploy/run_trackC_p1.sh
       ;;
     e4e5)
-      # plan items 2.2 and 2.3 on both instruct families; new prefixes so the 2026-07-02 files stay
-      for m in Qwen/Qwen2.5-7B-Instruct meta-llama/Llama-3.2-3B-Instruct; do
-        tag=$(echo "$m" | sed 's#.*/##; s/Qwen2.5-7B-Instruct/qwen7b-instruct/; s/Llama-3.2-3B-Instruct/llama3b-instruct/')
+      # plan items 2.2 and 2.3 on both instruct families; new prefixes so the 2026-07-02 files stay.
+      # Phi-3.5-mini-instruct is an UNGATED supplementary second family, added 2026-11-03 because the
+      # HF token could not read gated repos (Llama fails at load and is logged; rerun when fixed).
+      for m in ${E4E5_MODELS:-Qwen/Qwen2.5-7B-Instruct meta-llama/Llama-3.2-3B-Instruct microsoft/Phi-3.5-mini-instruct}; do
+        tag=$(echo "$m" | sed 's#.*/##; s/Qwen2.5-7B-Instruct/qwen7b-instruct/; s/Llama-3.2-3B-Instruct/llama3b-instruct/; s/Phi-3.5-mini-instruct/phi35mini-instruct/')
         run_one "e4_scale_v2_$tag" -m experiments.e4_scale --model "$m" --device cuda \
           --prefix "results/e4_scale_v2_$tag" --snapshot trackC
         run_one "e5_scale_v2_$tag" -m experiments.e5_scale --model "$m" --context-tokens 4000 --device cuda \
