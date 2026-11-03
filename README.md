@@ -19,35 +19,25 @@ in the two write-ups there (`trust_is_the_attack_surface.tex`, `contagious_conte
 
 ## Status
 
-Progress report — all six claims (C1–C6) now have empirical results; the *core* is
-established across scale and the *downstream* claims are confirmed, bounded, or refined.
-See [`results_log.md`](results_log.md) for the running record and
-[`latex/transformer_context_contagion.tex`](latex/transformer_context_contagion.tex) for
-the write-up.
+The record of every run is [`results_log.md`](results_log.md); the write-up is
+[`latex/transformer_context_contagion.tex`](latex/transformer_context_contagion.tex) (the
+committed PDF predates the November 2026 text revision). A critical review on 2026-11-03
+re-read several results; the work plan is
+[`review_remediation_plan.md`](review_remediation_plan.md). One line per claim, with where
+the detail lives:
 
-- **C1 (condensation knee) / C3 (length-robustness): confirmed** end-to-end on GPT-2-small
-  and **at scale, 355M–7B across four families** (GPT-2, Pythia, Qwen2.5, Llama-3.2), and
-  in **instruction-tuned / chat** models (E1.1–E1.5, E1.3/E1.4 at scale).
-- **C2 (induction-head mechanism): confirmed causally** — ablating the induction heads
-  collapses reproduction while random-head ablation does not, from GPT-2-small to **7B in
-  three families** (E2, E2-at-scale).
-- **C4 (poisonability tracks trust, not usefulness): confirmed**, including with a **real
-  downstream task** on an instruct model (E4-lite, E4-scale).
-- **C5 (RAG hijack = entry × lock-in): established on a base-model continuation, but
-  *bounded* at scale** — a real task query defuses the raw-copy hijack on an instruct model,
-  leaving *semantic* injection as the residual threat (E5-lite, E5-scale).
-- **C6 (context-window worm): confirmed, and *worse* at scale** — the critical string
-  length *grows* with model capability (a 7B model sustains the worm where small models kill
-  it); the cross-tokenizer firebreak holds only *partially* under strong seeding (E6, E6-scale).
-- A paired **detector** (E7) and a **self-extraction capstone** (E8) round out the
-  defensive and worst-case pictures.
+| claim | status | see |
+|---|---|---|
+| C1/C3 copy threshold and length-robustness | For spans of ≥3 tokens, one prior occurrence suffices more often than not in 36 of 48 cells, 355M–7B, four families, base and instruct. The interpolated "knee" for those payloads is the grid floor, so its sharpness and flatness with scale are not findings. Threshold behavior proper is at p=1–2 (frequency regime). | log: E1.1–E1.5, E1.3/E1.4 at scale, *Analyses* §A |
+| C2 induction-head mechanism | Ablating the top ~5% of heads by induction score collapses reproduction; random heads do not. 124M–7B, three families. The scale-matched ablation (not a fixed count) is the methodological result. | log: E2, E2 at scale |
+| C4 trust, not usefulness | Holds on the GPT-2-small proxy. The at-scale real-task version had repeating "non-repetitive" cells and a copy-rate that is ~1 by construction; redesigned, **rerun pending**. | log: E4-lite, E4-scale (status note) |
+| C5 RAG hijack | Holds on a base-model continuation (entry × lock-in); **bounded** at scale: a task query on an instruct model defuses raw-repetition hijack. | log: E5-lite, E5-scale |
+| C6 worm / firebreak | Re-analyzed: no cell has a per-hop reproduction ratio above one; "endemic" 7B chains are locked repetition loops at a load set by T/p. Firebreak: significant in the reported 1-hop run (p=0.004), undetectable in the unreported 3-hop run (p=0.24). Higher-n rerun queued. | log: E6, E6-scale, *Analyses* §B–C |
+| E7 detector | AUC 1.0 was on three negatives with no baseline; rewritten with 32 negatives, an n-gram baseline and a false-positive rate, **rerun pending**. | log: E7 (status note) |
+| E8 self-extraction | Instruct models decode and execute nested benign substitution. E8-lite's "random" control was the lowest-induction heads; **rerun pending**. | log: E8-lite (status note), E8 capstone |
 
-See [`transformer_validation_plan.md`](transformer_validation_plan.md) (core plan, C1–C6,
-E1–E6) and [`trackC_scale_plan.md`](trackC_scale_plan.md) (downstream-at-scale) for the
-full phasing and threats to validity. **Caveat throughout:** sample sizes are modest
-(≈4–8 payloads / facts per cell); the *qualitative* phenomena and mechanism are robust, but
-absolute numbers shift with model and setup, and the Track C reversals rest on the thinnest
-`n` in the project (see the open-experiments list in `trackC_scale_plan.md`).
+Sample sizes are small throughout (3–8 payloads, facts or trials per cell, single seeds); read
+every number with its interval where one is given, and as a point estimate where none is.
 
 ## Safety
 
