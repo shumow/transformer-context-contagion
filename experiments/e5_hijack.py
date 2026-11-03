@@ -78,7 +78,7 @@ def main():
     from tcc.models import LM
     rng = np.random.default_rng(args.seed)
     lm = LM('gpt2', device=args.device)
-    pool = payloads.rare_token_pool(lm.tokenizer)
+    pool = payloads.short_token_pool(lm.tokenizer)
     docs = [lm.tokenizer.encode(d) for d in DOCS]
     print(f"device={lm.device}  docs={[len(d) for d in docs]} tokens\n")
 

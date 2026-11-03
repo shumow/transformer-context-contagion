@@ -47,7 +47,7 @@ SERIAL = ["EleutherAI/pythia-2.8b", "Qwen/Qwen2.5-7B", "meta-llama/Llama-3.2-3B"
 def serial_at_scale(name, args, LM, torch):
     lm = LM(name, device=args.device, dtype=getattr(torch, args.dtype))
     rng = np.random.default_rng(args.seed)
-    pool = payloads.rare_token_pool(lm.tokenizer)
+    pool = payloads.short_token_pool(lm.tokenizer)
     curves = {}
     for p in args.lengths:
         runs = []
@@ -82,7 +82,7 @@ def cross_matrix(args, LM, torch):
     p = args.cross_p
     mat = {}
     for X in fams:
-        pool = payloads.rare_token_pool(lms[X].tokenizer)
+        pool = payloads.short_token_pool(lms[X].tokenizer)
         mat[X] = {}
         for Y in fams:
             loads = []

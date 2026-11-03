@@ -83,14 +83,15 @@ class ChatLM:
         ids = self.tok.apply_chat_template([{"role": "user", "content": user}],
                                            add_generation_prompt=True, return_tensors="pt").to(self.device)
         with torch.no_grad():
-            out = self.model.generate(ids, max_new_tokens=max_new, do_sample=False,
+            out = self.model.generate(ids, attention_mask=torch.ones_like(ids),
+                                      max_new_tokens=max_new, do_sample=False,
                                       pad_token_id=self.tok.eos_token_id)
         return out[0, ids.shape[1]:].tolist()
 
 
 def run(lm, args):
     rng = np.random.default_rng(args.seed)
-    pool = payloads.rare_token_pool(lm.tok)
+    pool = payloads.short_token_pool(lm.tok)
     out = {"placement": {}, "repetition": {}, "context_tokens": args.context_tokens}
     # A. placement: fixed k, slide pos
     print(f"\n=== A. placement sweep (k={args.k}, ~{args.context_tokens} tok context) ===")

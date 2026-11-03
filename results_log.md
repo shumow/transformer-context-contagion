@@ -379,6 +379,12 @@ samples/cell. The realistic long-context (4k–128k) RAG version with retrieval 
 
 ## E7 — the paired detector (defensive complement) (2026-06-26)
 
+> **Status (2026-11-03): superseded pending rerun.** This run had 3 clean documents (an AUC
+> over 3 negatives is not a measurement), no model-free baseline, and no false-positive rate
+> on legitimately repetitive text. `experiments/e7_detector.py` now scores 32 clean
+> paragraphs, an n-gram-repeat baseline, and 8 benign-repetitive negatives, with bootstrap
+> CIs (see `review_remediation_plan.md` §0.3). The numbers below stand until it is rerun.
+
 The attacks (E4/E5/E6) all key on one quantity: induction trust earned by a repeated span.
 So the defense watches that same quantity. The detector scores a context by its mean
 **induction engagement** (attention the canonical GPT-2 induction heads pay to
@@ -427,6 +433,13 @@ payload locks in with fewer repetitions. So the condensation knee is a property 
 not of stochastic decoding. (A full temperature sweep, 0 → 1.0+, remains future work.)
 
 ## E8-lite — in-context substitution as an induction primitive, and the cascade limit (2026-06-26)
+
+> **Status (2026-11-03): control mislabeled; superseded pending rerun.** The "ablate random"
+> column below was in fact the 8 *lowest*-induction-score heads (see the old
+> `e8_substitution.py:103`), a control biased toward unimportant heads. The script now runs a
+> genuinely random matched control (seeded, excluding the induction set, as in E2) *and* the
+> lowest-induction set, under their true names (`review_remediation_plan.md` §0.1). The
+> "induction-carried" conclusion is held open until the rerun.
 
 Mechanistic core of the "self-extracting payload" idea (random tokens that unfold into a
 payload via per-layer substitution), on GPT-2-small with benign OOD markers — the "decoded"
@@ -685,6 +698,15 @@ Caveats: small n (fidelity + exec-rate are point estimates), single seed, benign
 design; the depth-cliff locations may shift with more reps.
 
 ## E4-scale — trust vs. usefulness with a REAL task (Track C, RunPod L40S) (2026-07-02)
+
+> **Status (2026-11-03): design flaw; superseded pending rerun.** Both "non-repetitive"
+> contexts in this run were the *same* filler paragraph twice (`FILLER + FILLER`), so the 2×2
+> contrasted 8× repetition with 2× repetition. And P was copy-rate of a raw continuation of
+> "span × 8", which is ~1 for any repeated span by construction. `experiments/e4_scale.py`
+> now builds non-repetitive cells from distinct sentences, length-matched in tokens; adds the
+> plan's original poisonability measure (reproduction of a *planted* probe span); uses 32
+> facts; and reports bootstrap CIs on the correlations (`review_remediation_plan.md` §0.2).
+> The dissociation below is a hypothesis until the rerun.
 
 E4-lite showed poisonability P ⊥ usefulness U, ∥ trust T on GPT-2-small, but U was a
 *naturalness proxy*. E4-scale replaces it with a genuine task on **Qwen2.5-7B-Instruct**: benign

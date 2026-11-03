@@ -1,19 +1,21 @@
 # Core harness. Install into a fresh venv:
 #   python3 -m venv .venv && source .venv/bin/activate && pip install -r requirements.txt
 #
-# Versions are loose floors; pin exactly once a working environment is established.
-# torch should match your CUDA / platform -- see https://pytorch.org for the right wheel.
+# Bounds reflect the environments the logged runs used (torch 2.8, transformers 4.57, see
+# results_log.md). torch must match your CUDA / platform -- see https://pytorch.org for the
+# right wheel; deploy/bootstrap.sh installs the CUDA build first and constrains to it.
+# A fully pinned lock (requirements-lock.txt) should be generated from the next working
+# GPU environment with `pip freeze`; none has been captured yet.
 
-numpy>=1.24
-matplotlib>=3.7
-torch>=2.2
-transformers>=4.45,<5  # <5: transformer_lens 2.x needs transformers 4.x (v5 removed TRANSFORMERS_CACHE etc.)
+numpy>=1.26,<3
+matplotlib>=3.7,<4
+torch>=2.2,<3
+transformers>=4.45,<5   # <5: transformer_lens 2.x is a transformers-4.x library
 accelerate>=0.33
+huggingface_hub>=0.34
 
-# Mechanistic tier (E2: induction-head attribution, activation patching). Optional until
-# Phase 1's E2 -- uncomment when you start the interpretability experiments.
-# transformer_lens>=2.0
-# nnsight>=0.3
+# Mechanistic tier -- REQUIRED by E2, E4-lite, E7, E8-lite (tcc.interp imports it).
+transformer_lens>=2.0,<3
 
-# Throughput for the N / length sweeps (optional; CPU/HF generate works for small models).
+# Throughput for the N / length sweeps (optional; HF generate is enough for the sizes run).
 # vllm>=0.5

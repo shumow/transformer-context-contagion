@@ -104,7 +104,7 @@ def main():
     model = interp.load_hooked("gpt2", device="cpu")
     tok = model.tokenizer
     ind_heads = interp.top_heads(interp.induction_scores(model, seed=args.seed), args.k_heads)
-    pool = payloads.rare_token_pool(tok)
+    pool = payloads.short_token_pool(tok)
     print(f"induction heads: {ind_heads}\n")
 
     def enc(s):

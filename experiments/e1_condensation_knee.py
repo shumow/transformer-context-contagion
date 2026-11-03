@@ -85,7 +85,7 @@ def main():
 
     rng = np.random.default_rng(args.seed)
     lm = LM(args.model, device=args.device)
-    pool = payloads.rare_token_pool(lm.tokenizer)
+    pool = payloads.short_token_pool(lm.tokenizer)
     t0 = time.time()
     print(f"model={args.model}  device={lm.device}  pool={len(pool)}  "
           f"payloads/length={args.payloads}  trials={args.trials}  controls={controls}\n")

@@ -3,9 +3,9 @@ Minimal model wrapper for the open-weights tier (HuggingFace generation). This i
 torch-dependent module; `payloads` and `scoring` stay torch-free so they can be unit
 tested without a GPU.
 
-For E1 (the condensation knee) plain `transformers` generation is enough. The
-interpretability tier -- E2's induction-head attribution via activation patching and head
-ablation -- will add a TransformerLens `HookedTransformer` path here; left as a stub below.
+For the generation experiments (E1, E5, E6) plain `transformers` generation is enough. The
+interpretability tier (E2, E4-lite, E7, E8-lite: induction-head scoring and head ablation)
+lives in `tcc.interp`, which wraps a TransformerLens `HookedTransformer`.
 """
 from __future__ import annotations
 import os
@@ -60,11 +60,3 @@ class LM:
             )
         cont = out[:, len(input_ids):]
         return [row.tolist() for row in cont]
-
-
-def load_hooked(name, device=None):
-    """E2 stub: load a TransformerLens HookedTransformer for activation patching and
-    head ablation (induction-head attribution). Wired in Phase 1's E2."""
-    raise NotImplementedError(
-        "TransformerLens path is a Phase-1/E2 stub; install transformer_lens and "
-        "implement induction-head attribution here.")

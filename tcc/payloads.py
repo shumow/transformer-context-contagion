@@ -5,7 +5,7 @@ unstably). A payload is a short cyclic string of token ids that the model would 
 never emit on its own, so any reproduction is the copy mechanism, not the model's taste --
 the real-transformer analogue of the toy's rainbow / de Bruijn quines.
 
-Pure numpy: the token-space constructors need no tokenizer. `rare_token_pool` takes an
+Pure numpy: the token-space constructors need no tokenizer. `short_token_pool` takes an
 already-loaded HF tokenizer (passed in) but imports nothing torch at module load.
 """
 from __future__ import annotations
@@ -113,11 +113,19 @@ def filler_tokens(pool, length, exclude, rng):
     return [int(t) for t in rng.choice(cand, size=length, replace=True)]
 
 
-def rare_token_pool(tokenizer, size=512, max_id=None):
-    """A pool of 'safe, rare-ish' single tokens to draw OOD payloads from: tokens that
-    decode to short, plain alphanumeric pieces, excluding special / added tokens. This is
-    a heuristic floor -- refine with a real unigram-frequency estimate when available
-    (a TODO noted in the plan). Returns a list of token ids.
+def short_token_pool(tokenizer, size=512, max_id=None):
+    """A pool of SHORT, plain alphanumeric single tokens to draw payloads from, excluding
+    special / added tokens. Returns a list of token ids.
+
+    What this is and is not. It scans token ids from 0 upward and keeps the first `size`
+    whose decoded form is 1-6 ASCII alphanumerics. In a BPE vocabulary like GPT-2's the low
+    ids are single bytes, digits, letters, and very common short pieces -- these tokens are
+    NOT rare. What is out-of-distribution is the *sequence* a payload forms from them (the
+    E1 no-payload control at P=0.00 is the evidence); the tokens themselves are ordinary.
+    Two consequences to keep in mind: (i) the "OOD" claim is about n-grams, not unigrams;
+    (ii) a 1-token payload decodes to a short common substring, so text-level counting of it
+    (E6 `count_payload`) is prone to accidental matches. A pool selected by actual unigram
+    rarity (from a corpus frequency estimate) remains a TODO.
 
     `tokenizer` is an already-constructed HF tokenizer; this function imports no torch.
     """
@@ -139,3 +147,9 @@ def rare_token_pool(tokenizer, size=512, max_id=None):
         # last resort: a mid-vocab band, minus specials
         pool = [t for t in range(n // 4, n // 4 + size) if t not in special][:size]
     return pool
+
+
+def rare_token_pool(tokenizer, size=512, max_id=None):
+    """Deprecated name for `short_token_pool` (the tokens are short, not rare). Kept so
+    older run commands and notebooks keep working."""
+    return short_token_pool(tokenizer, size=size, max_id=max_id)
