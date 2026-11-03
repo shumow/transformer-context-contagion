@@ -44,16 +44,26 @@ def rows_from_e11(d, model=None):
 
 
 def rows_from_e13(d):
-    """e1_3_size_sweep.py output: results[model][p] = [nstar, lo, hi]; reps at top level."""
+    """e1_3_size_sweep.py output: results[model][p] is either the old [nstar, lo, hi] (knee
+    only) or the new dict with 'knee', 'curve', 'one_shot' (curve present -> direct P(N=2))."""
     out = []
     reps = d["reps"]
     for model, res in d["results"].items():
         if "error" in res:
             continue
-        for p, (n_star, lo, hi) in res.items():
-            out.append(dict(model=model, p=int(p), n_star=n_star,
-                            at_floor=scoring.knee_at_floor(n_star, reps), p_n1=None, p_n2=None,
-                            implied_p_n2=scoring.implied_one_shot_rate(n_star, reps[:2]), source="knee-only"))
+        for p, cell in res.items():
+            if isinstance(cell, dict):
+                n_star = cell.get("knee")
+                osr = scoring.one_shot_rate(reps, cell["curve"]) if "curve" in cell else None
+                out.append(dict(model=model, p=int(p), n_star=n_star,
+                                at_floor=scoring.knee_at_floor(n_star, reps),
+                                p_n1=None if osr is None else osr[0], p_n2=None if osr is None else osr[1],
+                                implied_p_n2=scoring.implied_one_shot_rate(n_star, reps[:2]), source="curve"))
+            else:
+                n_star = cell[0]
+                out.append(dict(model=model, p=int(p), n_star=n_star,
+                                at_floor=scoring.knee_at_floor(n_star, reps), p_n1=None, p_n2=None,
+                                implied_p_n2=scoring.implied_one_shot_rate(n_star, reps[:2]), source="knee-only"))
     return out
 
 
