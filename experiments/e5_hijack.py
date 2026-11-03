@@ -24,6 +24,7 @@ import os
 import numpy as np
 
 from tcc import payloads
+from tcc import snapshot
 
 DOCS = [
     "The committee met on Tuesday to review the annual budget. After a long discussion "
@@ -73,7 +74,9 @@ def main():
     ap.add_argument('--device', default=None)
     ap.add_argument('--seed', type=int, default=7)
     ap.add_argument('--prefix', default='results/e5_hijack')
+    snapshot.add_args(ap)
     args = ap.parse_args()
+    snapshot.arm(args)
 
     from tcc.models import LM
     rng = np.random.default_rng(args.seed)

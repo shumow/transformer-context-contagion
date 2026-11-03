@@ -26,6 +26,7 @@ import os
 import numpy as np
 
 from tcc import payloads
+from tcc import snapshot
 
 
 def main():
@@ -44,9 +45,11 @@ def main():
                     help="cpu recommended: TransformerLens warns MPS may be silently wrong on torch 2.8")
     ap.add_argument('--seed', type=int, default=7)
     ap.add_argument('--prefix', default='results/e2')
+    snapshot.add_args(ap)
     ap.add_argument('--fresh', action='store_true',
                     help="ignore any existing results JSON and recompute all cells (default: resume)")
     args = ap.parse_args()
+    snapshot.arm(args)
 
     try:
         from tcc import interp

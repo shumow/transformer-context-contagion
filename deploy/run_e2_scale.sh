@@ -30,6 +30,7 @@ GET_PYTHIA69="${GET_PYTHIA69:-1}"                 # pull pythia-6.9b (clean 7B, 
 # Default ladder: gpt2-xl re-run + Pythia 2.8B/6.9B (both OOM'd or absent on the T4) + a
 # Qwen2.5-7B attempt (TransformerLens may not support it -- it'll just skip if so).
 MODELS="${MODELS:-gpt2-xl EleutherAI/pythia-2.8b EleutherAI/pythia-6.9b Qwen/Qwen2.5-7B}"
+SNAPSHOT="${SNAPSHOT:-trackB}"                    # outputs are also copied to data/<SNAPSHOT>/
 
 if [ "$GET_PYTHIA69" = "1" ]; then
   echo "==> fetching EleutherAI/pythia-6.9b (clean 7B for the Pythia E2 ladder)"
@@ -40,7 +41,8 @@ for m in $MODELS; do
   echo "===================== E2 $m  (k-frac=$K_FRAC) ====================="
   python -m experiments.e2_induction --model "$m" --device cuda \
     --lengths $LENGTHS --reps $REPS --payloads "$PAYLOADS" --k-frac "$K_FRAC" \
+    --snapshot "$SNAPSHOT" \
     || echo "!! E2 failed for $m (TransformerLens support? OOM?) -- continuing"
 done
 echo "===== E2 SCALE DONE ====="
-echo "results in results/e2_*.json  (fetch them before terminating the pod)"
+echo "results in results/e2_*.json and data/$SNAPSHOT/ -- commit data/$SNAPSHOT before terminating the pod"

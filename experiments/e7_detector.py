@@ -35,6 +35,7 @@ import os
 import numpy as np
 
 from tcc import payloads, corpus
+from tcc import snapshot
 
 
 def auc(pos, neg):
@@ -123,8 +124,10 @@ def main():
     ap.add_argument('--ngram', type=int, default=3, help='n for the model-free baseline')
     ap.add_argument('--seed', type=int, default=7)
     ap.add_argument('--prefix', default='results/e7_detector')
+    snapshot.add_args(ap)
     ap.add_argument('--selftest', action='store_true')
     args = ap.parse_args()
+    snapshot.arm(args)
 
     if args.selftest:
         selftest()

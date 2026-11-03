@@ -26,6 +26,7 @@ import time
 import numpy as np
 
 from tcc import payloads
+from tcc import snapshot
 
 
 def count_payload(text, payload_text):
@@ -109,7 +110,9 @@ def main():
     ap.add_argument('--device', default=None)
     ap.add_argument('--seed', type=int, default=7)
     ap.add_argument('--prefix', default='results/e6_worm')
+    snapshot.add_args(ap)
     args = ap.parse_args()
+    snapshot.arm(args)
 
     try:
         from tcc.models import LM

@@ -192,12 +192,13 @@ extraction depth like the brittleness ladder.
 
 ## 6. Phasing and deliverables
 
-**Status (2026-06).** Phase 0 and the core of Phase 1 are **done** on GPT-2-small: the
-condensation knee exists (E1.1, C1), is length-robust (C3), is a repetition-not-context-
-length effect but distance-sensitive (E1.5), is cue-triggered copy (E1.2, C2 behaviorally),
-and is **causally carried by the induction heads** (E2, C2 mechanistically); it replicates
-in Pythia-160M. The size sweep (E1.3) is **blocked by the 8 GB dev machine** (gpt2-medium+
-thrash on swap). The remaining work splits by hardware:
+**Status.** This document is the plan as written in June 2026 and is kept for the
+pre-registration record. Status is tracked in one place: the per-claim table in
+[`README.md`](README.md) and the entries in [`results_log.md`](results_log.md). The June status
+paragraph that stood here (E1.3 "blocked") is obsolete: E1.3/E1.4 ran at scale (Track B), the
+core was then re-read in November 2026 (the multi-token knee is the grid floor), and the open
+work is listed in [`review_remediation_plan.md`](review_remediation_plan.md). The hardware
+split below is historical:
 
 ### Track A — runnable now on the 8 GB machine (GPT-2-small, Pythia-160M) — **DONE**
 - **E6 — the worm** (done): critical string length and the GPT-2 ↔ Pythia-160M

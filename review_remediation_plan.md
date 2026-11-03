@@ -231,3 +231,20 @@ Abstract to ≤ 200 words. "Progress report" label stays until Tier 2 is done.
 
 0.1 → 0.2 → 0.3 → 0.8 (all code, one PR) → 0.4, 0.5, 0.6 (analysis + log) → 0.7, 0.10
 (writing) → Tier 1 on a CPU box → 2.1 → 2.2 → 2.3 → Tier 3.
+
+## Progress
+
+Each iteration is a branch off `claude/fervent-ritchie-l5m9uw`, merged back when done.
+
+| iteration | items | state |
+|---|---|---|
+| 1 `…-iter1-code-fixes` | 0.1 E8 control; 0.2 E4-scale redesign; 0.3 E7 baseline + negatives; 0.8 hygiene | **merged.** Reruns (1.1, 1.2, 2.2) still needed to replace the numbers. |
+| 2 `…-iter2-analysis` | 0.4 both firebreak runs + permutation test; 0.5 knee floor + one-shot inversion; 0.6 R0 from mean trajectories, per-trial storage added | **merged.** Results in `results_log.md` "Analyses of committed data". |
+| 3 `…-iter3-writing` | 0.7 related work; 0.9 `--snapshot` in every experiment and the run scripts; 0.10 single source of truth (README table, ONEPAGER, plan pointers); paper text for 0.4/0.5 | **merged.** PDF not rebuilt (no TeX here). Abstract trimmed to current claims but not yet to ≤200 words (Tier 3). |
+| Tier 1 | 1.1, 1.2, 1.3 | not started: needs a CPU box with torch + transformer_lens |
+| Tier 2 | 2.1, 2.2, 2.3, 2.4 | not started: needs a GPU pod (+ `HF_TOKEN` for Llama/Gemma) |
+| Tier 3 | rewrite | after Tier 2 |
+
+Open decisions for the author: whether to keep the `rare_token_pool` alias (kept, deprecated);
+whether any Track A/B raw JSON survives on the dev Mac or the Azure disk (0.9); pod budget for
+Tier 2.

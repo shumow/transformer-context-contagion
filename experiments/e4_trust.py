@@ -30,6 +30,7 @@ import numpy as np
 import torch
 
 from tcc import payloads, interp
+from tcc import snapshot
 
 REAL_SENTENCES = [
     "The capital of France is Paris, a city famous for the Eiffel Tower.",
@@ -98,7 +99,9 @@ def main():
     ap.add_argument('--gen-len', type=int, default=40)
     ap.add_argument('--seed', type=int, default=7)
     ap.add_argument('--prefix', default='results/e4_trust')
+    snapshot.add_args(ap)
     args = ap.parse_args()
+    snapshot.arm(args)
 
     rng = np.random.default_rng(args.seed)
     model = interp.load_hooked("gpt2", device="cpu")

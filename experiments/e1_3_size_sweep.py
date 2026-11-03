@@ -25,6 +25,7 @@ import time
 import numpy as np
 
 from tcc import payloads, scoring
+from tcc import snapshot
 
 # approximate parameter counts (millions) for the size axis
 PARAMS_M = {
@@ -93,7 +94,9 @@ def main():
                     help="load dtype: float16 (default; fits 7B on a 16GB T4), bfloat16, float32, or auto")
     ap.add_argument('--seed', type=int, default=7)
     ap.add_argument('--prefix', default='results/e1_3')
+    snapshot.add_args(ap)
     args = ap.parse_args()
+    snapshot.arm(args)
 
     try:
         import tcc.models  # noqa: F401
