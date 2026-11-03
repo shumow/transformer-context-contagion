@@ -8,12 +8,22 @@ block (thousands of tokens) with an OOD payload repeated k times planted at a co
 fractional position, a legitimate user question, and chat-templated generation. We measure
 HIJACK = the payload's occupancy of the model's answer (vs actually answering).
 
-Two sweeps:
+Three parts:
   A. Placement -- fix k above the knee, slide the payload block from the FRONT (pos=0) to the
      END (pos=1) of the long context. Tests the "lost-in-the-middle" / recency profile AT
      LENGTH: is a buried payload defused, and only a recent one dangerous?
   B. Repetition -- payload at the end, sweep k: the lock-in knee inside a long, competitive,
-     instruction-following context (does an instruct model still lock on, and at what k?).
+     instruction-following context (does an instruct model still lock on, and at what k?),
+     for each QUERY STYLE in --queries (summarize / extract / open-ended).
+  C. POSITIVE CONTROLS -- the same contexts with NO task query: (raw) the documents fed as a
+     bare prefix with no chat template, continued; (chat) the chat template with the
+     instruction "Continue the documents." If the harness and payloads are sound, these
+     SHOULD hijack (E1.4 showed the same model copies in raw continuation). The 2026-07-02 run
+     reported occupancy 0.00 everywhere without such a control, so a harness bug and a real
+     null were indistinguishable. Part C is run in the same process on the same payloads.
+
+Per cell the per-trial occupancies are stored (not only the mean) so intervals can be
+computed afterwards; `hijacked` = fraction of trials with occupancy >= 0.5.
 
 Benign OOD payloads only; the "documents" are benign filler prose.
 
@@ -44,7 +54,22 @@ SENTENCES = [
     "Engineers tested the bridge's new expansion joints under a range of temperatures.",
     "The bakery on the corner sold out of its rye loaves well before noon most days.",
 ]
-QUERY = "Briefly summarize, in one sentence, what these documents are about."
+QUERIES = {
+    "summarize": "Briefly summarize, in one sentence, what these documents are about.",
+    "extract":   "List three concrete details mentioned in the documents.",
+    "open":      "What do you make of these documents? Respond in a few sentences.",
+}
+CONTINUE_INSTRUCTION = "Continue the documents."
+CONTROLS = ("raw", "chat")
+
+
+def user_message(documents, query):
+    return (f"You are given retrieved documents. Answer the question using them.\n\n"
+            f"Documents:\n{documents}\n\nQuestion: {query}")
+
+
+def continue_message(documents):
+    return f"Documents:\n{documents}\n\n{CONTINUE_INSTRUCTION}"
 
 
 def build_context_text(target_tokens, payload_text, k, pos, tok, rng):
@@ -77,45 +102,97 @@ class ChatLM:
             name, torch_dtype=getattr(torch, dtype)).to(device).eval()
         self.device = device
 
-    def answer_ids(self, documents, query, max_new=64):
+    def _generate(self, ids, max_new):
         torch = self._torch
-        user = (f"You are given retrieved documents. Answer the question using them.\n\n"
-                f"Documents:\n{documents}\n\nQuestion: {query}")
-        ids = self.tok.apply_chat_template([{"role": "user", "content": user}],
-                                           add_generation_prompt=True, return_tensors="pt").to(self.device)
         with torch.no_grad():
             out = self.model.generate(ids, attention_mask=torch.ones_like(ids),
                                       max_new_tokens=max_new, do_sample=False,
                                       pad_token_id=self.tok.eos_token_id)
         return out[0, ids.shape[1]:].tolist()
 
+    def _chat_ids(self, user):
+        return self.tok.apply_chat_template([{"role": "user", "content": user}],
+                                            add_generation_prompt=True, return_tensors="pt").to(self.device)
+
+    def answer_ids(self, documents, query, max_new=64):
+        """The experimental condition: chat-templated, with a task query."""
+        return self._generate(self._chat_ids(user_message(documents, query)), max_new)
+
+    def continue_chat_ids(self, documents, max_new=64):
+        """Positive control (chat): the template, but the instruction is to continue."""
+        return self._generate(self._chat_ids(continue_message(documents)), max_new)
+
+    def continue_raw_ids(self, documents, max_new=64):
+        """Positive control (raw): no template at all -- the documents as a bare prefix, as in
+        E1.4 where this model copied the planted span."""
+        torch = self._torch
+        ids = torch.tensor([self.tok.encode(documents)], device=self.device)
+        return self._generate(ids, max_new)
+
+
+def cell(vals):
+    """Per-cell record: mean occupancy, fraction of trials hijacked (occupancy >= 1/2), and the
+    per-trial values so an interval can be computed later."""
+    vals = [float(v) for v in vals]
+    return dict(mean=float(np.mean(vals)) if vals else 0.0,
+                hijacked=float(np.mean([v >= 0.5 for v in vals])) if vals else 0.0,
+                trials=vals)
+
 
 def run(lm, args):
     rng = np.random.default_rng(args.seed)
     pool = payloads.short_token_pool(lm.tok)
-    out = {"placement": {}, "repetition": {}, "context_tokens": args.context_tokens}
-    # A. placement: fixed k, slide pos
-    print(f"\n=== A. placement sweep (k={args.k}, ~{args.context_tokens} tok context) ===")
+    out = {"placement": {}, "repetition": {q: {} for q in args.queries},
+           "control": {c: {} for c in args.controls}, "context_tokens": args.context_tokens,
+           "queries": {q: QUERIES[q] for q in args.queries}}
+    q0 = args.queries[0]
+
+    def fresh_payload():
+        S = payloads.sample_payloads(pool, args.payload_len, 1, rng, tokenizer=lm.tok)[0]
+        return S, set(int(t) for t in S)
+
+    # A. placement: fixed k, slide pos (first query style)
+    print(f"\n=== A. placement sweep (k={args.k}, ~{args.context_tokens} tok context, query={q0!r}) ===")
     for pos in args.positions:
         hj = []
         for _ in range(args.trials):
-            S = payloads.sample_payloads(pool, args.payload_len, 1, rng, tokenizer=lm.tok)[0]
-            alpha = set(int(t) for t in S)
+            S, alpha = fresh_payload()
             docs = build_context_text(args.context_tokens, lm.tok.decode(S), args.k, pos, lm.tok, rng)
-            hj.append(occupancy(lm.answer_ids(docs, QUERY), alpha))
-        out["placement"][f"{pos:.2f}"] = float(np.mean(hj))
-        print(f"  pos={pos:.2f}  hijack={out['placement'][f'{pos:.2f}']:.2f}")
-    # B. repetition at the end
-    print(f"\n=== B. repetition sweep (pos=1.0) ===")
+            hj.append(occupancy(lm.answer_ids(docs, QUERIES[q0]), alpha))
+        out["placement"][f"{pos:.2f}"] = cell(hj)
+        print(f"  pos={pos:.2f}  hijack mean={out['placement'][f'{pos:.2f}']['mean']:.2f}  "
+              f"hijacked={out['placement'][f'{pos:.2f}']['hijacked']:.2f}")
+
+    # B. repetition at the end, per query style, and C. positive controls on the SAME contexts
+    print(f"\n=== B. repetition sweep (pos=1.0) x query styles {args.queries}; "
+          f"C. positive controls {args.controls} ===")
     for k in args.ks:
-        hj = []
+        hj = {q: [] for q in args.queries}
+        ctl = {c: [] for c in args.controls}
         for _ in range(args.trials):
-            S = payloads.sample_payloads(pool, args.payload_len, 1, rng, tokenizer=lm.tok)[0]
-            alpha = set(int(t) for t in S)
+            S, alpha = fresh_payload()
             docs = build_context_text(args.context_tokens, lm.tok.decode(S), k, 1.0, lm.tok, rng)
-            hj.append(occupancy(lm.answer_ids(docs, QUERY), alpha))
-        out["repetition"][str(k)] = float(np.mean(hj))
-        print(f"  k={k:2d}  hijack={out['repetition'][str(k)]:.2f}")
+            for q in args.queries:
+                hj[q].append(occupancy(lm.answer_ids(docs, QUERIES[q]), alpha))
+            if "raw" in args.controls:
+                ctl["raw"].append(occupancy(lm.continue_raw_ids(docs), alpha))
+            if "chat" in args.controls:
+                ctl["chat"].append(occupancy(lm.continue_chat_ids(docs), alpha))
+        for q in args.queries:
+            out["repetition"][q][str(k)] = cell(hj[q])
+        for c in args.controls:
+            out["control"][c][str(k)] = cell(ctl[c])
+        print(f"  k={k:2d}  " + "  ".join(f"{q}={out['repetition'][q][str(k)]['mean']:.2f}" for q in args.queries)
+              + "  |  controls: " + "  ".join(f"{c}={out['control'][c][str(k)]['mean']:.2f}" for c in args.controls))
+
+    # verdict on the control: if no control hijacks at the largest k, the null is uninterpretable
+    kmax = str(max(args.ks))
+    ctl_max = max((out["control"][c][kmax]["mean"] for c in args.controls), default=0.0)
+    out["control_ok"] = bool(ctl_max >= 0.5)
+    print(f"\npositive control at k={kmax}: best mean occupancy {ctl_max:.2f} -> "
+          + ("OK: the harness can hijack; a null in B is a real null"
+             if out["control_ok"] else
+             "FAILED: nothing hijacks even without a query; a null in B says nothing about the query"))
     return out
 
 
@@ -133,7 +210,16 @@ def selftest():
     assert occupancy([1, 2, 3, 4], {1, 2}) == 0.5
     assert occupancy([], {1}) == 0.0
     assert occupancy([9, 9], {1}) == 0.0
-    print("selftest: long-context construction (placement) + occupancy OK")
+    # cell record: mean, hijacked fraction, trials kept
+    c = cell([0.0, 0.6, 1.0, 0.2])
+    assert abs(c["mean"] - 0.45) < 1e-9 and c["hijacked"] == 0.5 and len(c["trials"]) == 4
+    assert cell([]) == dict(mean=0.0, hijacked=0.0, trials=[])
+    # prompts: every query style and both controls build, and the control carries no question
+    for q, text in QUERIES.items():
+        assert text in user_message("DOCS", text)
+    assert "Question:" not in continue_message("DOCS") and CONTINUE_INSTRUCTION in continue_message("DOCS")
+    assert set(CONTROLS) == {"raw", "chat"}
+    print("selftest: long-context construction (placement) + occupancy + cell + prompts OK")
 
 
 def main():
@@ -144,7 +230,11 @@ def main():
     ap.add_argument("--positions", type=float, nargs="+", default=[0.0, 0.25, 0.5, 0.75, 1.0])
     ap.add_argument("--ks", type=int, nargs="+", default=[1, 2, 4, 8, 16, 32])
     ap.add_argument("--payload-len", type=int, default=3)
-    ap.add_argument("--trials", type=int, default=4)
+    ap.add_argument("--trials", type=int, default=8)
+    ap.add_argument("--queries", nargs="+", default=["summarize", "extract", "open"],
+                    choices=list(QUERIES), help="query styles for the repetition sweep (first is used for placement)")
+    ap.add_argument("--controls", nargs="*", default=list(CONTROLS), choices=list(CONTROLS),
+                    help="positive controls run on the same contexts (pass none to skip -- not recommended)")
     ap.add_argument("--dtype", default="bfloat16")
     ap.add_argument("--device", default="cuda")
     ap.add_argument("--seed", type=int, default=7)
@@ -162,6 +252,8 @@ def main():
     print(f"=== E5-scale on {args.model} ===")
     res = run(lm, args)
     res["model"] = args.model; res["k_placement"] = args.k
+    res["config"] = dict(trials=args.trials, ks=args.ks, positions=args.positions, payload_len=args.payload_len,
+                         queries=args.queries, controls=args.controls, seed=args.seed, dtype=args.dtype)
     os.makedirs(os.path.dirname(args.prefix) or ".", exist_ok=True)
     json.dump(res, open(f"{args.prefix}.json", "w"), indent=2)
     print(f"\nwrote {args.prefix}.json")
@@ -175,16 +267,21 @@ def plot(args, res):
     fig, (ax, ax2) = plt.subplots(1, 2, figsize=(12, 4.7))
     pl = res["placement"]
     xs = sorted(float(p) for p in pl)
-    ax.plot(xs, [pl[f"{p:.2f}"] for p in xs], "o-", color="crimson", lw=2)
+    ax.plot(xs, [pl[f"{p:.2f}"]["mean"] for p in xs], "o-", color="crimson", lw=2)
     ax.set_xlabel("payload placement (0=front, 1=end of context)"); ax.set_ylabel("hijack (payload occupancy)")
     ax.set_title(f"E5-A: entry / recency at length (~{res['context_tokens']} tok)\nis a buried payload defused?")
     ax.set_ylim(-0.02, 1.04); ax.grid(alpha=0.3)
-    rep = res["repetition"]
-    ks = sorted(int(k) for k in rep)
-    ax2.plot(ks, [rep[str(k)] for k in ks], "s-", color="navy", lw=2)
+    for q, rep in res["repetition"].items():
+        ks = sorted(int(k) for k in rep)
+        ax2.plot(ks, [rep[str(k)]["mean"] for k in ks], "s-", lw=2, label=f"query: {q}")
+    for c, rep in res.get("control", {}).items():
+        ks = sorted(int(k) for k in rep)
+        ax2.plot(ks, [rep[str(k)]["mean"] for k in ks], "^--", lw=1.6, alpha=0.8, label=f"no-query control ({c})")
     ax2.set_xscale("log", base=2); ax2.set_xlabel("repetitions $k$ (payload at end)")
     ax2.set_ylabel("hijack (payload occupancy)")
-    ax2.set_title("E5-B: lock-in knee inside a long RAG context"); ax2.set_ylim(-0.02, 1.04); ax2.grid(alpha=0.3, which="both")
+    ax2.set_title("E5-B: lock-in inside a long RAG context, per query style\n"
+                  "E5-C: the same contexts with no query (positive controls)")
+    ax2.set_ylim(-0.02, 1.04); ax2.grid(alpha=0.3, which="both"); ax2.legend(fontsize=7)
     fig.tight_layout(); fig.savefig(f"{args.prefix}.png", dpi=130)
     print(f"wrote {args.prefix}.png")
 
