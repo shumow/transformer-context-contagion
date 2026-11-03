@@ -28,7 +28,7 @@ or impossible to reproduce locally. Unlike `results/`, it is tracked by git.
 | `trackB/e1_3_e1_4_knees_transcribed.json` | transcribed from `results_log.md` (E1.3 / E1.4 knee tables); raw files on the Azure VM disk were not recovered |
 | `trackB/analysis_knee_floor.json`, `trackC/analysis_e6_firebreak.json`, `trackC/analysis_e6_r0.json` | analysis outputs, see `results_log.md` "Analyses of committed data" |
 | `trackC/smoke_e6B.{json,png,console.log}` | **smoke test only, not a result**: E6-B at 1 hop, 2 trials, from the first unattended RunPod pod (2026-11-03, `deploy/runpod_job.sh`); the two gated families were skipped (see `logs/pod_diag_console.log`) |
-| `trackC/logs/pod_*_console.log`, `pod_*_pip-freeze.txt` | console and environment of each unattended pod job (`deploy/runpod_job.sh`); `pod_diag_console.log` records why the gated models could not load on 2026-11-03 |
+| `trackC/logs/pod_*_console.log`, `pod_*_pip-freeze.txt` | console and environment of each unattended pod job (`deploy/runpod_job.sh`); `pod_diag_console.log` is the second diag run (token can read gated repos); the first, which recorded the `canReadGatedRepos: false` failure, is in git history at commit `0d143a2` |
 
 ## Still missing (raw data lost unless recovered from the dev Mac / Azure disk)
 Track A: `e1_1_gpt2`, `e1_2_gpt2`, `e1_5_gpt2`, `e1_3`, `e2_gpt2`, `e4_trust`, `e5_hijack`,
