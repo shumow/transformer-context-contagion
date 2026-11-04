@@ -1448,3 +1448,90 @@ collapse remains a two-model observation at n = 8 that these matrices do not gen
 per cell. The 8-copy ratio interval reaches 1.52, so a modest same-tokenizer advantage under
 weak seeding is not excluded by that matrix alone; it is absent at 16 and 32 copies and at
 every 3-hop strength.
+
+## Follow-ups 2 — Qwen2.5-3B serial passage, and E5 with the raw-plus-query control (2026-11-04, RunPod L40S)
+
+Job `deploy/runpod_job.sh followup2`, 1.5 pod-hours. Files
+`data/trackC/e6A_hiN_qwen3b_s{7,8,9}.{json,png,console.log}`,
+`e5_scale_v2_rawq_{qwen7b,llama3b,phi35mini}-instruct.{json,png,console.log}`; analysis
+`analysis_e6_r0_pooled_qwen3b.json`.
+
+### C. Qwen2.5-3B serial passage: is the looping trait family-wide?
+
+Same protocol as Part A of 2.1 and follow-up A (hops 6, 16 seed copies, T = 96, sampled at
+T = 1.0, 20 trials × seeds 7, 8, 9):
+
+```
+python -m experiments.e6_scale --part A --serial-models Qwen/Qwen2.5-3B --seed {7,8,9} --trials 20 --device cuda --prefix results/e6A_hiN_qwen3b_s$seed --snapshot trackC
+```
+
+| model (n = 60, Wilson 95%) | p=1 (artifact) | p=2 | p=3 | p=5 | p=8 |
+|---|---|---|---|---|---|
+| **Qwen2.5-3B** | 0.30 (0.20–0.43) | **0.33 (0.23–0.46)** | **0.37 (0.26–0.49)** | **0.38 (0.27–0.51)** | **0.28 (0.19–0.41)** |
+| Qwen2.5-7B (2.1) | 0.22 | 0.47 (0.35–0.59) | 0.30 (0.20–0.43) | 0.42 (0.30–0.54) | 0.50 (0.38–0.62) |
+| Pythia-6.9B (follow-up A) | 0.38 | 0.07 (0.03–0.16) | 0.10 (0.05–0.20) | 0.10 (0.05–0.20) | 0.10 (0.05–0.20) |
+| Pythia-2.8B / Llama-3.2-3B (2.1) | — | 0.12 / 0.00 | 0.07 / 0.12 | 0.20 / 0.07 | 0.05 / 0.00 |
+
+Per seed (p = 2/3/5/8): 0.35/0.40/0.20/0.35, 0.25/0.25/0.60/0.15, 0.40/0.45/0.35/0.35. Per-trial
+R_geo medians 0.88–0.99; survivors at T/p (median last load 48, 32, 18, 12).
+
+**Verdict: the trait is the Qwen2.5 base family, at 3B as at 7B.** Qwen2.5-3B locks in 28–38%
+of chains, flat in p, inside the 7B's intervals at every p and 3–5× above every non-Qwen base
+model of 2.8B–7B. The ordering across the six base/instruct models now tested is Qwen2.5-7B ≈
+Qwen2.5-3B ≫ Pythia-6.9B ≈ Pythia-2.8B ≈ Llama-3.2-3B ≈ Qwen2.5-7B-Instruct. Together with
+follow-up B (the Qwen2.5-0.5B host column dominates every firebreak matrix), this is one fact:
+*Qwen2.5 base models, at every size from 0.5B to 7B, fall into a locked repetition loop on a
+repeated span far more readily than Pythia, Llama, Gemma or GPT-2, and instruction-tuning
+removes most of it.* The paper's C6 should be rewritten around that sentence and read against
+Holtzman et al. (2019); there is no scale law and no critical length in these data.
+
+### D. E5-scale with the raw-plus-query control: template or query?
+
+E5-scale v2 (above) found that the chat template with "Continue the documents." did not hijack
+either, so the template and the task query were not separated. The `rawq` control added to
+`e5_scale.py` feeds the experimental user message verbatim — the preamble, the documents, and
+the task query — as a bare prefix with **no chat template**. Same seed, so the contexts and the
+query cells are identical to v2 (verified: every query-cell mean matches v2 exactly).
+
+```
+python -m experiments.e5_scale --model <M> --context-tokens 4000 --device cuda --controls raw chat rawq --prefix results/e5_scale_v2_rawq_<tag> --snapshot trackC
+```
+
+Mean occupancy (fraction of 8 trials with occupancy ≥ ½), payload at the end, p = 3:
+
+| model | k | task query (templated; 3 styles) | raw, no query | chat, "continue" | **rawq: no template, summarize / extract / open** |
+|---|---|---|---|---|---|
+| Qwen2.5-7B-Instruct | 2 | 0.00–0.01 | 0.38 (0.50) | 0.01 | 0.04 / 0.02 / 0.00 (all 0.00) |
+| | 8 | 0.00 | 0.70 (1.00) | 0.00 | 0.04 / 0.03 / 0.00 (all 0.00) |
+| | 32 | 0.00 | 0.68 (1.00) | 0.00 | 0.00 / 0.03 / 0.00 (all 0.00) |
+| Llama-3.2-3B-Instruct | 2 | 0.00–0.01 | 0.44 (0.62) | 0.00 | 0.01 / 0.00 / 0.01 (all 0.00) |
+| | 8 | 0.00 | 0.69 (1.00) | 0.00 | 0.00 / 0.00 / 0.00 |
+| | 32 | 0.00 | 0.65 (1.00) | 0.00 | 0.00 / 0.00 / 0.00 |
+| Phi-3.5-mini-instruct | 2 | 0.00–0.01 | 0.75 (0.75) | 0.01 | 0.01 / 0.00 / 0.00 (all 0.00) |
+| | 8 | 0.00–0.01 | 1.00 (1.00) | 0.25 (0.25) | 0.00 / 0.01 / 0.00 (all 0.00) |
+| | 32 | 0.00–0.02 | 1.00 (1.00) | 0.01 | 0.01 / 0.01 / 0.02 (all 0.00) |
+
+(k = 4 and 16 are the same picture; full tables in the JSON.) Largest single rawq trial: 0.36
+(Qwen, summarize, k = 16), 0.06 (Llama), 0.08 (Phi); no rawq trial reaches ½ on any model.
+
+**Verdict: the template is not what defuses.** The same text that is hijacked as a bare
+prefix (0.4–1.0 occupancy) is not hijacked once the task query follows the documents, with or
+without a chat template, on all three models. The v2 sentence "the chat template alone
+defuses" is therefore wrong as an explanation: the template is sufficient but not necessary.
+
+**But the honest reading is narrower than "the query defuses".** Every condition that does
+not hijack — templated query, templated "continue", and now the untemplated query — puts
+tokens *after* the payload block (the question line, the instruction, the template suffix),
+whereas the only hijacking condition ends the context inside the repeated payload. E5-lite and
+E1.5 showed on GPT-2 that about 16 tokens of anything between the payload and the generation
+point kill reproduction, and the v2 placement sweep shows the same gate at length. So these
+data cannot distinguish "the model follows the task" from "the payload is no longer the last
+thing in context". The one-line control that separates them is a `rawpad` condition: the raw
+documents followed by benign filler of the same token length as the query line, no question,
+no template. If it hijacks, the query is doing semantic work; if it does not, the C5 bound is
+the recency gate restated, and "a task query defuses hijack" should be replaced by "anything
+that ends the context after the payload defuses it" — which is the same defensive advice with
+a different mechanism. Not run; ten pod-minutes per model.
+
+**Caveats.** 8 trials per cell, greedy, one seed, p = 3, 4k context; the query line is 15–30
+tokens on these tokenizers, above the GPT-2 recency limit measured in E5-lite.
