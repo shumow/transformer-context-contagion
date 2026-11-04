@@ -20,8 +20,7 @@ in the two write-ups there (`trust_is_the_attack_surface.tex`, `contagious_conte
 ## Status
 
 The record of every run is [`results_log.md`](results_log.md); the write-up is
-[`latex/transformer_context_contagion.tex`](latex/transformer_context_contagion.tex) (the
-committed PDF predates the November 2026 text revision). A critical review on 2026-11-03
+[`latex/transformer_context_contagion.tex`](latex/transformer_context_contagion.tex). A critical review on 2026-11-03
 re-read several results; the work plan is
 [`review_remediation_plan.md`](review_remediation_plan.md). One line per claim, with where
 the detail lives:
