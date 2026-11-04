@@ -144,3 +144,24 @@ wrote results/e6B_1hop_reps16.png
 [snapshot] next: git add data/trackC && git commit -m 'Snapshot trackC results'
 [2026-11-04T20:45:26Z] <<< e6B_1hop_reps16 exit=0
 [2026-11-04T20:45:26Z] >>> e6B_1hop_reps32 :: -m experiments.e6_scale --part B --cross-hops 1 --host0-reps 32 --trials 30 --device cuda --prefix results/e6B_1hop_reps32 --snapshot trackC
+`torch_dtype` is deprecated! Use `dtype` instead!
+
+=== B. cross-tokenizer firebreak matrix (p=3, 1 hops) ===
+  loaded gpt2 (gpt2)
+  loaded pythia (EleutherAI/pythia-410m)
+  loaded qwen (Qwen/Qwen2.5-0.5B)
+  loaded llama (meta-llama/Llama-3.2-1B)
+Loading checkpoint shards:   0%|          | 0/3 [00:00<?, ?it/s]Loading checkpoint shards:  33%|███▎      | 1/3 [00:00<00:01,  1.38it/s]Loading checkpoint shards:  67%|██████▋   | 2/3 [00:01<00:00,  1.31it/s]Loading checkpoint shards: 100%|██████████| 3/3 [00:01<00:00,  1.94it/s]
+  loaded gemma (google/gemma-2-2b)
+  gpt2    -> gpt2:8.7  pythia:11.6  qwen:11.6  llama:9.6  gemma:13.6
+  pythia  -> gpt2:10.0  pythia:13.1  qwen:11.9  llama:8.5  gemma:10.0
+  qwen    -> gpt2:13.1  pythia:13.6  qwen:20.8  llama:14.4  gemma:21.2
+  llama   -> gpt2:7.0  pythia:4.6  qwen:11.0  llama:10.2  gemma:13.0
+  gemma   -> gpt2:12.5  pythia:9.1  qwen:14.9  llama:13.0  gemma:8.6
+
+wrote results/e6B_1hop_reps32.json  [1287s]
+wrote results/e6B_1hop_reps32.png
+[snapshot] copied 3 file(s) to data/trackC/: e6B_1hop_reps32.console.log, e6B_1hop_reps32.json, e6B_1hop_reps32.png
+[snapshot] next: git add data/trackC && git commit -m 'Snapshot trackC results'
+[2026-11-04T21:06:55Z] <<< e6B_1hop_reps32 exit=0
+[2026-11-04T21:06:55Z] job body finished after 137 min
