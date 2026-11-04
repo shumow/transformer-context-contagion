@@ -49,3 +49,21 @@ selftest: long-context construction (placement) + occupancy + cell + prompts OK
 remote:      https://github.com/shumow/transformer-context-contagion/pull/new/claude/fervent-ritchie-l5m9uw-iter9-pod-followup        
 remote: 
 [2026-11-04T18:51:38Z] >>> e6A_hiN_pythia69b_s7 :: -m experiments.e6_scale --part A --serial-models EleutherAI/pythia-6.9b --seed 7 --trials 20 --device cuda --prefix results/e6A_hiN_pythia69b_s7 --snapshot trackC
+`torch_dtype` is deprecated! Use `dtype` instead!
+
+=== A. serial passage at scale (sweep payload length) ===
+--- EleutherAI/pythia-6.9b ---
+Fetching 2 files:   0%|          | 0/2 [00:00<?, ?it/s]Fetching 2 files:  50%|█████     | 1/2 [00:33<00:33, 33.11s/it]Fetching 2 files: 100%|██████████| 2/2 [00:56<00:00, 28.30s/it]Fetching 2 files: 100%|██████████| 2/2 [00:56<00:00, 28.30s/it]
+Loading checkpoint shards:   0%|          | 0/2 [00:00<?, ?it/s]Loading checkpoint shards:  50%|█████     | 1/2 [00:02<00:02,  2.67s/it]Loading checkpoint shards: 100%|██████████| 2/2 [00:03<00:00,  1.65s/it]Loading checkpoint shards: 100%|██████████| 2/2 [00:03<00:00,  1.80s/it]
+  p= 1  0.8 -> 0.9 -> 1.1 -> 0.9 -> 1.6 -> 1.6 -> 1.4   survive(last)=55%
+  p= 2  24.6 -> 17.0 -> 10.8 -> 9.6 -> 9.6 -> 9.6 -> 9.6   survive(last)=20%
+  p= 3  18.1 -> 9.2 -> 7.5 -> 6.4 -> 6.4 -> 6.4 -> 6.4   survive(last)=20%
+  p= 5  13.4 -> 9.3 -> 5.8 -> 4.5 -> 2.9 -> 1.9 -> 1.8   survive(last)=10%
+  p= 8  9.6 -> 5.0 -> 3.5 -> 3.0 -> 1.1 -> 0.6 -> 0.5   survive(last)=5%
+
+wrote results/e6A_hiN_pythia69b_s7.json  [1463s]
+wrote results/e6A_hiN_pythia69b_s7.png
+[snapshot] copied 3 file(s) to data/trackC/: e6A_hiN_pythia69b_s7.console.log, e6A_hiN_pythia69b_s7.json, e6A_hiN_pythia69b_s7.png
+[snapshot] next: git add data/trackC && git commit -m 'Snapshot trackC results'
+[2026-11-04T19:16:03Z] <<< e6A_hiN_pythia69b_s7 exit=0
+[2026-11-04T19:16:03Z] >>> e6A_hiN_pythia69b_s8 :: -m experiments.e6_scale --part A --serial-models EleutherAI/pythia-6.9b --seed 8 --trials 20 --device cuda --prefix results/e6A_hiN_pythia69b_s8 --snapshot trackC
