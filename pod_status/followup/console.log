@@ -46,3 +46,6 @@ all 4 tests passed
 selftest: count_payload + passage_chain plumbing OK; ks(sustain)= [5, 5, 5, 5]
 selftest: 32 facts, 2x2 construction (distinct, length-matched), answer matching, correlation + bootstrap OK
 selftest: long-context construction (placement) + occupancy + cell + prompts OK
+remote:      https://github.com/shumow/transformer-context-contagion/pull/new/claude/fervent-ritchie-l5m9uw-iter9-pod-followup        
+remote: 
+[2026-11-04T18:51:38Z] >>> e6A_hiN_pythia69b_s7 :: -m experiments.e6_scale --part A --serial-models EleutherAI/pythia-6.9b --seed 7 --trials 20 --device cuda --prefix results/e6A_hiN_pythia69b_s7 --snapshot trackC
