@@ -10,6 +10,8 @@
 #   HF_TOKEN=hf_xxx bash bootstrap.sh          # also pull gated (Llama-3.2, Gemma-2)
 #   DIR=/workspace/tcc bash bootstrap.sh       # clone to a persistent volume (e.g. RunPod /workspace)
 #   TORCH_INDEX=.../cu124 bash bootstrap.sh    # if the box's driver needs a different CUDA wheel
+#   PREDOWNLOAD=0 bash bootstrap.sh            # skip the model pre-download (from_pretrained
+#                                              # fetches on demand; saves ~60 GB on single-job pods)
 #
 # Or one-liner from a fresh box:
 #   curl -sL https://raw.githubusercontent.com/shumow/transformer-context-contagion/main/deploy/bootstrap.sh | bash
@@ -19,6 +21,7 @@ REPO="${REPO:-https://github.com/shumow/transformer-context-contagion.git}"
 DIR="${DIR:-$HOME/transformer-context-contagion}"
 TORCH_INDEX="${TORCH_INDEX:-https://download.pytorch.org/whl/cu121}"  # broadly driver-compatible
 WITH_VLLM="${WITH_VLLM:-0}"
+PREDOWNLOAD="${PREDOWNLOAD:-1}"
 
 # root in most GPU containers (RunPod/Vast); sudo on VM images (Lambda/Paperspace).
 SUDO=""; [ "$(id -u)" != 0 ] && command -v sudo >/dev/null 2>&1 && SUDO="sudo"
@@ -83,13 +86,17 @@ GATED=(
 dl(){ echo "   -- $1"; { hf download "$1" || huggingface-cli download "$1"; } >/dev/null 2>&1 \
         || echo "      FAILED: $1"; }
 
-echo "==> pre-downloading ungated models"
-for m in "${UNGATED[@]}"; do dl "$m"; done
-if [ -n "${HF_TOKEN:-}" ]; then
-  echo "==> HF_TOKEN set -- pulling gated models"; export HF_TOKEN
-  for m in "${GATED[@]}"; do dl "$m"; done
+if [ "$PREDOWNLOAD" = "1" ]; then
+  echo "==> pre-downloading ungated models"
+  for m in "${UNGATED[@]}"; do dl "$m"; done
+  if [ -n "${HF_TOKEN:-}" ]; then
+    echo "==> HF_TOKEN set -- pulling gated models"; export HF_TOKEN
+    for m in "${GATED[@]}"; do dl "$m"; done
+  else
+    echo "==> no HF_TOKEN -- skipping gated (Llama-3.2, Gemma-2). Re-run with HF_TOKEN=hf_xxx to add them."
+  fi
 else
-  echo "==> no HF_TOKEN -- skipping gated (Llama-3.2, Gemma-2). Re-run with HF_TOKEN=hf_xxx to add them."
+  echo "==> PREDOWNLOAD=0 -- models will be fetched on demand by from_pretrained"
 fi
 
 cat <<EOF

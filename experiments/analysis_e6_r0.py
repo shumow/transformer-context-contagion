@@ -73,10 +73,13 @@ def main():
     ap.add_argument("paths", nargs="+")
     ap.add_argument("--out", default=None)
     ap.add_argument("--seed", type=int, default=0)
+    ap.add_argument("--pool", action="store_true",
+                    help="concatenate the per-trial 'runs' of every input file per (model, p) and "
+                         "analyze the pooled trials as one table (e.g. three seeds of e6A_hiN_s*)")
     args = ap.parse_args()
     rng = np.random.default_rng(args.seed)
     results = {}
-    for path in args.paths:
+    def load_serial(path):
         d = json.load(open(path))
         serial = d.get("serial", {})
         # e6_scale.py / the transcribed files write serial = {model: {p: cell}}, but
@@ -84,8 +87,30 @@ def main():
         # form to model-keyed so both read the same way below.
         if serial and all(isinstance(v, dict) and "mean" in v for v in serial.values()):
             serial = {d.get("config", {}).get("model", "gpt2"): serial}
+        return serial
+    inputs = [(p, load_serial(p)) for p in args.paths]
+    if args.pool:
+        pooled = {}
+        for _, serial in inputs:
+            for model, curves in serial.items():
+                if "error" in curves:
+                    continue
+                for p, c in curves.items():
+                    if "runs" not in c:
+                        raise SystemExit(f"--pool needs per-trial 'runs'; missing for {model} p={p}")
+                    pooled.setdefault(model, {}).setdefault(p, []).extend(c["runs"])
+        for model in pooled:
+            for p, runs in pooled[model].items():
+                arr = np.asarray(runs, float)
+                pooled[model][p] = dict(runs=runs, mean=arr.mean(axis=0).tolist(),
+                                        survive=float(np.mean(arr[:, -1] >= 1)))
+        inputs = [("pooled(" + ", ".join(os.path.basename(p) for p in args.paths) + ")", pooled)]
+    for path, serial in inputs:
         print(f"\n=== {path} ===")
         has_runs = any("runs" in c for m in serial.values() if "error" not in m for c in m.values())
+        if has_runs:
+            n_tr = {len(c["runs"]) for m in serial.values() if "error" not in m for c in m.values() if "runs" in c}
+            print(f"trials per cell: {sorted(n_tr)}")
         print("per-trial trajectories: " + ("present (CIs reported)" if has_runs else
               "ABSENT -- ratios of MEAN loads only; no CI possible"))
         print("| model | p | load per hop | R_geo | R_tail | endemic | extinct at hop |")

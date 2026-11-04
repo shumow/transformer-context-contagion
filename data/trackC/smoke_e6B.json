@@ -1,0 +1,73 @@
+{
+  "serial": {},
+  "cross": {
+    "gpt2": {
+      "gpt2": 16.0,
+      "pythia": 16.0,
+      "qwen": 16.0
+    },
+    "pythia": {
+      "gpt2": 7.5,
+      "pythia": 0.0,
+      "qwen": 15.0
+    },
+    "qwen": {
+      "gpt2": 16.5,
+      "pythia": 28.5,
+      "qwen": 5.5
+    }
+  },
+  "cross_trials": {
+    "gpt2": {
+      "gpt2": [
+        32.0,
+        0.0
+      ],
+      "pythia": [
+        32.0,
+        0.0
+      ],
+      "qwen": [
+        32.0,
+        0.0
+      ]
+    },
+    "pythia": {
+      "gpt2": [
+        15.0,
+        0.0
+      ],
+      "pythia": [
+        0.0,
+        0.0
+      ],
+      "qwen": [
+        0.0,
+        30.0
+      ]
+    },
+    "qwen": {
+      "gpt2": [
+        32.0,
+        1.0
+      ],
+      "pythia": [
+        32.0,
+        25.0
+      ],
+      "qwen": [
+        2.0,
+        9.0
+      ]
+    }
+  },
+  "cross_config": {
+    "cross_p": 3,
+    "cross_hops": 1,
+    "host0_reps": 16,
+    "trials": 2,
+    "T": 96,
+    "temperature": 1.0,
+    "seed": 7
+  }
+}

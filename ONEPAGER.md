@@ -82,19 +82,26 @@ if so, by what mechanism?**
   settings (instruct models, long-context RAG, multi-tokenizer populations). Current standing:
   - **Trust, not usefulness.** Holds on the GPT-2-small proxy. The at-scale version with a
     real task was found to have a design flaw (its "non-repetitive" contexts repeated, and its
-    poisonability measure is ~1 for any repeated span by construction); it has been redesigned
-    and is **awaiting a rerun**.
+    poisonability measure is ~1 for any repeated span by construction); the redesigned version
+    (2026-11-04, three instruct models, 32 facts) finds the same direction with a smaller
+    effect: a planted span is reproduced far more often inside repetitive context than inside
+    length-matched distinct prose, and usefulness never raises it — the most poisonable cell is
+    repeated gibberish.
   - **RAG hijack — bounded at scale.** A recent, repeated span hijacks a *base model's
     continuation* (entry × lock-in), but on an **instruct model asked to answer a query the
     hijack vanishes (occupancy 0.00)**: the task query anchors generation away from the payload.
-    Raw-repetition hijack is a continuation phenomenon; the residual RAG threat is *semantic*
-    injection, outside this project's benign-copy scope.
-  - **Worm — re-read.** Output fed back as another context does keep the payload alive on a
-    7B model where smaller models lose it, but no setting shows the payload *multiplying*:
-    the surviving chains are the model stuck in a repetition loop, emitting the payload at a
-    fixed rate. That is a known degeneration behavior, not an epidemic. The cross-tokenizer
-    firebreak is significant in one run (1 hop, heavy seeding) and undetectable in another
-    (3 hops), and a higher-powered rerun is queued.
+    Confirmed on three instruct models with positive controls (the same contexts fed as a raw
+    prefix are hijacked at 0.6–1.0 occupancy). Raw-repetition hijack is a continuation
+    phenomenon; the residual RAG threat is *semantic* injection, outside this project's
+    benign-copy scope.
+  - **Worm — re-measured at power.** With 60 chains per cell, one 7B base model
+    (Qwen2.5-7B) keeps the payload alive in 30–50% of chains where a 2.8B, a 3B and the
+    instruction-tuned 7B keep it in ≤20%; no setting shows the payload *multiplying*: every
+    surviving chain is the model stuck in a repetition loop, emitting the payload at a fixed
+    rate. That is a known degeneration behavior, not an epidemic. The cross-tokenizer
+    firebreak shows no same-tokenizer advantage over three hops at any seeding strength; which
+    model hosts a hop matters, whether its tokenizer matches does not. The one-hop attenuation
+    measured in July is the only firebreak result that remains.
   - A paired **detector** flags repeated spans. Its reported perfect separation was measured
     against three clean documents with no comparison to a plain "does any n-gram repeat"
     check; it has been rewritten with a proper negative set, that baseline, and a

@@ -1,0 +1,25 @@
+`torch_dtype` is deprecated! Use `dtype` instead!
+
+=== A. serial passage at scale (sweep payload length) ===
+--- EleutherAI/pythia-2.8b ---
+  p= 1  1.1 -> 0.3 -> 0.6 -> 0.6 -> 0.9 -> 0.9 -> 0.7   survive(last)=25%
+  p= 2  25.9 -> 15.4 -> 11.2 -> 9.6 -> 8.4 -> 6.8 -> 3.5   survive(last)=10%
+  p= 3  20.5 -> 8.0 -> 3.3 -> 3.2 -> 3.2 -> 1.8 -> 0.8   survive(last)=5%
+  p= 5  13.2 -> 8.6 -> 5.0 -> 3.6 -> 3.8 -> 3.1 -> 2.7   survive(last)=15%
+  p= 8  9.8 -> 6.3 -> 4.1 -> 2.0 -> 1.4 -> 0.9 -> 0.6   survive(last)=5%
+--- Qwen/Qwen2.5-7B ---
+Loading checkpoint shards:   0%|          | 0/4 [00:00<?, ?it/s]Loading checkpoint shards: 100%|██████████| 4/4 [00:00<00:00, 129.63it/s]
+  p= 1  2.4 -> 0.9 -> 0.5 -> 0.1 -> 0.1 -> 0.1 -> 0.1   survive(last)=10%
+  p= 2  33.9 -> 22.1 -> 21.4 -> 19.4 -> 19.5 -> 19.1 -> 17.1   survive(last)=40%
+  p= 3  26.2 -> 19.2 -> 16.0 -> 13.8 -> 9.9 -> 9.6 -> 6.7   survive(last)=30%
+  p= 5  14.6 -> 11.4 -> 9.9 -> 7.3 -> 7.1 -> 6.4 -> 4.4   survive(last)=35%
+  p= 8  11.8 -> 8.8 -> 7.4 -> 7.3 -> 6.8 -> 6.0 -> 5.5   survive(last)=50%
+--- meta-llama/Llama-3.2-3B ---
+Loading checkpoint shards:   0%|          | 0/2 [00:00<?, ?it/s]Loading checkpoint shards: 100%|██████████| 2/2 [00:00<00:00, 86.78it/s]
+  p= 1  0.6 -> 0.1 -> 0.4 -> 0.3 -> 0.4 -> 0.7 -> 0.6   survive(last)=25%
+  p= 2  20.4 -> 10.8 -> 6.9 -> 3.9 -> 0.7 -> 0.0 -> 0.0   survive(last)=0%
+  p= 3  18.6 -> 8.2 -> 5.4 -> 3.6 -> 2.0 -> 1.4 -> 1.2   survive(last)=10%
+  p= 5  12.8 -> 6.7 -> 5.1 -> 3.0 -> 2.5 -> 0.3 -> 0.0   survive(last)=0%
+  p= 8  9.1 -> 4.0 -> 2.4 -> 1.4 -> 1.2 -> 0.2 -> 0.0   survive(last)=0%
+--- Qwen/Qwen2.5-7B-Instruct ---
+Loading checkpoint shards:   0%|          | 0/4 [00:00<?, ?it/s]Loading checkpoint shards: 100%|██████████| 4/4 [00:00<00:00, 135.08it/s]
