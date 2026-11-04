@@ -1,0 +1,117 @@
+{
+  "data/trackA/e6_worm.json": {
+    "gpt2": {
+      "1": {
+        "R_geo": 0.5432583363930718,
+        "R_tail": 0.13333333333333333,
+        "endemic": false,
+        "extinction_hop": 6,
+        "last_load": 0.25,
+        "n_hops": 6,
+        "per_trial": {
+          "R_geo_median": 0.4673276325920336,
+          "R_geo_ci": [
+            0.11111111111111109,
+            0.6228654698077586
+          ],
+          "survive": 0.25,
+          "survive_ci": [
+            0.0,
+            0.5031249999999972
+          ],
+          "n_trials": 8,
+          "fully_locked": 2
+        }
+      },
+      "2": {
+        "R_geo": 0.5097331860735108,
+        "R_tail": 0.0,
+        "endemic": false,
+        "extinction_hop": 5,
+        "last_load": 0.0,
+        "n_hops": 6,
+        "per_trial": {
+          "R_geo_median": 0.7598356856515925,
+          "R_geo_ci": [
+            0.6123724356957946,
+            0.9583333333333334
+          ],
+          "survive": 0.0,
+          "survive_ci": [
+            0.0,
+            0.0
+          ],
+          "n_trials": 8,
+          "fully_locked": 0
+        }
+      },
+      "3": {
+        "R_geo": 0.5701754385964912,
+        "R_tail": 0.03076923076923077,
+        "endemic": false,
+        "extinction_hop": 2,
+        "last_load": 0.0,
+        "n_hops": 6,
+        "per_trial": {
+          "R_geo_median": 0.375,
+          "R_geo_ci": [
+            0.25,
+            0.65625
+          ],
+          "survive": 0.0,
+          "survive_ci": [
+            0.0,
+            0.0
+          ],
+          "n_trials": 8,
+          "fully_locked": 0
+        }
+      },
+      "5": {
+        "R_geo": 0.7735686657230729,
+        "R_tail": 0.7105263157894737,
+        "endemic": true,
+        "extinction_hop": null,
+        "last_load": 3.375,
+        "n_hops": 6,
+        "per_trial": {
+          "R_geo_median": 0.749634235443537,
+          "R_geo_ci": [
+            0.2631578947368421,
+            0.9910292756695549
+          ],
+          "survive": 0.25,
+          "survive_ci": [
+            0.0,
+            0.5031249999999972
+          ],
+          "n_trials": 8,
+          "fully_locked": 1
+        }
+      },
+      "8": {
+        "R_geo": 0.12903225806451615,
+        "R_tail": 0.0,
+        "endemic": false,
+        "extinction_hop": 2,
+        "last_load": 0.0,
+        "n_hops": 6,
+        "per_trial": {
+          "R_geo_median": 0.33333333333333337,
+          "R_geo_ci": [
+            0.16666666666666669,
+            0.5
+          ],
+          "survive": 0.0,
+          "survive_ci": [
+            0.0,
+            0.0
+          ],
+          "n_trials": 8,
+          "fully_locked": 0
+        }
+      },
+      "_largest_endemic_p": 5
+    }
+  }
+}

@@ -55,6 +55,12 @@ whose per-N curves are committed for the first time; `trackA/analysis_knee_floor
 knee-floor analysis. The recovered June run is preserved as `trackA/e1_1_gpt2_2026-06-25.json`
 (+ dated PNGs). See `results_log.md`, "E1.1 rerun".
 
+**Note on `trackA/e6_worm.json`:** the E6 rerun (2026-11-03, Task 5) writes to this filename, so
+`trackA/e6_worm.json` (+ `_serial`/`_crosstok` PNGs) now holds the **trials=8 rerun with per-trial
+trajectories** (`runs`); `trackA/analysis_e6_r0_gpt2.json` is its R0/survival-CI analysis. The
+recovered June run is preserved as `trackA/e6_worm_2026-06-26.json` (+ dated PNGs); this raw run
+also still supersedes `trackA/e6_worm_transcribed.json` (kept). See `results_log.md`, "E6 rerun".
+
 ## Still missing (raw data lost unless recovered from the Azure disk)
 Track A: none — all recovered 2026-11-03 (see above).
 Track B: `e1_4` only (searched the dev Mac 2026-11-03, not found; its numbers remain in

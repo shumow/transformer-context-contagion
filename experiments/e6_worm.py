@@ -164,7 +164,10 @@ def plot_cross(args, out):
     import matplotlib.pyplot as plt
     fig, ax = plt.subplots(figsize=(7.0, 4.8))
     hops = range(args.hops + 1)
-    for (label, curve), col, mk in zip(out.items(), ['navy', 'crimson'], ['o-', 's--']):
+    # out holds both a mean curve per label and a "<label> [runs]" per-trial array (for the
+    # R0 analysis); plot only the mean curves.
+    mean_items = [(label, curve) for label, curve in out.items() if not label.endswith(" [runs]")]
+    for (label, curve), col, mk in zip(mean_items, ['navy', 'crimson'], ['o-', 's--']):
         ax.plot(hops, np.clip(curve, 0.05, None), mk, color=col, lw=2, label=label)
     ax.axhline(1.0, color='k', lw=0.8, ls=':', label='extinction')
     ax.set_yscale('log'); ax.set_xlabel('transmission hop'); ax.set_ylabel('viral load')

@@ -1041,3 +1041,56 @@ Caveats: GPT-2-small, MPS, T=1.0, 40 samples/cell, seed 7 — intervals are wide
 inversion (0.28 vs 0.20) is within overlapping CIs, not a real ordering. Raw curves + analysis:
 `data/trackA/e1_1_gpt2.json`, `data/trackA/analysis_knee_floor_gpt2.json` (+ the `_knee_`/`_Nstar_`
 PNGs). The recovered June run is preserved as `data/trackA/e1_1_gpt2_2026-06-25.json` (+ PNGs).
+
+## E6 rerun — per-trial R0 and survival CIs (2026-11-03)
+
+The script now stores every trial's trajectory, so R0 (per-hop load ratio) and survival get
+per-trial bootstrap CIs — which the committed Track C data (mean loads only) could not give.
+Command (only `HF_HUB_OFFLINE=1` added to defaults; GPT-2 serial passage + GPT-2→Pythia-160M
+cross-tokenizer, 8 trials, 6 hops, host0-reps 16, T=96, seed 7, MPS, 1001 s):
+
+```
+HF_HUB_OFFLINE=1 python -m experiments.e6_worm --trials 8 --snapshot trackA
+HF_HUB_OFFLINE=1 python -m experiments.analysis_e6_r0 data/trackA/e6_worm.json \
+    --out data/trackA/analysis_e6_r0_gpt2.json
+```
+
+Two bugs in the iter4 pre-run code had to be fixed first (both committed with this entry; neither
+changes any computed number): (1) `e6_worm.py plot_cross` tried to plot the new per-trial `[runs]`
+arrays as lines and crashed *before* the JSON was written — now it plots only the mean curves;
+(2) `analysis_e6_r0.py` only accepted the model-keyed `serial={model:{p:…}}` of the scale/
+transcribed files, but `e6_worm.py` writes the flat `serial={p:…}` — it now normalizes the flat
+form to model-keyed.
+
+**Serial passage (GPT-2):**
+
+| p | mean load per hop | R_geo (mean traj) | per-trial R_geo median [95% CI] | survive [95% CI] | fully-locked | endemic? |
+|---|---|---|---|---|---|---|
+| 1 | 40→36→26→24→14→2→0 | 0.54 | 0.47 [0.11, 0.62] | 0.25 [0.00, 0.50] | **2/8** | no (mean → 0) |
+| 2 | 30→18→8→6→2→0→0 | 0.51 | 0.76 [0.61, 0.96] | 0.00 [0.00, 0.00] | 0/8 | no |
+| 3 | 14→8→0→… | 0.57 | 0.38 [0.25, 0.66] | 0.00 [0.00, 0.00] | 0/8 | no |
+| 5 | 16→9→6→6→6→5→3 | 0.77 | 0.75 [0.26, 0.99] | 0.25 [0.00, 0.50] | **1/8** | yes (mean) |
+| 8 | 8→1→0→… | 0.13 | 0.33 [0.17, 0.50] | 0.00 [0.00, 0.00] | 0/8 | no |
+
+Cross-tokenizer (p=3, patient zero GPT-2): same-host `13→0.4→0→…`, cross-host (Pythia-160M)
+`19→6.8→2.5→2.0→0→…` — both extinct, the cross chain lasting one hop longer this seed (n=8, not
+a reversal of the firebreak direction).
+
+**How many "endemic" p=1 trials are locked loops vs genuinely fluctuating? All of the survivors
+are locked; none fluctuate.** The per-trial data answers the question the mean hid. The June
+Track-A "p=1 endemic" does **not** reproduce: here p=1's mean load decays to ~0 by the last hop,
+only **2 of 8** trials are still alive at hop 6, and both are **fully-locked loops**
+(`fully_locked=2/8`, zero surviving-but-fluctuating trials). The single cell endemic on the mean,
+p=5, is **1 of 8** trials locked. So "endemic" is one or two hosts stuck emitting the payload on
+repeat, not a chain that spreads. **R_geo < 1 at every payload length** (median 0.33–0.77; every
+95% CI caps below 1 — p=5's 0.99 is the only one that reaches it), i.e. the mean viral load
+shrinks every hop in all cells. This is the first *per-trial, CI-backed* confirmation on
+GPT-2-small of the Analyses §B–C / README-C6 reinterpretation: no per-hop reproduction ratio
+above one, and "endemic" chains are locked repetition loops.
+
+Caveats: GPT-2-small + Pythia-160M, MPS, 8 trials (survival CIs are very wide — [0.00, 0.50] for
+both endemic-ish cells, so "endemic" is not statistically separable from extinction at this n),
+fresh sampled payloads per trial, seed 7. Numbers differ from the June Track-A run (sampling +
+n=8); the robust, reproducible statement is R_geo < 1 everywhere. Raw: `data/trackA/e6_worm.json`
+(+ `_serial`/`_crosstok` PNGs), analysis `data/trackA/analysis_e6_r0_gpt2.json`; the recovered
+June run is preserved as `data/trackA/e6_worm_2026-06-26.json` (+ dated PNGs).
