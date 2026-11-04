@@ -67,3 +67,20 @@ wrote results/e6A_hiN_pythia69b_s7.png
 [snapshot] next: git add data/trackC && git commit -m 'Snapshot trackC results'
 [2026-11-04T19:16:03Z] <<< e6A_hiN_pythia69b_s7 exit=0
 [2026-11-04T19:16:03Z] >>> e6A_hiN_pythia69b_s8 :: -m experiments.e6_scale --part A --serial-models EleutherAI/pythia-6.9b --seed 8 --trials 20 --device cuda --prefix results/e6A_hiN_pythia69b_s8 --snapshot trackC
+`torch_dtype` is deprecated! Use `dtype` instead!
+
+=== A. serial passage at scale (sweep payload length) ===
+--- EleutherAI/pythia-6.9b ---
+Loading checkpoint shards:   0%|          | 0/2 [00:00<?, ?it/s]Loading checkpoint shards:  50%|█████     | 1/2 [00:02<00:02,  2.54s/it]Loading checkpoint shards: 100%|██████████| 2/2 [00:03<00:00,  1.55s/it]Loading checkpoint shards: 100%|██████████| 2/2 [00:03<00:00,  1.70s/it]
+  p= 1  1.2 -> 1.4 -> 1.9 -> 1.4 -> 2.0 -> 1.3 -> 1.2   survive(last)=35%
+  p= 2  28.9 -> 16.0 -> 13.0 -> 6.5 -> 3.8 -> 0.1 -> 0.0   survive(last)=0%
+  p= 3  18.5 -> 11.2 -> 10.4 -> 8.1 -> 4.9 -> 1.8 -> 1.6   survive(last)=5%
+  p= 5  16.3 -> 9.9 -> 6.4 -> 3.8 -> 2.2 -> 1.9 -> 1.8   survive(last)=10%
+  p= 8  9.0 -> 6.8 -> 4.2 -> 3.3 -> 2.8 -> 1.4 -> 1.2   survive(last)=10%
+
+wrote results/e6A_hiN_pythia69b_s8.json  [1387s]
+wrote results/e6A_hiN_pythia69b_s8.png
+[snapshot] copied 3 file(s) to data/trackC/: e6A_hiN_pythia69b_s8.console.log, e6A_hiN_pythia69b_s8.json, e6A_hiN_pythia69b_s8.png
+[snapshot] next: git add data/trackC && git commit -m 'Snapshot trackC results'
+[2026-11-04T19:39:12Z] <<< e6A_hiN_pythia69b_s8 exit=0
+[2026-11-04T19:39:12Z] >>> e6A_hiN_pythia69b_s9 :: -m experiments.e6_scale --part A --serial-models EleutherAI/pythia-6.9b --seed 9 --trials 20 --device cuda --prefix results/e6A_hiN_pythia69b_s9 --snapshot trackC
