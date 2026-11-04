@@ -1,0 +1,56 @@
+{
+  "rows": [
+    {
+      "model": "gpt2",
+      "p": 1,
+      "n_star": 7.142857142857143,
+      "at_floor": false,
+      "p_n1": 0.0,
+      "p_n2": 0.0,
+      "implied_p_n2": null,
+      "source": "curve"
+    },
+    {
+      "model": "gpt2",
+      "p": 2,
+      "n_star": 3.636363636363636,
+      "at_floor": false,
+      "p_n1": 0.0,
+      "p_n2": 0.275,
+      "implied_p_n2": null,
+      "source": "curve"
+    },
+    {
+      "model": "gpt2",
+      "p": 3,
+      "n_star": 3.2,
+      "at_floor": false,
+      "p_n1": 0.0,
+      "p_n2": 0.2,
+      "implied_p_n2": null,
+      "source": "curve"
+    },
+    {
+      "model": "gpt2",
+      "p": 5,
+      "n_star": 1.8260869565217392,
+      "at_floor": true,
+      "p_n1": 0.025,
+      "p_n2": 0.6,
+      "implied_p_n2": 0.6052631578947367,
+      "source": "curve"
+    }
+  ],
+  "summary": {
+    "n_cells": 2,
+    "n_at_floor": 1,
+    "frac_at_floor": 0.5,
+    "implied_one_shot_median": 0.6052631578947367,
+    "implied_one_shot_min": 0.6052631578947367,
+    "direct_one_shot_median": 0.4
+  },
+  "min_p": 3,
+  "sources": [
+    "data/trackA/e1_1_gpt2.json"
+  ]
+}

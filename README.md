@@ -20,8 +20,7 @@ in the two write-ups there (`trust_is_the_attack_surface.tex`, `contagious_conte
 ## Status
 
 The record of every run is [`results_log.md`](results_log.md); the write-up is
-[`latex/transformer_context_contagion.tex`](latex/transformer_context_contagion.tex) (the
-committed PDF predates the November 2026 text revision). A critical review on 2026-11-03
+[`latex/transformer_context_contagion.tex`](latex/transformer_context_contagion.tex). A critical review on 2026-11-03
 re-read several results; the work plan is
 [`review_remediation_plan.md`](review_remediation_plan.md). One line per claim, with where
 the detail lives:
@@ -32,9 +31,9 @@ the detail lives:
 | C2 induction-head mechanism | Ablating the top ~5% of heads by induction score collapses reproduction; random heads do not. 124M–7B, three families. The scale-matched ablation (not a fixed count) is the methodological result. | log: E2, E2 at scale |
 | C4 trust, not usefulness | Holds on the GPT-2-small proxy. The at-scale real-task version had repeating "non-repetitive" cells and a copy-rate that is ~1 by construction; redesigned, **rerun pending**. | log: E4-lite, E4-scale (status note) |
 | C5 RAG hijack | Holds on a base-model continuation (entry × lock-in); **bounded** at scale: a task query on an instruct model defuses raw-repetition hijack. | log: E5-lite, E5-scale |
-| C6 worm / firebreak | Re-analyzed: no cell has a per-hop reproduction ratio above one; "endemic" 7B chains are locked repetition loops at a load set by T/p. Firebreak: significant in the reported 1-hop run (p=0.004), undetectable in the unreported 3-hop run (p=0.24). Higher-n rerun queued. | log: E6, E6-scale, *Analyses* §B–C |
-| E7 detector | AUC 1.0 was on three negatives with no baseline; rewritten with 32 negatives, an n-gram baseline and a false-positive rate, **rerun pending**. | log: E7 (status note) |
-| E8 self-extraction | Instruct models decode and execute nested benign substitution. E8-lite's "random" control was the lowest-induction heads; **rerun pending**. | log: E8-lite (status note), E8 capstone |
+| C6 worm / firebreak | Re-analyzed: no cell has a per-hop reproduction ratio above one; "endemic" 7B chains are locked repetition loops at a load set by T/p. Firebreak: significant in the reported 1-hop run (p=0.004), undetectable in the unreported 3-hop run (p=0.24). Higher-n rerun queued. **Local per-trial rerun (GPT-2, n=8) confirms:** R_geo < 1 at every length, and the only surviving chains are fully-locked loops (p=1 survivors 2/8, both locked; p=5 1/8) — not a spreading epidemic. | log: E6, E6-scale, E6 rerun (2026-11-03), *Analyses* §B–C |
+| E7 detector | **Reran (32 negatives + model-free n-gram baseline + FPR):** the induction detector does **not** beat a model-free n-gram-repeat count — both separate poisoned from clean perfectly (AUC 1.0 at every k≥2), and the induction score is marginally *worse* on benign-repetitive text (FPR 1.00 vs 0.88). It is an n-gram repeat detector; induction explains *why* repetition is dangerous, not a better alarm. | log: E7 rerun (2026-11-03) |
+| E8 self-extraction | Instruct models decode and execute nested benign substitution. **E8-lite reran with a true random control:** substitution is still induction-carried at reliable table sizes (m=8 ablation drop −57% vs a true-random −33%; m=16 −68% vs −3%), but weaker than first reported — a genuine random ablation removes ~33% (the old "random" was the lowest-induction heads, −6%). Cascade limit unchanged (2-step 0.19 < f²=0.25). | log: E8-lite rerun (2026-11-03), E8 capstone |
 
 Sample sizes are small throughout (3–8 payloads, facts or trials per cell, single seeds); read
 every number with its interval where one is given, and as a point estimate where none is.

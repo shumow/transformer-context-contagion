@@ -1,0 +1,16 @@
+/Users/dbone/Claude/Projects/transformer-context-contagion/.venv/lib/python3.9/site-packages/urllib3/__init__.py:35: NotOpenSSLWarning: urllib3 v2 only supports OpenSSL 1.1.1+, currently the 'ssl' module is compiled with 'LibreSSL 2.8.3'. See: https://github.com/urllib3/urllib3/issues/3020
+  warnings.warn(
+model=gpt2  device=mps  payloads/length=6  trials=12  N=[16, 32]
+
+p= 1  N= 16  P(self)=0.78  P(neutral)=0.26  gap=+0.51  [16s]
+p= 1  N= 32  P(self)=0.92  P(neutral)=0.29  gap=+0.62  [32s]
+p= 2  N= 16  P(self)=0.92  P(neutral)=0.12  gap=+0.79  [46s]
+p= 2  N= 32  P(self)=0.97  P(neutral)=0.07  gap=+0.90  [63s]
+p= 3  N= 16  P(self)=0.97  P(neutral)=0.07  gap=+0.90  [77s]
+p= 3  N= 32  P(self)=1.00  P(neutral)=0.19  gap=+0.81  [108s]
+p= 5  N= 16  P(self)=1.00  P(neutral)=0.17  gap=+0.83  [148s]
+p= 5  N= 32  P(self)=1.00  P(neutral)=0.32  gap=+0.68  [176s]
+p= 8  N= 16  P(self)=1.00  P(neutral)=0.15  gap=+0.85  [201s]
+p= 8  N= 32  P(self)=0.99  P(neutral)=0.26  gap=+0.72  [234s]
+
+wrote results/e1_2_gpt2.png

@@ -1,0 +1,20 @@
+/Users/dbone/Claude/Projects/transformer-context-contagion/.venv/lib/python3.9/site-packages/urllib3/__init__.py:35: NotOpenSSLWarning: urllib3 v2 only supports OpenSSL 1.1.1+, currently the 'ssl' module is compiled with 'LibreSSL 2.8.3'. See: https://github.com/urllib3/urllib3/issues/3020
+  warnings.warn(
+device=mps  docs=[60, 71, 66] tokens
+
+=== A. placement sweep (payload buried -> recent) ===
+  frac=0.00  hijack(occupancy)=0.003
+  frac=0.25  hijack(occupancy)=0.001
+  frac=0.50  hijack(occupancy)=0.003
+  frac=0.75  hijack(occupancy)=0.001
+  frac=1.00  hijack(occupancy)=0.523
+
+=== B. repetition sweep at the end (frac=1.0) ===
+  k=  0  hijack(occupancy)=0.001
+  k=  1  hijack(occupancy)=0.005
+  k=  2  hijack(occupancy)=0.027
+  k=  4  hijack(occupancy)=0.117
+  k=  8  hijack(occupancy)=0.354
+  k= 16  hijack(occupancy)=0.696
+
+wrote results/e5_hijack.png and results/e5_hijack.json

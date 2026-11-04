@@ -1,0 +1,65 @@
+{
+  "Qwen/Qwen2.5-7B-Instruct": {
+    "e8a": {
+      "1": 1.0,
+      "2": 0.8958333333333333,
+      "3": 0.9361111111111111
+    },
+    "e8b": {
+      "1": {
+        "exec_rate": 1.0,
+        "surface_leak": 0.0
+      },
+      "2": {
+        "exec_rate": 1.0,
+        "surface_leak": 0.0
+      },
+      "3": {
+        "exec_rate": 1.0,
+        "surface_leak": 0.0
+      }
+    }
+  },
+  "meta-llama/Llama-3.2-3B-Instruct": {
+    "e8a": {
+      "1": 0.9097222222222222,
+      "2": 0.8166666666666667,
+      "3": 0.6944444444444444
+    },
+    "e8b": {
+      "1": {
+        "exec_rate": 1.0,
+        "surface_leak": 0.0
+      },
+      "2": {
+        "exec_rate": 0.0,
+        "surface_leak": 0.0
+      },
+      "3": {
+        "exec_rate": 0.0,
+        "surface_leak": 0.0
+      }
+    }
+  },
+  "google/gemma-2-2b-it": {
+    "e8a": {
+      "1": 0.8680555555555556,
+      "2": 0.9472222222222222,
+      "3": 0.8680555555555556
+    },
+    "e8b": {
+      "1": {
+        "exec_rate": 1.0,
+        "surface_leak": 0.0
+      },
+      "2": {
+        "exec_rate": 0.875,
+        "surface_leak": 0.0
+      },
+      "3": {
+        "exec_rate": 0.5,
+        "surface_leak": 0.0
+      }
+    }
+  }
+}

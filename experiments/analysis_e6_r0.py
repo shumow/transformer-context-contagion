@@ -79,6 +79,11 @@ def main():
     for path in args.paths:
         d = json.load(open(path))
         serial = d.get("serial", {})
+        # e6_scale.py / the transcribed files write serial = {model: {p: cell}}, but
+        # e6_worm.py (GPT-2-only) writes the flat serial = {p: cell}. Normalize the flat
+        # form to model-keyed so both read the same way below.
+        if serial and all(isinstance(v, dict) and "mean" in v for v in serial.values()):
+            serial = {d.get("config", {}).get("model", "gpt2"): serial}
         print(f"\n=== {path} ===")
         has_runs = any("runs" in c for m in serial.values() if "error" not in m for c in m.values())
         print("per-trial trajectories: " + ("present (CIs reported)" if has_runs else

@@ -242,10 +242,12 @@ Each iteration is a branch off `claude/fervent-ritchie-l5m9uw`, merged back when
 | 2 `…-iter2-analysis` | 0.4 both firebreak runs + permutation test; 0.5 knee floor + one-shot inversion; 0.6 R0 from mean trajectories, per-trial storage added | **merged.** Results in `results_log.md` "Analyses of committed data". |
 | 3 `…-iter3-writing` | 0.7 related work; 0.9 `--snapshot` in every experiment and the run scripts; 0.10 single source of truth (README table, ONEPAGER, plan pointers); paper text for 0.4/0.5 | **merged.** PDF not rebuilt (no TeX here). Abstract trimmed to current claims but not yet to ≤200 words (Tier 3). |
 | 4 `…-iter4-prerun-code` | size sweep stores per-N curves and P(N=2) (the fix the paper already claimed); E5-scale gains three query styles, two no-query positive controls on the same contexts, per-trial storage and a control verdict (2.3's code half); `tests/test_snapshot.py` | **merged.** Pod-side only remains for 2.1–2.3. |
-| Tier 1 | 1.1, 1.2, 1.3 | not started: needs a CPU box with torch + transformer_lens |
+| 6 `…-iter6-local-reruns` | **data recovery** (all lost Track A/B raw JSON found in the dev Mac's gitignored `results/` and committed under `data/`; only Track B `e1_4` not found); **Tier 1** 1.1 (E7), 1.2 (E8-lite), 1.3 (E1.1 curves + one-shot); the **E6 per-trial rerun** on GPT-2/Pythia-160m (local complement to 2.1); PDF rebuilt (Task 7); two bug fixes in the iter4 pre-run code (`e6_worm.py` plot crash, `analysis_e6_r0.py` flat-serial format) | **done** (this branch). See the dated rerun entries in `results_log.md`. |
+| Tier 1 | 1.1, 1.2, 1.3 | **done (iter6, local CPU/MPS).** 1.1: E7 detector does not beat a model-free n-gram baseline (both AUC 1.0; induction worse on benign-rep FPR). 1.2: substitution still induction-carried at m≥8 but weaker under a true random control. 1.3: E1.1 curves committed, direct P(N=2) reported with Wilson CIs. Also ran the E6 per-trial rerun (R_geo<1 everywhere; "endemic" = locked loops). **Not run:** the optional Task-6 duplicate reruns (E1.2/E1.5/E2/E5/E4-trust) — skipped because their raw data was recovered intact, so they would only add fresh sampled copies and change no claim. |
 | Tier 2 | 2.1, 2.2, 2.3, 2.4 | not started: needs a GPU pod (+ `HF_TOKEN` for Llama/Gemma) |
 | Tier 3 | rewrite | after Tier 2 |
 
 Open decisions for the author: whether to keep the `rare_token_pool` alias (kept, deprecated);
-whether any Track A/B raw JSON survives on the dev Mac or the Azure disk (0.9); pod budget for
-Tier 2.
+pod budget for Tier 2. **Resolved (iter6):** the Track A/B raw JSON question (0.9) — all of it
+survived in the dev Mac's `results/` and is now committed under `data/trackA` and `data/trackB`;
+only Track B `e1_4` was not found (may still be on the Azure disk).

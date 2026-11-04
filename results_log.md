@@ -379,11 +379,14 @@ samples/cell. The realistic long-context (4k–128k) RAG version with retrieval 
 
 ## E7 — the paired detector (defensive complement) (2026-06-26)
 
-> **Status (2026-11-03): superseded pending rerun.** This run had 3 clean documents (an AUC
-> over 3 negatives is not a measurement), no model-free baseline, and no false-positive rate
-> on legitimately repetitive text. `experiments/e7_detector.py` now scores 32 clean
-> paragraphs, an n-gram-repeat baseline, and 8 benign-repetitive negatives, with bootstrap
-> CIs (see `review_remediation_plan.md` §0.3). The numbers below stand until it is rerun.
+> **Status (2026-11-03): SUPERSEDED by the rerun below** ("E7 rerun — detector vs n-gram
+> baseline, 32 negatives"). This run had 3 clean documents (an AUC over 3 negatives is not a
+> measurement), no model-free baseline, and no false-positive rate on legitimately repetitive
+> text. The rerun scores 32 clean paragraphs against an n-gram-repeat baseline and 8
+> benign-repetitive negatives with bootstrap CIs, and overturns the headline: the induction
+> detector does **not** beat a model-free n-gram-repeat count (both AUC 1.0 at every k), and is
+> marginally worse on benign-repetitive false positives. The "AUC=1.0" and "fires at k=2" claims
+> below are real but say nothing the n-gram baseline does not; read the rerun entry instead.
 
 The attacks (E4/E5/E6) all key on one quantity: induction trust earned by a repeated span.
 So the defense watches that same quantity. The detector scores a context by its mean
@@ -434,12 +437,14 @@ not of stochastic decoding. (A full temperature sweep, 0 → 1.0+, remains futur
 
 ## E8-lite — in-context substitution as an induction primitive, and the cascade limit (2026-06-26)
 
-> **Status (2026-11-03): control mislabeled; superseded pending rerun.** The "ablate random"
-> column below was in fact the 8 *lowest*-induction-score heads (see the old
-> `e8_substitution.py:103`), a control biased toward unimportant heads. The script now runs a
-> genuinely random matched control (seeded, excluding the induction set, as in E2) *and* the
-> lowest-induction set, under their true names (`review_remediation_plan.md` §0.1). The
-> "induction-carried" conclusion is held open until the rerun.
+> **Status (2026-11-03): SUPERSEDED by the rerun below** ("E8-lite rerun — true random
+> control"). The "ablate random" column below was in fact the 8 *lowest*-induction-score heads,
+> a control biased toward unimportant heads. The rerun adds a genuinely random matched control
+> (seeded, excluding the induction set, as in E2) alongside the lowest-induction set. Outcome:
+> the induction-carried claim **survives** at the reliable table sizes (m=8: −57% vs a true
+> random −33%; m=16: −68% vs −3%), but is **weaker** than this entry implies — a real random
+> ablation removes ~33% at m=8, not the −6% the mislabeled column showed, so the "−6% random"
+> numbers below overstate the induction-specific effect. Read the rerun entry instead.
 
 Mechanistic core of the "self-extracting payload" idea (random tokens that unfold into a
 payload via per-layer substitution), on GPT-2-small with benign OOD markers — the "decoded"
@@ -892,3 +897,200 @@ helps (same-tokenizer is worst-case) but is not a hard firebreak** against a str
 payload; the clean Track-A collapse was the weak-signal regime. Caveats: small models (0.5–2B)
 per family, p=3, 8 trials; the diagonal/off-diagonal separation is a tendency, not a clean gap.
 `results/e6_scale.json`.
+
+## E7 rerun — detector vs n-gram baseline, 32 negatives (2026-11-03, local CPU)
+
+Supersedes the E7 run above (3 clean negatives, no baseline, no FPR). Command (the only change
+from defaults is `HF_HUB_OFFLINE=1`, to force the cached gpt2 and make the run offline — it does
+not affect the computation):
+
+```
+HF_HUB_OFFLINE=1 python -m experiments.e7_detector --snapshot trackA
+# defaults: payload-p=3, ks=[2,4,8,16], instances=2, k-heads=8, ngram=3, seed=7
+```
+
+Induction heads scored: `[(5,5),(7,10),(6,9),(5,1),(7,2),(9,6),(10,1),(9,9)]`. 32 clean
+paragraphs (negatives), 8 benign-repetitive controls, 2 payloads × 32 docs = 64 poisoned
+instances per k. AUC = P(poisoned > clean), bootstrap 95% CI in brackets.
+
+| detector | clean mean (max=thr) | k=2 | k=4 | k=8 | k=16 | benign-rep. FPR @thr |
+|---|---|---|---|---|---|---|
+| **induction** (mean head engagement) | 0.0001 (0.0022) | 0.0229 | 0.0606 | 0.0779 | 0.0800 | **1.00 (8/8)** |
+| induction **AUC** | — | 1.000 [1.000,1.000] | 1.000 [1.000,1.000] | 1.000 [1.000,1.000] | 1.000 [1.000,1.000] | |
+| **ngram3_repeat** (model-free) | 0.0000 (0.0000) | 0.0267 | 0.1609 | 0.3420 | 0.5402 | 0.88 (7/8) |
+| ngram3 **AUC** | — | 1.000 [1.000,1.000] | 1.000 [1.000,1.000] | 1.000 [1.000,1.000] | 1.000 [1.000,1.000] | |
+
+**Does the induction score beat the n-gram count? No.** Both detectors separate poisoned from
+clean *perfectly* — AUC = 1.000 with a degenerate [1.000, 1.000] bootstrap CI at every k, from
+k=2 up. They are statistically indistinguishable on the discrimination task because clean prose
+carries essentially zero of either signal (induction clean mean 1e-4, n-gram clean mean exactly
+0), so any planted repeated span is trivially separable by either. The honest reading is the one
+the task anticipated: **the detector is an n-gram repeat detector; the induction machinery
+explains *why* repetition is dangerous (E4) but is not a better alarm than a model-free count of
+repeated 3-grams.** The one place they differ, the n-gram baseline is slightly *better*: at the
+zero-FP-on-clean operating threshold the benign-repetitive false-positive rate is **1.00 for the
+induction detector (8/8: license_header, email_footer, code_loop, numbered_list, chorus,
+csv_dump, form_letter, menu) vs 0.88 for n-gram (7/8 — it alone does not flag the license
+header)**. The induction score's advertised edge (keying on *trust* independent of usefulness)
+buys nothing here and costs one extra false positive. The only qualitative difference is dynamic
+range — the n-gram mean climbs 0.03→0.54 across k while induction saturates ~0.08 — but since
+both already reach AUC 1.0 at k=2, that range does not translate into better detection on this
+benchmark.
+
+Caveats: GPT-2-small, CPU, ~65-token docs, p=3, 2 payloads/doc, seed 7; 71 s. Both detectors are
+evaluated against the *same* benign-repetitive controls, so the FPR gap is not a sampling
+artifact of different thresholds. Raw: `data/trackA/e7_detector.json` (+ `.png`); the superseded
+June 3-negative run is preserved as `data/trackA/e7_detector_2026-06-26_3neg.json`.
+
+## E8-lite rerun — true random control (2026-11-03, local CPU)
+
+Supersedes the E8-lite run above, whose "ablate random" column was in fact the 8 *lowest*-
+induction heads (a control biased toward unimportant heads). This run ablates the induction set
+against **both** a genuinely random matched control (8 heads drawn, seeded, from the
+non-induction heads, as in E2) **and** the lowest-induction set, under their true names. Command
+(only `HF_HUB_OFFLINE=1` added to defaults):
+
+```
+HF_HUB_OFFLINE=1 python -m experiments.e8_substitution --snapshot trackA
+# defaults: ms=[2,4,8,16], n-tables=8, k-heads=8, seed=7
+```
+
+Induction heads `[(5,5),(7,10),(6,9),(5,1),(7,2),(9,6),(10,1),(9,9)]`; random control
+`[(11,6),(9,4),(1,11),(2,6),(3,6),(8,1),(7,6),(11,9)]`; lowest-induction control
+`[(4,11),(3,3),(3,7),(3,2),(3,8),(2,2),(4,0),(3,6)]`. Substitution top-1 accuracy (8 tables × m
+queries/cell; Δ vs clean in parentheses):
+
+| m | clean | ablate induction | ablate TRUE random | ablate lowest-induction |
+|---|---|---|---|---|
+| 2 | 0.312 | 0.188 (−40%) | 0.125 (−60%) | 0.375 (+20%) |
+| 4 | 0.500 | 0.344 (−31%) | 0.438 (−12%) | 0.406 (−19%) |
+| 8 | 0.469 | **0.203 (−57%)** | 0.312 (−33%) | 0.438 (−7%) |
+| 16 | 0.469 | **0.148 (−68%)** | 0.453 (−3%) | 0.312 (−33%) |
+
+**Is the induction-ablation drop still much larger than the random-ablation drop? Yes at the
+reliable table sizes, but the claim is weaker than the old mislabeled comparison implied.** At
+the two largest, least-noisy cells the induction ablation collapses substitution far more than a
+*true* random ablation: m=8, −57% vs −33%; m=16, −68% vs −3% (random is essentially unchanged
+from clean at m=16). The lowest-induction control barely moves (−7% at m=8), confirming the
+original intuition that unimportant heads are harmless — the old run's only error was calling
+*that* set "random". But the honest correction is that a genuine random non-induction ablation is
+**not** harmless: it removes ~33% of accuracy at m=8 (the old mislabeled column showed only −6%),
+so the induction-specific effect is the *gap* between the induction drop and a real random drop,
+not the near-total contrast the first write-up suggested. The m=2–4 rows are noisy (16–32 lookups)
+and even invert at m=2; the induction>random ordering only stabilizes at m≥8. **In-context
+substitution is induction-carried, but the effect size is moderate and the earlier "−6% random"
+baseline overstated it.**
+
+The cascade finding is unchanged: single-step fidelity with two tables present is high
+(step-1 acc **0.969**), yet the direct 2-step cascade succeeds only **0.188**, *below* the
+optimistic `f²=0.250` (f=0.500) — self-extraction depth is bounded worse than the `f^(L·depth)`
+ladder predicts, because the intermediate value is both a value and a key and splits the
+induction lookup.
+
+Caveats: GPT-2-small, CPU, 8 tables × m queries/cell (small-m rows noisy), top-1 metric, greedy
+2-step, seed 7; 92 s. No bootstrap CIs — point estimates only, so read the −3%/−33% random-column
+swings between m=8 and m=16 as sampling noise, not structure. Raw: `data/trackA/e8_substitution.json`
+(+ `.png`); the superseded June run is preserved as `data/trackA/e8_substitution_2026-06-26.json`.
+
+## E1.1 rerun — curves committed, direct one-shot rate (2026-11-03)
+
+Not a supersession — the same command as the original E1.1 (2026-06-25), rerun so the per-N
+*curves* are committed as raw data for the first time (`data/trackA/e1_1_gpt2.json`) and the
+direct one-shot copy rate P(N=2) is reported with Wilson intervals. It is sampled (T=1.0), so
+the numbers differ slightly from the June entry. Command (only `HF_HUB_OFFLINE=1` added):
+
+```
+HF_HUB_OFFLINE=1 python -m experiments.e1_condensation_knee --model gpt2 \
+    --lengths 1 2 3 5 --reps 1 2 4 8 16 32 --payloads 4 --trials 10 --max-new 48 --snapshot trackA
+HF_HUB_OFFLINE=1 python -m experiments.analysis_knee_floor data/trackA/e1_1_gpt2.json \
+    --out data/trackA/analysis_knee_floor_gpt2.json
+```
+
+Device MPS (generation-only), 4 payloads × 10 trials = 40 samples/cell, 990 s.
+
+**Knee table** (reproduces the June shape: N\* decreases with length):
+
+| p | knee N* (95% CI) | width | scrambled P@N=32 | no-payload P | June N* |
+|---|---|---|---|---|---|
+| 1 | 7.1 (4.7–9.7) | 8.0 | 0.95 | 0.00 | 7.2 |
+| 2 | 3.6 (1.6–5.3) | 4.2 | 0.78 | 0.00 | 4.3 |
+| 3 | 3.2 (2.7–4.8) | 3.4 | 0.03 | 0.00 | 3.0 |
+| 5 | 1.8 (1.6–2.3) | 1.8 | 0.00 | 0.025 | 1.9 |
+
+**Direct one-shot copy rate** (Wilson 95% intervals, from the committed curves):
+
+| p | P(N=1) | P(N=2) = one prior occurrence | at grid floor? |
+|---|---|---|---|
+| 1 | 0.00 [0.00, 0.09] | 0.00 [0.00, 0.09] | no |
+| 2 | 0.00 [0.00, 0.09] | 0.28 [0.16, 0.43] | no |
+| 3 | 0.00 [0.00, 0.09] | 0.20 [0.11, 0.35] | no |
+| 5 | 0.03 [0.00, 0.13] | **0.60 [0.45, 0.74]** | **yes** |
+
+**The one-shot copy rate on GPT-2-small is modest and length-dependent.** A single prior
+occurrence of the span (N=2) suffices more than half the time only at p=5 (0.60 [0.45, 0.74]);
+at p=2 and p=3 it is 0.28 and 0.20, with Wilson intervals that exclude 1/2. So on GPT-2-small
+alone only 1 of the 2 multi-token cells (p≥3) sits at the grid floor, and the direct one-shot
+rate over p≥3 cells has median 0.40. This does **not** contradict the README C1/C3 status
+(which attributes "one occurrence suffices in 36/48 cells" to the *at-scale* models, not
+GPT-2-small) — it quantifies, with intervals, that the small model is the weak end of that
+range. Separately, P(N=1) ≈ 0 at every length (≤0.03), which is the assumption the knee-floor
+analysis relies on to invert N\* into an implied one-shot rate; the committed curves now
+confirm it directly rather than by stipulation.
+
+Caveats: GPT-2-small, MPS, T=1.0, 40 samples/cell, seed 7 — intervals are wide; the p=2 vs p=3
+inversion (0.28 vs 0.20) is within overlapping CIs, not a real ordering. Raw curves + analysis:
+`data/trackA/e1_1_gpt2.json`, `data/trackA/analysis_knee_floor_gpt2.json` (+ the `_knee_`/`_Nstar_`
+PNGs). The recovered June run is preserved as `data/trackA/e1_1_gpt2_2026-06-25.json` (+ PNGs).
+
+## E6 rerun — per-trial R0 and survival CIs (2026-11-03)
+
+The script now stores every trial's trajectory, so R0 (per-hop load ratio) and survival get
+per-trial bootstrap CIs — which the committed Track C data (mean loads only) could not give.
+Command (only `HF_HUB_OFFLINE=1` added to defaults; GPT-2 serial passage + GPT-2→Pythia-160M
+cross-tokenizer, 8 trials, 6 hops, host0-reps 16, T=96, seed 7, MPS, 1001 s):
+
+```
+HF_HUB_OFFLINE=1 python -m experiments.e6_worm --trials 8 --snapshot trackA
+HF_HUB_OFFLINE=1 python -m experiments.analysis_e6_r0 data/trackA/e6_worm.json \
+    --out data/trackA/analysis_e6_r0_gpt2.json
+```
+
+Two bugs in the iter4 pre-run code had to be fixed first (both committed with this entry; neither
+changes any computed number): (1) `e6_worm.py plot_cross` tried to plot the new per-trial `[runs]`
+arrays as lines and crashed *before* the JSON was written — now it plots only the mean curves;
+(2) `analysis_e6_r0.py` only accepted the model-keyed `serial={model:{p:…}}` of the scale/
+transcribed files, but `e6_worm.py` writes the flat `serial={p:…}` — it now normalizes the flat
+form to model-keyed.
+
+**Serial passage (GPT-2):**
+
+| p | mean load per hop | R_geo (mean traj) | per-trial R_geo median [95% CI] | survive [95% CI] | fully-locked | endemic? |
+|---|---|---|---|---|---|---|
+| 1 | 40→36→26→24→14→2→0 | 0.54 | 0.47 [0.11, 0.62] | 0.25 [0.00, 0.50] | **2/8** | no (mean → 0) |
+| 2 | 30→18→8→6→2→0→0 | 0.51 | 0.76 [0.61, 0.96] | 0.00 [0.00, 0.00] | 0/8 | no |
+| 3 | 14→8→0→… | 0.57 | 0.38 [0.25, 0.66] | 0.00 [0.00, 0.00] | 0/8 | no |
+| 5 | 16→9→6→6→6→5→3 | 0.77 | 0.75 [0.26, 0.99] | 0.25 [0.00, 0.50] | **1/8** | yes (mean) |
+| 8 | 8→1→0→… | 0.13 | 0.33 [0.17, 0.50] | 0.00 [0.00, 0.00] | 0/8 | no |
+
+Cross-tokenizer (p=3, patient zero GPT-2): same-host `13→0.4→0→…`, cross-host (Pythia-160M)
+`19→6.8→2.5→2.0→0→…` — both extinct, the cross chain lasting one hop longer this seed (n=8, not
+a reversal of the firebreak direction).
+
+**How many "endemic" p=1 trials are locked loops vs genuinely fluctuating? All of the survivors
+are locked; none fluctuate.** The per-trial data answers the question the mean hid. The June
+Track-A "p=1 endemic" does **not** reproduce: here p=1's mean load decays to ~0 by the last hop,
+only **2 of 8** trials are still alive at hop 6, and both are **fully-locked loops**
+(`fully_locked=2/8`, zero surviving-but-fluctuating trials). The single cell endemic on the mean,
+p=5, is **1 of 8** trials locked. So "endemic" is one or two hosts stuck emitting the payload on
+repeat, not a chain that spreads. **R_geo < 1 at every payload length** (median 0.33–0.77; every
+95% CI caps below 1 — p=5's 0.99 is the only one that reaches it), i.e. the mean viral load
+shrinks every hop in all cells. This is the first *per-trial, CI-backed* confirmation on
+GPT-2-small of the Analyses §B–C / README-C6 reinterpretation: no per-hop reproduction ratio
+above one, and "endemic" chains are locked repetition loops.
+
+Caveats: GPT-2-small + Pythia-160M, MPS, 8 trials (survival CIs are very wide — [0.00, 0.50] for
+both endemic-ish cells, so "endemic" is not statistically separable from extinction at this n),
+fresh sampled payloads per trial, seed 7. Numbers differ from the June Track-A run (sampling +
+n=8); the robust, reproducible statement is R_geo < 1 everywhere. Raw: `data/trackA/e6_worm.json`
+(+ `_serial`/`_crosstok` PNGs), analysis `data/trackA/analysis_e6_r0_gpt2.json`; the recovered
+June run is preserved as `data/trackA/e6_worm_2026-06-26.json` (+ dated PNGs).
