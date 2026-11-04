@@ -61,3 +61,5 @@ device=cuda  seeds=[7 8 9] trials_A=20  reps_sweep=[8 16 32] trials_B=30
 [03:48:19] <<< e6A_hiN_s9 OK  -> results/e6A_hiN_s9.json
 --- Part B: cross-tokenizer firebreak vs seeding strength ---
 [03:48:19] >>> e6B_reps8  ::  --part B --host0-reps 8 --trials 30
+[04:48:34] <<< e6B_reps8 OK  -> results/e6B_reps8.json
+[04:48:34] >>> e6B_reps16  ::  --part B --host0-reps 16 --trials 30
