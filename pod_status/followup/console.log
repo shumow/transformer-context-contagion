@@ -101,3 +101,25 @@ wrote results/e6A_hiN_pythia69b_s9.png
 [snapshot] next: git add data/trackC && git commit -m 'Snapshot trackC results'
 [2026-11-04T20:02:29Z] <<< e6A_hiN_pythia69b_s9 exit=0
 [2026-11-04T20:02:29Z] >>> e6B_1hop_reps8 :: -m experiments.e6_scale --part B --cross-hops 1 --host0-reps 8 --trials 30 --device cuda --prefix results/e6B_1hop_reps8 --snapshot trackC
+`torch_dtype` is deprecated! Use `dtype` instead!
+
+=== B. cross-tokenizer firebreak matrix (p=3, 1 hops) ===
+  loaded gpt2 (gpt2)
+  loaded pythia (EleutherAI/pythia-410m)
+  loaded qwen (Qwen/Qwen2.5-0.5B)
+  loaded llama (meta-llama/Llama-3.2-1B)
+Fetching 3 files:   0%|          | 0/3 [00:00<?, ?it/s]Fetching 3 files:  33%|███▎      | 1/3 [00:05<00:11,  5.83s/it]Fetching 3 files:  67%|██████▋   | 2/3 [00:13<00:06,  6.86s/it]Fetching 3 files: 100%|██████████| 3/3 [00:15<00:00,  5.09s/it]Fetching 3 files: 100%|██████████| 3/3 [00:15<00:00,  5.09s/it]
+Loading checkpoint shards:   0%|          | 0/3 [00:00<?, ?it/s]Loading checkpoint shards:  33%|███▎      | 1/3 [00:00<00:01,  1.37it/s]Loading checkpoint shards:  67%|██████▋   | 2/3 [00:01<00:00,  1.29it/s]Loading checkpoint shards: 100%|██████████| 3/3 [00:01<00:00,  1.92it/s]
+  loaded gemma (google/gemma-2-2b)
+  gpt2    -> gpt2:4.9  pythia:0.7  qwen:4.5  llama:7.9  gemma:6.5
+  pythia  -> gpt2:5.3  pythia:8.0  qwen:9.7  llama:3.8  gemma:5.9
+  qwen    -> gpt2:5.9  pythia:8.3  qwen:8.7  llama:3.0  gemma:10.6
+  llama   -> gpt2:2.0  pythia:5.3  qwen:3.7  llama:5.4  gemma:6.7
+  gemma   -> gpt2:6.7  pythia:4.7  qwen:12.5  llama:9.3  gemma:8.4
+
+wrote results/e6B_1hop_reps8.json  [1300s]
+wrote results/e6B_1hop_reps8.png
+[snapshot] copied 3 file(s) to data/trackC/: e6B_1hop_reps8.console.log, e6B_1hop_reps8.json, e6B_1hop_reps8.png
+[snapshot] next: git add data/trackC && git commit -m 'Snapshot trackC results'
+[2026-11-04T20:24:11Z] <<< e6B_1hop_reps8 exit=0
+[2026-11-04T20:24:11Z] >>> e6B_1hop_reps16 :: -m experiments.e6_scale --part B --cross-hops 1 --host0-reps 16 --trials 30 --device cuda --prefix results/e6B_1hop_reps16 --snapshot trackC
