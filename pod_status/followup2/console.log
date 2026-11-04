@@ -49,3 +49,21 @@ selftest: long-context construction (placement) + occupancy + cell + prompts OK
 remote:      https://github.com/shumow/transformer-context-contagion/pull/new/claude/fervent-ritchie-l5m9uw-iter9-pod-followup2        
 remote: 
 [2026-11-04T21:21:30Z] >>> e6A_hiN_qwen3b_s7 :: -m experiments.e6_scale --part A --serial-models Qwen/Qwen2.5-3B --seed 7 --trials 20 --device cuda --prefix results/e6A_hiN_qwen3b_s7 --snapshot trackC
+`torch_dtype` is deprecated! Use `dtype` instead!
+
+=== A. serial passage at scale (sweep payload length) ===
+--- Qwen/Qwen2.5-3B ---
+Fetching 2 files:   0%|          | 0/2 [00:00<?, ?it/s]Fetching 2 files:  50%|█████     | 1/2 [00:14<00:14, 14.21s/it]Fetching 2 files: 100%|██████████| 2/2 [00:16<00:00,  8.09s/it]Fetching 2 files: 100%|██████████| 2/2 [00:16<00:00,  8.09s/it]
+Loading checkpoint shards:   0%|          | 0/2 [00:00<?, ?it/s]Loading checkpoint shards: 100%|██████████| 2/2 [00:00<00:00, 71.80it/s]
+  p= 1  5.3 -> 5.0 -> 5.3 -> 0.3 -> 0.5 -> 0.7 -> 0.5   survive(last)=20%
+  p= 2  44.5 -> 32.8 -> 27.6 -> 21.6 -> 18.3 -> 16.9 -> 15.5   survive(last)=35%
+  p= 3  26.6 -> 20.8 -> 18.4 -> 15.7 -> 14.9 -> 12.5 -> 9.4   survive(last)=40%
+  p= 5  15.3 -> 10.2 -> 8.8 -> 6.7 -> 5.8 -> 4.0 -> 3.0   survive(last)=20%
+  p= 8  10.9 -> 8.2 -> 7.0 -> 7.0 -> 5.8 -> 5.3 -> 3.7   survive(last)=35%
+
+wrote results/e6A_hiN_qwen3b_s7.json  [1180s]
+wrote results/e6A_hiN_qwen3b_s7.png
+[snapshot] copied 3 file(s) to data/trackC/: e6A_hiN_qwen3b_s7.console.log, e6A_hiN_qwen3b_s7.json, e6A_hiN_qwen3b_s7.png
+[snapshot] next: git add data/trackC && git commit -m 'Snapshot trackC results'
+[2026-11-04T21:41:12Z] <<< e6A_hiN_qwen3b_s7 exit=0
+[2026-11-04T21:41:12Z] >>> e6A_hiN_qwen3b_s8 :: -m experiments.e6_scale --part A --serial-models Qwen/Qwen2.5-3B --seed 8 --trials 20 --device cuda --prefix results/e6A_hiN_qwen3b_s8 --snapshot trackC
