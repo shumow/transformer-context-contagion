@@ -58,6 +58,10 @@ def analyze(fams, M):
                 ratio=float(diag.mean() / off.mean()) if off.mean() > 0 else None,
                 diag_minus_off=obs, p_perm_one_sided=p_val, n_assignments=len(stats),
                 rows_diag_is_max=int(sum(r == 1 for r in ranks)), diag_ranks=ranks,
+                # host (column) and patient-zero (row) marginal means: is transmission set by
+                # WHO hosts rather than by whether the tokenizer matches?
+                col_means={f: float(M[:, j].mean()) for j, f in enumerate(fams)},
+                row_means={f: float(M[i, :].mean()) for i, f in enumerate(fams)},
                 diag_zero_rows=[fams[i] for i in range(n) if diag[i] == 0],
                 offdiag_exceeding_any_diag=[(fams[i], fams[j], float(M[i, j]))
                                             for i in range(n) for j in range(n)
@@ -108,6 +112,8 @@ def main():
         print(f"diag mean {r['diag_mean']:.2f}  off-diag mean {r['offdiag_mean']:.2f}  "
               f"ratio {('%.2f' % r['ratio']) if r['ratio'] is not None else 'n/a'}  "
               f"diag-off {r['diag_minus_off']:+.2f}")
+        print("host (column) means: " + "  ".join(f"{f} {v:.1f}" for f, v in r["col_means"].items())
+              + "   | patient-zero (row) means: " + "  ".join(f"{f} {v:.1f}" for f, v in r["row_means"].items()))
         print(f"rows where diagonal is the max: {r['rows_diag_is_max']}/{len(fams)}; "
               f"diagonal = 0 in rows: {r['diag_zero_rows'] or 'none'}")
         print(f"exact permutation p (one-sided, {r['n_assignments']} assignments): {r['p_perm_one_sided']:.3f}")
