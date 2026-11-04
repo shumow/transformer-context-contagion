@@ -1369,3 +1369,82 @@ repetition) and the mechanistic one (the lock-in seen in E1.4 is a property of r
 **Caveats.** 8 trials per cell (a zero-of-8 cell has Wilson upper bound 0.32 on the
 *hijacked* fraction, though the per-trial occupancies are all < 0.10, which is the stronger
 statement); greedy; p = 3; benign OOD payloads; 4k context only; one seed.
+
+## E6 follow-ups — a second 7B base family, and the firebreak at 1 hop with n = 30 (2026-11-04, RunPod L40S)
+
+Two runs raised by "E6 at power" above and by the advisor's reading of it; same pod setup; job
+`deploy/runpod_job.sh followup`, 2.3 pod-hours. Files
+`data/trackC/e6A_hiN_pythia69b_s{7,8,9}.{json,png,console.log}`,
+`e6B_1hop_reps{8,16,32}.{json,png,console.log}`; analyses
+`analysis_e6_r0_pooled_pythia69b.json`, `analysis_e6_firebreak_1hop_sweep.json`.
+
+### A. Pythia-6.9B serial passage: scale or family?
+
+Same protocol as Part A of 2.1 (hops 6, 16 seed copies, T = 96, sampled at T = 1.0, 20 trials ×
+seeds 7, 8, 9):
+
+```
+python -m experiments.e6_scale --part A --serial-models EleutherAI/pythia-6.9b --seed {7,8,9} --trials 20 --device cuda --prefix results/e6A_hiN_pythia69b_s$seed --snapshot trackC
+```
+
+| model | p=1 (artifact) | p=2 | p=3 | p=5 | p=8 |
+|---|---|---|---|---|---|
+| **Pythia-6.9B** (n = 60, Wilson 95%) | 0.38 (0.27–0.51) | **0.07 (0.03–0.16)** | **0.10 (0.05–0.20)** | **0.10 (0.05–0.20)** | **0.10 (0.05–0.20)** |
+| Qwen2.5-7B (from 2.1) | 0.22 | 0.47 (0.35–0.59) | 0.30 (0.20–0.43) | 0.42 (0.30–0.54) | 0.50 (0.38–0.62) |
+| Pythia-2.8B (from 2.1) | 0.23 | 0.12 (0.06–0.22) | 0.07 (0.03–0.16) | 0.20 (0.12–0.32) | 0.05 (0.02–0.14) |
+
+Per seed (p = 2/3/5/8): 0.20/0.20/0.10/0.05, 0.00/0.05/0.10/0.10, 0.00/0.05/0.10/0.15. Per-trial
+R_geo medians 0.60 (0.42–0.83), 0.66 (0.50–0.87), 0.72 (0.57–0.88), 0.74 (0.58–0.84); the few
+survivors sit at T/p (median last load 48, 32, 18, 10 for p = 2, 3, 5, 8).
+
+**Verdict: family, not scale.** A second 7B base model locks in 7–10% of chains, the same as its
+own 2.8B sibling and as Llama-3.2-3B, and 3–5× below Qwen2.5-7B (every Pythia-6.9B interval
+lies below every Qwen2.5-7B interval at p ≥ 2). "The worm gets worse at scale" is withdrawn.
+The surviving statement: *Qwen2.5 base models fall into a locked payload loop far more often
+than Pythia or Llama base models at any size tested (2.8B–7B), and instruction-tuning removes
+most of it (Qwen2.5-7B-Instruct 0.08–0.13).* Qwen2.5-3B base (follow-up 2) tests whether the
+trait holds across Qwen sizes.
+
+### B. The cross-tokenizer matrix at 1 hop, 30 trials, three seeding strengths
+
+```
+python -m experiments.e6_scale --part B --cross-hops 1 --host0-reps {8,16,32} --trials 30 --device cuda --prefix results/e6B_1hop_reps$reps --snapshot trackC
+```
+
+This is the configuration of the only run that ever showed a same-tokenizer advantage
+(2026-07-02: 1 hop, 32 copies, 8 trials; ratio 1.61, p = 0.004). Rows = patient zero, columns =
+host; entry = mean surviving load after one re-tokenization. The 32-copy matrix (the July
+configuration):
+
+| | gpt2 | pythia | qwen | llama | gemma |
+|---|---|---|---|---|---|
+| **gpt2** | **8.7** | 11.6 | 11.6 | 9.6 | 13.6 |
+| **pythia** | 10.0 | **13.1** | 11.9 | 8.5 | 10.0 |
+| **qwen** | 13.1 | 13.6 | **20.8** | 14.4 | 21.2 |
+| **llama** | 7.0 | 4.6 | 11.0 | **10.2** | 13.0 |
+| **gemma** | 12.5 | 9.1 | 14.9 | 13.0 | **8.6** |
+
+| seed copies | diag mean | off-diag mean | ratio (bootstrap 95%) | diag is row-max | permutation p | alive at hop 1: diag / off | host (column) means gpt2 / pythia / qwen / llama / gemma |
+|---|---|---|---|---|---|---|---|
+| 8 | 7.08 | 6.15 | 1.15 (0.82–1.52) | 0 / 5 | 0.239 | 0.31 / 0.30 | 4.9 / 5.4 / **7.8** / 5.9 / 7.6 |
+| 16 | 9.15 | 8.88 | 1.03 (0.80–1.29) | 1 / 5 | 0.399 | 0.39 / 0.41 | 7.0 / 7.3 / **12.3** / 9.4 / 8.6 |
+| 32 | 12.27 | 11.72 | 1.05 (0.84–1.26) | 1 / 5 | 0.356 | 0.49 / 0.52 | 10.3 / 10.4 / **14.0** / 11.2 / 13.3 |
+| *July: 32, n = 8* | *14.18* | *8.82* | *1.61* | *3 / 5* | *0.004* | — | — |
+
+**Verdict: the firebreak does not replicate.** At the July configuration with 30 trials the
+diagonal/off-diagonal ratio is 1.05 (0.84–1.26), not 1.61; at 8 and 16 copies it is 1.15 and
+1.03 with intervals spanning 1; the diagonal is the row maximum in 0–1 of 5 rows. Unlike the
+3-hop sweep this is not a floor problem: 30–51% of chains are alive after the hop, loads run
+5–21, and the alive fraction is identical on and off the diagonal (0.31/0.30, 0.39/0.41,
+0.49/0.52). The July ratio of 1.6 was an 8-trial fluctuation. What is present at 1 hop, as at
+3, is the host effect: the Qwen2.5-0.5B column is the largest at every seeding strength
+(7.8 / 12.3 / 14.0 against 4.9–13.3), and it is the best host for its own payloads (20.8), for
+Gemma's (14.9) and for Pythia's (11.9). **Re-tokenization is not a firebreak at any hop count
+or seeding strength tested; which model hosts the next hop is what matters, and Qwen2.5 hosts
+it best.** The "tokenizer firebreak" (C6) is withdrawn at scale; the Track-A GPT-2→Pythia-160m
+collapse remains a two-model observation at n = 8 that these matrices do not generalize.
+
+**Caveats.** Hosts are 0.5–2B, one per family; p = 3 only; T = 96; sampled at T = 1.0; 30 trials
+per cell. The 8-copy ratio interval reaches 1.52, so a modest same-tokenizer advantage under
+weak seeding is not excluded by that matrix alone; it is absent at 16 and 32 copies and at
+every 3-hop strength.

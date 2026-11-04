@@ -131,11 +131,20 @@ PY
 Each JSON carries the configuration it was run with (`cross_config`, `config`, `k`, `probe_k`,
 `seed`, `model`). Pod console logs list the image, GPU, driver, versions and selftest output.
 
-## 8. Follow-ups raised by these results (in progress on `…-iter9-followups`)
+## 8. Follow-ups (branch `…-iter9-followups`; pushed, held for review, not merged)
 
-- (a) **Pythia-6.9B serial passage**, 3 seeds × 20 trials, same protocol as Part A: separates
-  "7B" from "Qwen" in the one surviving scale claim.
-- (b) **1-hop firebreak sweep**, 8/16/32 copies × 30 trials: the only configuration in which a
-  same-tokenizer advantage has been measured, previously at n=8.
-- Not started: Llama-3.2-3B-Instruct in E4 v2 at `--probe-k 1` or sampled trials (ceiling);
-  the paper's C4–C6 text (Tier 3).
+| job | pod | wall | result |
+|---|---|---|---|
+| followup: (a) Pythia-6.9B serial passage 3 × 20; (b) 1-hop firebreak 8/16/32 × 30 | p407b8bnpr1coq, secure L40S, 11-04 18:49 → 21:08 | 2.3 h | 6/6 OK. (a) survival 0.07–0.10: **family, not scale**. (b) ratio 1.05 (0.84–1.26) at the July configuration: **firebreak does not replicate**. |
+| followup2: (c) Qwen2.5-3B base serial passage 3 × 20; (d) E5 v2 with the `rawq` control, three models | chained after followup | ≈1.5 h | in progress |
+
+Pod results branches were **squash-merged** into the work branch for iteration 9 (one commit per
+pod, files byte-identical to the pod's final snapshot, verified with `git diff --quiet`), per the
+advisor's note on heartbeat commits in the iteration-7 history.
+
+Doc changes made on the advisor's five points: the 3-hop verdict now states the floor (10–18%
+of chains alive at hop 3, equal on and off the diagonal); the Qwen host column and the Qwen-7B
+locking are described as one family pattern; the E4 v2 entry states the measurement as
+repetition mode with T a proxy for repetition; the flat-in-p survival of Qwen2.5-7B is drawn out
+in the log and README. Not started: Llama-3.2-3B-Instruct in E4 v2 at `--probe-k 1` (ceiling);
+the paper's C4–C6 text (Tier 3).
