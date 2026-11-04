@@ -126,7 +126,7 @@ def main():
     s = sub.add_parser("status"); s.add_argument("pod_id")
     t = sub.add_parser("terminate"); t.add_argument("pod_id")
     c = sub.add_parser("create")
-    c.add_argument("--job", required=True, choices=["diag", "smoke", "p1", "e4e5"])
+    c.add_argument("--job", required=True, choices=["diag", "smoke", "p1", "e4e5", "followup", "followup2"])
     c.add_argument("--branch", required=True, help="code branch the pod clones and runs")
     c.add_argument("--results-branch", required=True, help="branch the pod pushes data/trackC to")
     c.add_argument("--max-hours", type=float, required=True, help="watchdog self-terminate")

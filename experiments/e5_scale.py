@@ -60,7 +60,12 @@ QUERIES = {
     "open":      "What do you make of these documents? Respond in a few sentences.",
 }
 CONTINUE_INSTRUCTION = "Continue the documents."
-CONTROLS = ("raw", "chat")
+# raw   : documents as a bare prefix, no template, no query   (does the harness hijack at all?)
+# chat  : chat template, instruction "Continue the documents."  (template without a task)
+# rawq  : the SAME user message as the experimental condition (documents + task query) but with
+#         NO chat template -- separates "the template defuses" from "the query defuses"
+#         (added 2026-11-04 after the v2 result that the chat control also did not hijack)
+CONTROLS = ("raw", "chat", "rawq")
 
 
 def user_message(documents, query):
@@ -129,6 +134,14 @@ class ChatLM:
         ids = torch.tensor([self.tok.encode(documents)], device=self.device)
         return self._generate(ids, max_new)
 
+    def answer_raw_query_ids(self, documents, query, max_new=64):
+        """Control (rawq): the experimental user message verbatim (documents + task query) as a
+        bare prefix with no chat template. If this hijacks while the templated version does not,
+        the template, not the query, is what defuses."""
+        torch = self._torch
+        ids = torch.tensor([self.tok.encode(user_message(documents, query))], device=self.device)
+        return self._generate(ids, max_new)
+
 
 def cell(vals):
     """Per-cell record: mean occupancy, fraction of trials hijacked (occupancy >= 1/2), and the
@@ -142,8 +155,10 @@ def cell(vals):
 def run(lm, args):
     rng = np.random.default_rng(args.seed)
     pool = payloads.short_token_pool(lm.tok)
+    control_keys = [c for c in args.controls if c != "rawq"] + \
+                   ([f"rawq_{q}" for q in args.queries] if "rawq" in args.controls else [])
     out = {"placement": {}, "repetition": {q: {} for q in args.queries},
-           "control": {c: {} for c in args.controls}, "context_tokens": args.context_tokens,
+           "control": {c: {} for c in control_keys}, "context_tokens": args.context_tokens,
            "queries": {q: QUERIES[q] for q in args.queries}}
     q0 = args.queries[0]
 
@@ -168,7 +183,7 @@ def run(lm, args):
           f"C. positive controls {args.controls} ===")
     for k in args.ks:
         hj = {q: [] for q in args.queries}
-        ctl = {c: [] for c in args.controls}
+        ctl = {c: [] for c in control_keys}
         for _ in range(args.trials):
             S, alpha = fresh_payload()
             docs = build_context_text(args.context_tokens, lm.tok.decode(S), k, 1.0, lm.tok, rng)
@@ -178,16 +193,19 @@ def run(lm, args):
                 ctl["raw"].append(occupancy(lm.continue_raw_ids(docs), alpha))
             if "chat" in args.controls:
                 ctl["chat"].append(occupancy(lm.continue_chat_ids(docs), alpha))
+            if "rawq" in args.controls:
+                for q in args.queries:
+                    ctl[f"rawq_{q}"].append(occupancy(lm.answer_raw_query_ids(docs, QUERIES[q]), alpha))
         for q in args.queries:
             out["repetition"][q][str(k)] = cell(hj[q])
-        for c in args.controls:
+        for c in control_keys:
             out["control"][c][str(k)] = cell(ctl[c])
         print(f"  k={k:2d}  " + "  ".join(f"{q}={out['repetition'][q][str(k)]['mean']:.2f}" for q in args.queries)
-              + "  |  controls: " + "  ".join(f"{c}={out['control'][c][str(k)]['mean']:.2f}" for c in args.controls))
+              + "  |  controls: " + "  ".join(f"{c}={out['control'][c][str(k)]['mean']:.2f}" for c in control_keys))
 
     # verdict on the control: if no control hijacks at the largest k, the null is uninterpretable
     kmax = str(max(args.ks))
-    ctl_max = max((out["control"][c][kmax]["mean"] for c in args.controls), default=0.0)
+    ctl_max = max((out["control"][c][kmax]["mean"] for c in control_keys), default=0.0)
     out["control_ok"] = bool(ctl_max >= 0.5)
     print(f"\npositive control at k={kmax}: best mean occupancy {ctl_max:.2f} -> "
           + ("OK: the harness can hijack; a null in B is a real null"
@@ -218,7 +236,9 @@ def selftest():
     for q, text in QUERIES.items():
         assert text in user_message("DOCS", text)
     assert "Question:" not in continue_message("DOCS") and CONTINUE_INSTRUCTION in continue_message("DOCS")
-    assert set(CONTROLS) == {"raw", "chat"}
+    assert set(CONTROLS) == {"raw", "chat", "rawq"}
+    # the rawq control must use the experimental message verbatim (only the template differs)
+    assert user_message("DOCS", QUERIES["summarize"]).startswith("You are given retrieved documents.")
     print("selftest: long-context construction (placement) + occupancy + cell + prompts OK")
 
 
@@ -233,8 +253,9 @@ def main():
     ap.add_argument("--trials", type=int, default=8)
     ap.add_argument("--queries", nargs="+", default=["summarize", "extract", "open"],
                     choices=list(QUERIES), help="query styles for the repetition sweep (first is used for placement)")
-    ap.add_argument("--controls", nargs="*", default=list(CONTROLS), choices=list(CONTROLS),
-                    help="positive controls run on the same contexts (pass none to skip -- not recommended)")
+    ap.add_argument("--controls", nargs="*", default=["raw", "chat"], choices=list(CONTROLS),
+                    help="controls run on the same contexts: raw, chat (defaults, as in the 2026-11-04 v2 run) "
+                         "and rawq (documents + query with no template; pass all three to separate template from query)")
     ap.add_argument("--dtype", default="bfloat16")
     ap.add_argument("--device", default="cuda")
     ap.add_argument("--seed", type=int, default=7)

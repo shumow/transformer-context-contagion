@@ -1,0 +1,117 @@
+{
+  "pooled(e6A_hiN_pythia69b_s7.json, e6A_hiN_pythia69b_s8.json, e6A_hiN_pythia69b_s9.json)": {
+    "EleutherAI/pythia-6.9b": {
+      "1": {
+        "R_geo": 0.7625,
+        "R_tail": 0.9180327868852459,
+        "endemic": false,
+        "extinction_hop": 0,
+        "last_load": 0.9333333333333333,
+        "n_hops": 6,
+        "per_trial": {
+          "R_geo_median": 1.0,
+          "R_geo_ci": [
+            1.0,
+            1.0
+          ],
+          "survive": 0.38333333333333336,
+          "survive_ci": [
+            0.26666666666666666,
+            0.5166666666666667
+          ],
+          "n_trials": 60,
+          "fully_locked": 1
+        }
+      },
+      "2": {
+        "R_geo": 0.7038603748279394,
+        "R_tail": 0.8384279475982532,
+        "endemic": true,
+        "extinction_hop": null,
+        "last_load": 3.2,
+        "n_hops": 6,
+        "per_trial": {
+          "R_geo_median": 0.6041666666666666,
+          "R_geo_ci": [
+            0.4166666666666667,
+            0.82915619758885
+          ],
+          "survive": 0.06666666666666667,
+          "survive_ci": [
+            0.016666666666666666,
+            0.13333333333333333
+          ],
+          "n_trials": 60,
+          "fully_locked": 4
+        }
+      },
+      "3": {
+        "R_geo": 0.7405562326667529,
+        "R_tail": 0.964824120603015,
+        "endemic": true,
+        "extinction_hop": null,
+        "last_load": 3.2,
+        "n_hops": 6,
+        "per_trial": {
+          "R_geo_median": 0.6597539553864472,
+          "R_geo_ci": [
+            0.5,
+            0.8660254037844387
+          ],
+          "survive": 0.1,
+          "survive_ci": [
+            0.03333333333333333,
+            0.16708333333333295
+          ],
+          "n_trials": 60,
+          "fully_locked": 6
+        }
+      },
+      "5": {
+        "R_geo": 0.7104345569593249,
+        "R_tail": 0.9473684210526316,
+        "endemic": true,
+        "extinction_hop": null,
+        "last_load": 1.8,
+        "n_hops": 6,
+        "per_trial": {
+          "R_geo_median": 0.7162326270441588,
+          "R_geo_ci": [
+            0.5657751651125817,
+            0.8765659586921076
+          ],
+          "survive": 0.1,
+          "survive_ci": [
+            0.03333333333333333,
+            0.18333333333333332
+          ],
+          "n_trials": 60,
+          "fully_locked": 6
+        }
+      },
+      "8": {
+        "R_geo": 0.6873647218543748,
+        "R_tail": 0.6206896551724138,
+        "endemic": false,
+        "extinction_hop": 6,
+        "last_load": 0.9,
+        "n_hops": 6,
+        "per_trial": {
+          "R_geo_median": 0.7418363755904023,
+          "R_geo_ci": [
+            0.5773502691896258,
+            0.8364313928362611
+          ],
+          "survive": 0.1,
+          "survive_ci": [
+            0.03333333333333333,
+            0.18333333333333332
+          ],
+          "n_trials": 60,
+          "fully_locked": 3
+        }
+      },
+      "_largest_endemic_p": 5
+    }
+  }
+}

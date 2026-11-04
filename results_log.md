@@ -1149,7 +1149,9 @@ repetition loop; everything that does not lock decays by ≈0.6–0.9× per hop 
 
 **Verdict on "the worm gets worse at scale".** With 60 trials the only model that locks in a
 large fraction of chains is the Qwen2.5-7B **base** model (0.30–0.50 for p = 2–8, intervals clear
-of every other model's). Pythia-2.8B and Llama-3.2-3B lock in 0–0.20, and — the change from the
+of every other model's). **Its survival is flat in p** — 0.47, 0.30, 0.42, 0.50 from p = 2 to 8,
+every pair within the others' intervals — so there is no critical length in the one model that
+transmits at all: the toy's "R0 falls with payload length" is not weakened here, it is absent. Pythia-2.8B and Llama-3.2-3B lock in 0–0.20, and — the change from the
 5-trial run — **Qwen2.5-7B-Instruct locks in only 0.08–0.13**, indistinguishable from the 3B
 base models. The earlier sentence "the instruct model transmits it too (20–40%)" was the top of
 a 5-trial interval. The defensible statement is: *one 7B base model (Qwen2.5-7B) falls into a
@@ -1197,14 +1199,26 @@ host0-reps = 32:
 | 16 | 3.86 | 4.13 | 0.94 (0.54–1.45) | 0 / 5 | 0.594 | 2.9 / 3.1 / **5.5** / 3.4 / 5.5 |
 | 32 | 3.99 | 4.69 | 0.85 (0.55–1.22) | 1 / 5 | 0.654 | 2.3 / 3.6 / **8.2** / 3.3 / 5.4 |
 
-**Verdict on the firebreak.** At three hops there is **no same-tokenizer advantage at any seeding
-strength**: the diagonal/off-diagonal ratio is below 1 at 8, 16 and 32 copies, every bootstrap
-interval spans 1, the diagonal is the row maximum in 0–1 of 5 rows, and the permutation p is
-≈0.6 each time. What the matrices do show is a **host effect**: the Qwen2.5-0.5B column is the
+**Verdict on the firebreak.** At three hops the test finds no same-tokenizer advantage at any
+seeding strength: the diagonal/off-diagonal ratio is below 1 at 8, 16 and 32 copies, every
+bootstrap interval spans 1, the diagonal is the row maximum in 0–1 of 5 rows, and the
+permutation p is ≈0.6 each time. **But the honest summary is that three hops on 0.5–2B hosts is
+below the floor where a firebreak could show.** Only 10%, 17% and 18% of chains (8/16/32 copies)
+are still alive at hop 3 in the whole matrix, the same fraction on the diagonal (0.10, 0.16,
+0.17) as off it (0.10, 0.17, 0.18); mean loads of 2–8 out of a possible 32 are averages over
+mostly-extinct chains, and the bootstrap ratio intervals are half a unit wide. The design can
+rule out a *large* same-tokenizer advantage at 3 hops; it cannot see a modest one. The one
+configuration in which an effect was measured (1 hop) is rerun at n = 30 in the follow-up
+below. What the matrices do show is a **host effect**: the Qwen2.5-0.5B column is the
 largest in every sweep (8.2 vs 2.3–5.4 at 32 copies), i.e. gemma→qwen (9.6) and pythia→qwen
-(10.1) transmit far better than gemma→gemma (0.7) or pythia→pythia (3.8). Which model *hosts* the
-hop matters; whether its tokenizer matches the payload's does not, once the payload has passed
-through more than one host. The only configuration in which a same-tokenizer advantage has been
+(10.1) transmit far better than gemma→gemma (0.7) or pythia→pythia (3.8); by chains alive at
+hop 3, the Qwen host keeps 0.31 vs 0.09–0.21 for the other four. Which model *hosts* the hop
+matters; whether its tokenizer matches the payload's does not, once the payload has passed
+through more than one host. Read together with Part A — where the Qwen2.5-7B *base* model is
+the only one that locks in 30–50% of chains — this is one pattern, not two: **Qwen2.5 base
+models fall into repetition loops more readily than Pythia, Llama, Gemma or GPT-2.** That makes
+the scale-vs-family confound named above more likely family; Qwen2.5-3B base in the same
+protocol (follow-up) decides it. The only configuration in which a same-tokenizer advantage has been
 measured remains the 2026-07-02 run at **1 hop** with 32 copies (ratio 1.6, p = 0.004). The
 "partial firebreak" should therefore be stated as a one-hop attenuation and withdrawn as a
 multi-hop claim; plan item 2.4 (the firebreak matrix at ≥ 7B per family) is not triggered by
@@ -1273,10 +1287,19 @@ within the non-repetitive pair the useful and useless contexts are within each o
 intervals. corr(P_probe, T) is positive with the interval clear of zero on all three;
 corr(P_probe, U) is zero or slightly negative. The ordering of T agrees: the repeated gibberish
 draws the most induction attention on every model (0.138 / 0.071 / 0.088 vs 0.04–0.08
-elsewhere). The reading "trust is about repetition, not meaning" survives the redesign; the
-quantitative dissociation is weaker than the first run's +0.71 vs +0.09, which was inflated by a
-copy-rate that is ≈1 by construction (the P_copy columns above reproduce that artifact:
-corr(P_copy, T) 0.30–0.58).
+elsewhere). The quantitative dissociation is weaker than the first run's +0.71 vs +0.09, which was
+inflated by a copy-rate that is ≈1 by construction (the P_copy columns above reproduce that
+artifact: corr(P_copy, T) 0.30–0.58).
+
+**What the measurement is, said plainly.** In the repetitive cells the probe is planted after
+eight copies of a span, so the model is already in a repetition regime and continues whatever
+comes last; in the non-repetitive cells the useful and useless contexts barely differ
+(0.25 vs 0.31, 0.69 vs 0.72, 0.62 vs 0.44). The result is therefore *"a context that has put
+the model into repetition mode makes any trailing span reproduced, and whether the context is
+useful has no bearing on that"* — the E6 degeneration mechanism seen from the poisoning side,
+with T acting as a proxy for how repetitive the context is rather than as an independently
+measured "trust". That is the sentence the paper should carry; "trust" as the explanatory
+variable is a label for the repetition axis, not something this design measures separately.
 
 **Caveats.** probe_k = 2 and greedy decoding put Llama-3.2-3B-Instruct near the ceiling (it
 reproduces a two-copy probe in 69–72% of *non-repetitive* contexts), which compresses its
@@ -1346,3 +1369,169 @@ repetition) and the mechanistic one (the lock-in seen in E1.4 is a property of r
 **Caveats.** 8 trials per cell (a zero-of-8 cell has Wilson upper bound 0.32 on the
 *hijacked* fraction, though the per-trial occupancies are all < 0.10, which is the stronger
 statement); greedy; p = 3; benign OOD payloads; 4k context only; one seed.
+
+## E6 follow-ups — a second 7B base family, and the firebreak at 1 hop with n = 30 (2026-11-04, RunPod L40S)
+
+Two runs raised by "E6 at power" above and by the advisor's reading of it; same pod setup; job
+`deploy/runpod_job.sh followup`, 2.3 pod-hours. Files
+`data/trackC/e6A_hiN_pythia69b_s{7,8,9}.{json,png,console.log}`,
+`e6B_1hop_reps{8,16,32}.{json,png,console.log}`; analyses
+`analysis_e6_r0_pooled_pythia69b.json`, `analysis_e6_firebreak_1hop_sweep.json`.
+
+### A. Pythia-6.9B serial passage: scale or family?
+
+Same protocol as Part A of 2.1 (hops 6, 16 seed copies, T = 96, sampled at T = 1.0, 20 trials ×
+seeds 7, 8, 9):
+
+```
+python -m experiments.e6_scale --part A --serial-models EleutherAI/pythia-6.9b --seed {7,8,9} --trials 20 --device cuda --prefix results/e6A_hiN_pythia69b_s$seed --snapshot trackC
+```
+
+| model | p=1 (artifact) | p=2 | p=3 | p=5 | p=8 |
+|---|---|---|---|---|---|
+| **Pythia-6.9B** (n = 60, Wilson 95%) | 0.38 (0.27–0.51) | **0.07 (0.03–0.16)** | **0.10 (0.05–0.20)** | **0.10 (0.05–0.20)** | **0.10 (0.05–0.20)** |
+| Qwen2.5-7B (from 2.1) | 0.22 | 0.47 (0.35–0.59) | 0.30 (0.20–0.43) | 0.42 (0.30–0.54) | 0.50 (0.38–0.62) |
+| Pythia-2.8B (from 2.1) | 0.23 | 0.12 (0.06–0.22) | 0.07 (0.03–0.16) | 0.20 (0.12–0.32) | 0.05 (0.02–0.14) |
+
+Per seed (p = 2/3/5/8): 0.20/0.20/0.10/0.05, 0.00/0.05/0.10/0.10, 0.00/0.05/0.10/0.15. Per-trial
+R_geo medians 0.60 (0.42–0.83), 0.66 (0.50–0.87), 0.72 (0.57–0.88), 0.74 (0.58–0.84); the few
+survivors sit at T/p (median last load 48, 32, 18, 10 for p = 2, 3, 5, 8).
+
+**Verdict: family, not scale.** A second 7B base model locks in 7–10% of chains, the same as its
+own 2.8B sibling and as Llama-3.2-3B, and 3–5× below Qwen2.5-7B (every Pythia-6.9B interval
+lies below every Qwen2.5-7B interval at p ≥ 2). "The worm gets worse at scale" is withdrawn.
+The surviving statement: *Qwen2.5 base models fall into a locked payload loop far more often
+than Pythia or Llama base models at any size tested (2.8B–7B), and instruction-tuning removes
+most of it (Qwen2.5-7B-Instruct 0.08–0.13).* Qwen2.5-3B base (follow-up 2) tests whether the
+trait holds across Qwen sizes.
+
+### B. The cross-tokenizer matrix at 1 hop, 30 trials, three seeding strengths
+
+```
+python -m experiments.e6_scale --part B --cross-hops 1 --host0-reps {8,16,32} --trials 30 --device cuda --prefix results/e6B_1hop_reps$reps --snapshot trackC
+```
+
+This is the configuration of the only run that ever showed a same-tokenizer advantage
+(2026-07-02: 1 hop, 32 copies, 8 trials; ratio 1.61, p = 0.004). Rows = patient zero, columns =
+host; entry = mean surviving load after one re-tokenization. The 32-copy matrix (the July
+configuration):
+
+| | gpt2 | pythia | qwen | llama | gemma |
+|---|---|---|---|---|---|
+| **gpt2** | **8.7** | 11.6 | 11.6 | 9.6 | 13.6 |
+| **pythia** | 10.0 | **13.1** | 11.9 | 8.5 | 10.0 |
+| **qwen** | 13.1 | 13.6 | **20.8** | 14.4 | 21.2 |
+| **llama** | 7.0 | 4.6 | 11.0 | **10.2** | 13.0 |
+| **gemma** | 12.5 | 9.1 | 14.9 | 13.0 | **8.6** |
+
+| seed copies | diag mean | off-diag mean | ratio (bootstrap 95%) | diag is row-max | permutation p | alive at hop 1: diag / off | host (column) means gpt2 / pythia / qwen / llama / gemma |
+|---|---|---|---|---|---|---|---|
+| 8 | 7.08 | 6.15 | 1.15 (0.82–1.52) | 0 / 5 | 0.239 | 0.31 / 0.30 | 4.9 / 5.4 / **7.8** / 5.9 / 7.6 |
+| 16 | 9.15 | 8.88 | 1.03 (0.80–1.29) | 1 / 5 | 0.399 | 0.39 / 0.41 | 7.0 / 7.3 / **12.3** / 9.4 / 8.6 |
+| 32 | 12.27 | 11.72 | 1.05 (0.84–1.26) | 1 / 5 | 0.356 | 0.49 / 0.52 | 10.3 / 10.4 / **14.0** / 11.2 / 13.3 |
+| *July: 32, n = 8* | *14.18* | *8.82* | *1.61* | *3 / 5* | *0.004* | — | — |
+
+**Verdict: the firebreak does not replicate.** At the July configuration with 30 trials the
+diagonal/off-diagonal ratio is 1.05 (0.84–1.26), not 1.61; at 8 and 16 copies it is 1.15 and
+1.03 with intervals spanning 1; the diagonal is the row maximum in 0–1 of 5 rows. Unlike the
+3-hop sweep this is not a floor problem: 30–51% of chains are alive after the hop, loads run
+5–21, and the alive fraction is identical on and off the diagonal (0.31/0.30, 0.39/0.41,
+0.49/0.52). The July ratio of 1.6 was an 8-trial fluctuation. What is present at 1 hop, as at
+3, is the host effect: the Qwen2.5-0.5B column is the largest at every seeding strength
+(7.8 / 12.3 / 14.0 against 4.9–13.3), and it is the best host for its own payloads (20.8), for
+Gemma's (14.9) and for Pythia's (11.9). **Re-tokenization is not a firebreak at any hop count
+or seeding strength tested; which model hosts the next hop is what matters, and Qwen2.5 hosts
+it best.** The "tokenizer firebreak" (C6) is withdrawn at scale; the Track-A GPT-2→Pythia-160m
+collapse remains a two-model observation at n = 8 that these matrices do not generalize.
+
+**Caveats.** Hosts are 0.5–2B, one per family; p = 3 only; T = 96; sampled at T = 1.0; 30 trials
+per cell. The 8-copy ratio interval reaches 1.52, so a modest same-tokenizer advantage under
+weak seeding is not excluded by that matrix alone; it is absent at 16 and 32 copies and at
+every 3-hop strength.
+
+## Follow-ups 2 — Qwen2.5-3B serial passage, and E5 with the raw-plus-query control (2026-11-04, RunPod L40S)
+
+Job `deploy/runpod_job.sh followup2`, 1.5 pod-hours. Files
+`data/trackC/e6A_hiN_qwen3b_s{7,8,9}.{json,png,console.log}`,
+`e5_scale_v2_rawq_{qwen7b,llama3b,phi35mini}-instruct.{json,png,console.log}`; analysis
+`analysis_e6_r0_pooled_qwen3b.json`.
+
+### C. Qwen2.5-3B serial passage: is the looping trait family-wide?
+
+Same protocol as Part A of 2.1 and follow-up A (hops 6, 16 seed copies, T = 96, sampled at
+T = 1.0, 20 trials × seeds 7, 8, 9):
+
+```
+python -m experiments.e6_scale --part A --serial-models Qwen/Qwen2.5-3B --seed {7,8,9} --trials 20 --device cuda --prefix results/e6A_hiN_qwen3b_s$seed --snapshot trackC
+```
+
+| model (n = 60, Wilson 95%) | p=1 (artifact) | p=2 | p=3 | p=5 | p=8 |
+|---|---|---|---|---|---|
+| **Qwen2.5-3B** | 0.30 (0.20–0.43) | **0.33 (0.23–0.46)** | **0.37 (0.26–0.49)** | **0.38 (0.27–0.51)** | **0.28 (0.19–0.41)** |
+| Qwen2.5-7B (2.1) | 0.22 | 0.47 (0.35–0.59) | 0.30 (0.20–0.43) | 0.42 (0.30–0.54) | 0.50 (0.38–0.62) |
+| Pythia-6.9B (follow-up A) | 0.38 | 0.07 (0.03–0.16) | 0.10 (0.05–0.20) | 0.10 (0.05–0.20) | 0.10 (0.05–0.20) |
+| Pythia-2.8B / Llama-3.2-3B (2.1) | — | 0.12 / 0.00 | 0.07 / 0.12 | 0.20 / 0.07 | 0.05 / 0.00 |
+
+Per seed (p = 2/3/5/8): 0.35/0.40/0.20/0.35, 0.25/0.25/0.60/0.15, 0.40/0.45/0.35/0.35. Per-trial
+R_geo medians 0.88–0.99; survivors at T/p (median last load 48, 32, 18, 12).
+
+**Verdict: the trait is the Qwen2.5 base family, at 3B as at 7B.** Qwen2.5-3B locks in 28–38%
+of chains, flat in p, inside the 7B's intervals at every p and 3–5× above every non-Qwen base
+model of 2.8B–7B. The ordering across the six base/instruct models now tested is Qwen2.5-7B ≈
+Qwen2.5-3B ≫ Pythia-6.9B ≈ Pythia-2.8B ≈ Llama-3.2-3B ≈ Qwen2.5-7B-Instruct. Together with
+follow-up B (the Qwen2.5-0.5B host column dominates every firebreak matrix), this is one fact:
+*Qwen2.5 base models, at every size from 0.5B to 7B, fall into a locked repetition loop on a
+repeated span far more readily than Pythia, Llama, Gemma or GPT-2, and instruction-tuning
+removes most of it.* The paper's C6 should be rewritten around that sentence and read against
+Holtzman et al. (2019); there is no scale law and no critical length in these data.
+
+### D. E5-scale with the raw-plus-query control: template or query?
+
+E5-scale v2 (above) found that the chat template with "Continue the documents." did not hijack
+either, so the template and the task query were not separated. The `rawq` control added to
+`e5_scale.py` feeds the experimental user message verbatim — the preamble, the documents, and
+the task query — as a bare prefix with **no chat template**. Same seed, so the contexts and the
+query cells are identical to v2 (verified: every query-cell mean matches v2 exactly).
+
+```
+python -m experiments.e5_scale --model <M> --context-tokens 4000 --device cuda --controls raw chat rawq --prefix results/e5_scale_v2_rawq_<tag> --snapshot trackC
+```
+
+Mean occupancy (fraction of 8 trials with occupancy ≥ ½), payload at the end, p = 3:
+
+| model | k | task query (templated; 3 styles) | raw, no query | chat, "continue" | **rawq: no template, summarize / extract / open** |
+|---|---|---|---|---|---|
+| Qwen2.5-7B-Instruct | 2 | 0.00–0.01 | 0.38 (0.50) | 0.01 | 0.04 / 0.02 / 0.00 (all 0.00) |
+| | 8 | 0.00 | 0.70 (1.00) | 0.00 | 0.04 / 0.03 / 0.00 (all 0.00) |
+| | 32 | 0.00 | 0.68 (1.00) | 0.00 | 0.00 / 0.03 / 0.00 (all 0.00) |
+| Llama-3.2-3B-Instruct | 2 | 0.00–0.01 | 0.44 (0.62) | 0.00 | 0.01 / 0.00 / 0.01 (all 0.00) |
+| | 8 | 0.00 | 0.69 (1.00) | 0.00 | 0.00 / 0.00 / 0.00 |
+| | 32 | 0.00 | 0.65 (1.00) | 0.00 | 0.00 / 0.00 / 0.00 |
+| Phi-3.5-mini-instruct | 2 | 0.00–0.01 | 0.75 (0.75) | 0.01 | 0.01 / 0.00 / 0.00 (all 0.00) |
+| | 8 | 0.00–0.01 | 1.00 (1.00) | 0.25 (0.25) | 0.00 / 0.01 / 0.00 (all 0.00) |
+| | 32 | 0.00–0.02 | 1.00 (1.00) | 0.01 | 0.01 / 0.01 / 0.02 (all 0.00) |
+
+(k = 4 and 16 are the same picture; full tables in the JSON.) Largest single rawq trial: 0.36
+(Qwen, summarize, k = 16), 0.06 (Llama), 0.08 (Phi); no rawq trial reaches ½ on any model.
+
+**Verdict: the template is not what defuses.** The same text that is hijacked as a bare
+prefix (0.4–1.0 occupancy) is not hijacked once the task query follows the documents, with or
+without a chat template, on all three models. The v2 sentence "the chat template alone
+defuses" is therefore wrong as an explanation: the template is sufficient but not necessary.
+
+**But the honest reading is narrower than "the query defuses".** Every condition that does
+not hijack — templated query, templated "continue", and now the untemplated query — puts
+tokens *after* the payload block (the question line, the instruction, the template suffix),
+whereas the only hijacking condition ends the context inside the repeated payload. E5-lite and
+E1.5 showed on GPT-2 that about 16 tokens of anything between the payload and the generation
+point kill reproduction, and the v2 placement sweep shows the same gate at length. So these
+data cannot distinguish "the model follows the task" from "the payload is no longer the last
+thing in context". The one-line control that separates them is a `rawpad` condition: the raw
+documents followed by benign filler of the same token length as the query line, no question,
+no template. If it hijacks, the query is doing semantic work; if it does not, the C5 bound is
+the recency gate restated, and "a task query defuses hijack" should be replaced by "anything
+that ends the context after the payload defuses it" — which is the same defensive advice with
+a different mechanism. Not run; ten pod-minutes per model.
+
+**Caveats.** 8 trials per cell, greedy, one seed, p = 3, 4k context; the query line is 15–30
+tokens on these tokenizers, above the GPT-2 recency limit measured in E5-lite.

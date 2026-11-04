@@ -91,17 +91,20 @@ if so, by what mechanism?**
     continuation* (entry × lock-in), but on an **instruct model asked to answer a query the
     hijack vanishes (occupancy 0.00)**: the task query anchors generation away from the payload.
     Confirmed on three instruct models with positive controls (the same contexts fed as a raw
-    prefix are hijacked at 0.6–1.0 occupancy). Raw-repetition hijack is a continuation
+    prefix are hijacked at 0.6–1.0 occupancy); the query defuses with or without a chat
+    template, though whether that is task-following or simply the payload no longer being
+    the last thing in context is not yet separated. Raw-repetition hijack is a continuation
     phenomenon; the residual RAG threat is *semantic* injection, outside this project's
     benign-copy scope.
-  - **Worm — re-measured at power.** With 60 chains per cell, one 7B base model
-    (Qwen2.5-7B) keeps the payload alive in 30–50% of chains where a 2.8B, a 3B and the
-    instruction-tuned 7B keep it in ≤20%; no setting shows the payload *multiplying*: every
-    surviving chain is the model stuck in a repetition loop, emitting the payload at a fixed
-    rate. That is a known degeneration behavior, not an epidemic. The cross-tokenizer
-    firebreak shows no same-tokenizer advantage over three hops at any seeding strength; which
-    model hosts a hop matters, whether its tokenizer matches does not. The one-hop attenuation
-    measured in July is the only firebreak result that remains.
+  - **Worm — re-measured at power.** With 60 chains per cell, Qwen2.5 base models (3B and
+    7B) keep the payload alive in 30–50% of chains where Pythia (2.8B and 6.9B), Llama-3.2-3B
+    and the instruction-tuned Qwen 7B keep it in ≤20%: a family trait, not a scale effect, and
+    flat in payload length. No setting shows the payload *multiplying*: every surviving chain
+    is the model stuck in a repetition loop, emitting the payload at a fixed rate. That is a
+    known degeneration behavior, not an epidemic. The cross-tokenizer firebreak is withdrawn:
+    no same-tokenizer advantage at one or three hops at any seeding strength (the July one-hop
+    result did not replicate at n=30); which model hosts a hop matters, whether its tokenizer
+    matches does not.
   - A paired **detector** flags repeated spans. Its reported perfect separation was measured
     against three clean documents with no comparison to a plain "does any n-gram repeat"
     check; it has been rewritten with a proper negative set, that baseline, and a
