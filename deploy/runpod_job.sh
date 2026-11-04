@@ -84,8 +84,12 @@ mkdir -p results
 run_one() {                           # run_one <label> <python -m args...>  (console to results/<label>.log too)
   local label="$1"; shift
   log ">>> $label :: $*"
-  python "$@" 2>&1 | tee "results/$label.console.log"
-  log "<<< $label exit=${PIPESTATUS[0]}"
+  # direct redirect, not tee: the --snapshot copy runs at python exit and a tee pipe can lag
+  # behind it, which truncated the console copies of the 2026-11-04 e4e5 runs (JSONs unaffected)
+  python "$@" > "results/$label.console.log" 2>&1
+  local rc=$?
+  cat "results/$label.console.log"
+  log "<<< $label exit=$rc"
 }
 
 run_job() {

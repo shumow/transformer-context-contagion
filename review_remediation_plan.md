@@ -243,7 +243,8 @@ Each iteration is a branch off `claude/fervent-ritchie-l5m9uw`, merged back when
 | 3 `…-iter3-writing` | 0.7 related work; 0.9 `--snapshot` in every experiment and the run scripts; 0.10 single source of truth (README table, ONEPAGER, plan pointers); paper text for 0.4/0.5 | **merged.** PDF not rebuilt (no TeX here). Abstract trimmed to current claims but not yet to ≤200 words (Tier 3). |
 | 4 `…-iter4-prerun-code` | size sweep stores per-N curves and P(N=2) (the fix the paper already claimed); E5-scale gains three query styles, two no-query positive controls on the same contexts, per-trial storage and a control verdict (2.3's code half); `tests/test_snapshot.py` | **merged.** Pod-side only remains for 2.1–2.3. |
 | Tier 1 | 1.1, 1.2, 1.3 | not started: needs a CPU box with torch + transformer_lens |
-| Tier 2 | 2.1, 2.2, 2.3, 2.4 | not started: needs a GPU pod (+ `HF_TOKEN` for Llama/Gemma) |
+| 7 `…-iter7-tier2-pods` | **Tier 2 run on RunPod** (2026-11-03/04, L40S, unattended pods via `deploy/runpod_job.sh` + `deploy/runpod_pod.py`): **2.1** done — 60 chains/cell, 3 seeds; firebreak sweep 8/16/32 copies at 3 hops. **2.2** done — Qwen2.5-7B-Instruct, Llama-3.2-3B-Instruct, + Phi-3.5-mini-instruct. **2.3** done — same three models, 3 query styles, raw + chat positive controls. **2.4** not triggered (no same-tokenizer advantage left at 3 hops). `analysis_e6_r0 --pool`, bootstrap/marginals in `analysis_e6_firebreak`, `requirements-lock.txt` (0.8). | **merged.** Results in `results_log.md` "E6 at power", "E4-scale v2", "E5-scale v2"; README rows C4–C6 updated. ≈8.1 pod-hours, ≈$9. Paper text for C4–C6 not yet revised (Tier 3). |
+| Tier 2 | 2.1, 2.2, 2.3 done (iteration 7); 2.4 not needed | see iteration 7 |
 | Tier 3 | rewrite | after Tier 2 |
 
 Open decisions for the author: whether to keep the `rare_token_pool` alias (kept, deprecated);

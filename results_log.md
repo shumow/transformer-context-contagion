@@ -706,7 +706,8 @@ design; the depth-cliff locations may shift with more reps.
 > now builds non-repetitive cells from distinct sentences, length-matched in tokens; adds the
 > plan's original poisonability measure (reproduction of a *planted* probe span); uses 32
 > facts; and reports bootstrap CIs on the correlations (`review_remediation_plan.md` §0.2).
-> The dissociation below is a hypothesis until the rerun.
+> **Rerun 2026-11-04: see "E4-scale v2" below** — the dissociation holds on three instruct models
+> with the probe measure, with a smaller effect than the copy-rate numbers here suggested.
 
 E4-lite showed poisonability P ⊥ usefulness U, ∥ trust T on GPT-2-small, but U was a
 *naturalness proxy*. E4-scale replaces it with a genuine task on **Qwen2.5-7B-Instruct**: benign
@@ -734,6 +735,10 @@ trust is about repetition/surprise, not meaning. Caveats: 6 synthetic facts, one
 rep_useful U=0.83 (repetition slightly hurt QA on one fact). `results/e4_scale.json`.
 
 ## E5-scale — RAG hijack in a long context: a bound on C5 (Track C) (2026-07-02)
+
+> **Status (2026-11-04): confirmed with positive controls — see "E5-scale v2" below.** This run
+> had no no-query control, so a harness bug and a real null were indistinguishable; v2 adds two
+> controls (raw continuation hijacks at 0.6–1.0 occupancy), three query styles and two more models.
 
 E5-lite (GPT-2-small, base, no query) showed a recent, repeated payload hijacks the
 *continuation*. E5-scale plants an OOD payload ×k inside a ~4000-token benign "retrieval dump"
@@ -1008,3 +1013,134 @@ text-level payload counting (p = 1 invalid, see above). Part B: 0.5–2B hosts, 
 mean loads of 2–8 are small, so the matrices are noisy even at 30 trials (the bootstrap ratio
 intervals are ±0.4–0.5 wide), and a 1-hop sweep at the same n was not run — it would test the
 only reading under which the firebreak survives.
+
+## E4-scale v2 — poisonability of a planted probe vs usefulness, 32 facts, three instruct models (2026-11-04, RunPod L40S; plan item 2.2)
+
+The redesigned `experiments/e4_scale.py` (plan item 0.2): non-repetitive cells built from
+distinct sentences and length-matched in tokens (selftest-checked; the run records
+`nonrep_sentences_repeat = false` for all 96 non-repetitive contexts), poisonability measured
+two ways — P_copy (copy-rate of a raw continuation; ≈1 for any repeated span by construction) and
+**P_probe** (an E1-style probe span of 4 tokens planted ×2 at the end; reproduced or not, greedy)
+— plus U (chat-QA accuracy on the synthetic fact) and T (induction attention). 32 facts, k = 8,
+bootstrap-over-facts 95% CIs on the correlations. Same pod and environment as 2.1; unattended
+job `deploy/runpod_job.sh e4e5`, defaults unchanged:
+
+```
+python -m experiments.e4_scale --model <M> --device cuda --prefix results/e4_scale_v2_<tag> --snapshot trackC
+```
+
+Models: Qwen2.5-7B-Instruct and Llama-3.2-3B-Instruct (the plan's two families) plus
+**Phi-3.5-mini-instruct**, an ungated third family added as a supplement while the gated-repo
+token permission was being sorted out (it was fixed before the pod ran, so Llama ran too).
+Files: `data/trackC/e4_scale_v2_{qwen7b,llama3b,phi35mini}-instruct.{json,png}`; the
+`.console.log` copies are truncated (a tee/snapshot race, fixed in the job script) — every
+number below is read from the JSON. 6 min per model.
+
+**2×2 means** (P_probe also as count/32 with Wilson 95%):
+
+| model | context | U | P_copy | P_probe | T |
+|---|---|---|---|---|---|
+| Qwen2.5-7B-Instruct | rep + useful | 0.94 | 1.00 | 0.66 (21/32; 0.48–0.80) | 0.077 |
+| | rep + useless | 0.00 | 1.00 | **0.97** (31/32; 0.84–0.99) | **0.138** |
+| | nonrep + useful | 0.81 | 0.20 | 0.25 (8/32; 0.13–0.42) | 0.073 |
+| | nonrep + useless | 0.00 | 0.07 | 0.31 (10/32; 0.18–0.49) | 0.072 |
+| Llama-3.2-3B-Instruct | rep + useful | 1.00 | 1.00 | 0.97 (31/32; 0.84–0.99) | 0.040 |
+| | rep + useless | 0.00 | 0.97 | 1.00 (32/32; 0.89–1.00) | 0.071 |
+| | nonrep + useful | 1.00 | 0.25 | 0.69 (22/32; 0.51–0.82) | 0.042 |
+| | nonrep + useless | 0.00 | 0.28 | 0.72 (23/32; 0.55–0.84) | 0.039 |
+| Phi-3.5-mini-instruct | rep + useful | 1.00 | 0.97 | 0.94 (30/32; 0.80–0.98) | 0.047 |
+| | rep + useless | 0.00 | 1.00 | 1.00 (32/32; 0.89–1.00) | 0.088 |
+| | nonrep + useful | 1.00 | 0.20 | 0.62 (20/32; 0.45–0.77) | 0.038 |
+| | nonrep + useless | 0.00 | 0.04 | 0.44 (14/32; 0.28–0.61) | 0.036 |
+
+**Correlations** (Pearson over the 128 context rows; bootstrap over facts):
+
+| model | corr(P_probe, U) | corr(P_probe, T) | corr(P_copy, U) | corr(P_copy, T) |
+|---|---|---|---|---|
+| Qwen2.5-7B-Instruct | **−0.18 [−0.31, −0.04]** | **+0.38 [+0.26, +0.50]** | +0.13 [+0.04, +0.23] | +0.52 [+0.47, +0.56] |
+| Llama-3.2-3B-Instruct | −0.04 [−0.14, +0.06] | +0.15 [+0.06, +0.25] | −0.00 [−0.11, +0.11] | +0.30 [+0.16, +0.41] |
+| Phi-3.5-mini-instruct | +0.07 [+0.00, +0.16] | +0.34 [+0.26, +0.42] | +0.07 [+0.01, +0.14] | +0.58 [+0.55, +0.62] |
+
+**Does poisonability follow usefulness or repetition?** Repetition, on all three models, with the
+flawed design's confounds removed. Along the repetition axis, planting a probe into a context
+that already repeats makes it reproduced far more often than planting it into length-matched
+distinct prose: +0.41/+0.66 (useful/useless) on Qwen, +0.28/+0.28 on Llama, +0.32/+0.56 on Phi.
+Along the usefulness axis, holding repetition fixed, usefulness never raises poisonability: the
+most poisonable cell on every model is **repeated gibberish** (U = 0, P_probe 0.97–1.00), and
+within the non-repetitive pair the useful and useless contexts are within each other's
+intervals. corr(P_probe, T) is positive with the interval clear of zero on all three;
+corr(P_probe, U) is zero or slightly negative. The ordering of T agrees: the repeated gibberish
+draws the most induction attention on every model (0.138 / 0.071 / 0.088 vs 0.04–0.08
+elsewhere). The reading "trust is about repetition, not meaning" survives the redesign; the
+quantitative dissociation is weaker than the first run's +0.71 vs +0.09, which was inflated by a
+copy-rate that is ≈1 by construction (the P_copy columns above reproduce that artifact:
+corr(P_copy, T) 0.30–0.58).
+
+**Caveats.** probe_k = 2 and greedy decoding put Llama-3.2-3B-Instruct near the ceiling (it
+reproduces a two-copy probe in 69–72% of *non-repetitive* contexts), which compresses its
+correlations; a run at probe_k = 1 or with sampled trials would separate its cells better. T
+differences are small in absolute terms (0.04–0.14), one seed, 32 facts, k = 8 only. The
+synthetic facts are the usefulness manipulation; U is 0.81–1.00 wherever the fact is present and
+0.00 wherever it is absent, as designed.
+
+## E5-scale v2 — RAG hijack with positive controls, three query styles, three instruct models (2026-11-04, RunPod L40S; plan item 2.3)
+
+`experiments/e5_scale.py` with the additions of iteration 4: three query styles (summarize /
+extract three details / open-ended), two **no-query positive controls on the same contexts**
+(raw: the documents as a bare prefix, no template; chat: the template with "Continue the
+documents."), per-trial occupancies stored. ~4000-token benign document dump, payload p = 3,
+8 trials per cell, greedy, 64-token answers. Same pod as 2.2, defaults unchanged:
+
+```
+python -m experiments.e5_scale --model <M> --context-tokens 4000 --device cuda --prefix results/e5_scale_v2_<tag> --snapshot trackC
+```
+
+Files: `data/trackC/e5_scale_v2_{qwen7b,llama3b,phi35mini}-instruct.{json,png}` (console copies
+truncated as in 2.2; numbers from the JSON). 5–8 min per model.
+
+**A. Placement** (k = 16, summarize query): mean occupancy **0.00** at every position 0, 0.25,
+0.5, 0.75, 1.0 on all three models; no trial with occupancy ≥ 0.5.
+
+**B/C. Repetition at the end, per query style, with the controls** — cell = mean occupancy
+(fraction of the 8 trials with occupancy ≥ ½):
+
+| model | k | summarize | extract | open | **raw continuation (control)** | chat "continue" (control) |
+|---|---|---|---|---|---|---|
+| Qwen2.5-7B-Instruct | 2 | 0.00 (0.00) | 0.01 (0.00) | 0.00 (0.00) | 0.38 (0.50) | 0.01 (0.00) |
+| | 4 | 0.01 (0.00) | 0.00 (0.00) | 0.00 (0.00) | 0.63 (0.88) | 0.00 (0.00) |
+| | 8 | 0.00 (0.00) | 0.00 (0.00) | 0.00 (0.00) | 0.70 (1.00) | 0.00 (0.00) |
+| | 16 | 0.00 (0.00) | 0.00 (0.00) | 0.00 (0.00) | 0.59 (0.88) | 0.00 (0.00) |
+| | 32 | 0.00 (0.00) | 0.00 (0.00) | 0.00 (0.00) | 0.68 (1.00) | 0.00 (0.00) |
+| Llama-3.2-3B-Instruct | 2 | 0.01 (0.00) | 0.00 (0.00) | 0.01 (0.00) | 0.44 (0.62) | 0.00 (0.00) |
+| | 4 | 0.01 (0.00) | 0.01 (0.00) | 0.01 (0.00) | 0.70 (1.00) | 0.00 (0.00) |
+| | 8 | 0.00 (0.00) | 0.00 (0.00) | 0.00 (0.00) | 0.69 (1.00) | 0.00 (0.00) |
+| | 16 | 0.00 (0.00) | 0.00 (0.00) | 0.01 (0.00) | 0.67 (1.00) | 0.09 (0.12) |
+| | 32 | 0.00 (0.00) | 0.00 (0.00) | 0.00 (0.00) | 0.65 (1.00) | 0.00 (0.00) |
+| Phi-3.5-mini-instruct | 2 | 0.01 (0.00) | 0.00 (0.00) | 0.00 (0.00) | 0.75 (0.75) | 0.01 (0.00) |
+| | 4 | 0.00 (0.00) | 0.00 (0.00) | 0.00 (0.00) | 1.00 (1.00) | 0.02 (0.00) |
+| | 8 | 0.00 (0.00) | 0.01 (0.00) | 0.00 (0.00) | 1.00 (1.00) | 0.25 (0.25) |
+| | 16 | 0.00 (0.00) | 0.00 (0.00) | 0.00 (0.00) | 1.00 (1.00) | 0.12 (0.12) |
+| | 32 | 0.00 (0.00) | 0.01 (0.00) | 0.02 (0.00) | 1.00 (1.00) | 0.01 (0.00) |
+
+(k = 1 rows are 0.00–0.01 everywhere including the controls.) Largest single-trial occupancy in
+any query cell: 0.095 (Qwen), 0.047 (Llama), 0.078 (Phi). `control_ok = true` for all three.
+
+**Is the null a harness artifact?** No. The same contexts, fed as a bare prefix with no chat
+template, are hijacked on every model from k = 2 upward (mean occupancy 0.6–1.0, 88–100% of
+trials at k ≥ 4), so the payloads lock in and the occupancy metric sees it. Under the chat
+template with any of the three task queries, occupancy is 0.00–0.02 with **no trial above
+0.10**, at every k up to 32 and every placement. The bound on C5 from 2026-07-02 stands and is
+now interpretable: *a chat-templated task query defuses raw-repetition hijack on three instruct
+families; the copy tendency is intact underneath (raw control).* The answer-corruption rate
+(trials with occupancy ≥ ½) is 0/8 in all 45 query cells.
+
+**A new observation from the chat control.** The chat template with the instruction "Continue
+the documents." — no task, an explicit invitation to copy — also does not hijack (0.00–0.09 on
+Qwen/Llama; Phi reaches 0.25 at k = 8, 2 of 8 trials). So it is not only the task query that
+defuses: the chat-template framing itself moves generation out of the raw-continuation regime.
+That sharpens the defensive reading (the residual RAG threat is semantic injection, not
+repetition) and the mechanistic one (the lock-in seen in E1.4 is a property of raw continuation).
+
+**Caveats.** 8 trials per cell (a zero-of-8 cell has Wilson upper bound 0.32 on the
+*hijacked* fraction, though the per-trial occupancies are all < 0.10, which is the stronger
+statement); greedy; p = 3; benign OOD payloads; 4k context only; one seed.
