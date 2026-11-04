@@ -3,7 +3,7 @@
 # pod as its start command (deploy/runpod_pod.py creates the pod with this as dockerArgs via
 # a git clone). Everything is driven by env:
 #
-#   TCC_JOB             diag | smoke | p1 | e4e5 | followup | followup2   (see run_job below)
+#   TCC_JOB             diag | smoke | p1 | e4e5 | followup | followup2 | followup3   (see run_job below)
 #   TCC_BRANCH          code branch to run         (the clone is made by the start command)
 #   TCC_RESULTS_BRANCH  branch to push results to  (created here from TCC_BRANCH)
 #   TCC_MAX_HOURS       watchdog: terminate the pod after this many hours no matter what
@@ -147,6 +147,20 @@ PY
         run_one "e6B_1hop_reps$reps" -m experiments.e6_scale --part B --cross-hops 1 --host0-reps "$reps" \
           --trials 30 --device cuda --prefix "results/e6B_1hop_reps$reps" --snapshot trackC
       done
+      ;;
+    followup3)
+      # advisor items (2026-11-05), see POD_FOLLOWUP3_BRIEF.md:
+      #  (e) E5 with the rawpad control (documents + length-matched filler, no query, no template) on the
+      #      three instruct models -- separates task-following from the recency gate. raw is included so
+      #      control_ok stays meaningful; chat/rawq are already measured on these identical contexts (same seed).
+      #  (f) E4-scale v2 on Llama-3.2-3B-Instruct at --probe-k 1 (the probe_k=2 run was at the ceiling).
+      for m in ${E4E5_MODELS:-Qwen/Qwen2.5-7B-Instruct meta-llama/Llama-3.2-3B-Instruct microsoft/Phi-3.5-mini-instruct}; do
+        tag=$(echo "$m" | sed 's#.*/##; s/Qwen2.5-7B-Instruct/qwen7b-instruct/; s/Llama-3.2-3B-Instruct/llama3b-instruct/; s/Phi-3.5-mini-instruct/phi35mini-instruct/')
+        run_one "e5_scale_v2_rawpad_$tag" -m experiments.e5_scale --model "$m" --context-tokens 4000 --device cuda \
+          --controls raw rawpad --prefix "results/e5_scale_v2_rawpad_$tag" --snapshot trackC
+      done
+      run_one "e4_scale_v2_pk1_llama3b-instruct" -m experiments.e4_scale --model meta-llama/Llama-3.2-3B-Instruct \
+        --probe-k 1 --device cuda --prefix "results/e4_scale_v2_pk1_llama3b-instruct" --snapshot trackC
       ;;
     followup2)
       # advisor items (2026-11-04): (c) Qwen2.5-3B BASE in serial passage -- if it locks like the 7B, the

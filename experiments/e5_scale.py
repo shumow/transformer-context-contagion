@@ -65,7 +65,35 @@ CONTINUE_INSTRUCTION = "Continue the documents."
 # rawq  : the SAME user message as the experimental condition (documents + task query) but with
 #         NO chat template -- separates "the template defuses" from "the query defuses"
 #         (added 2026-11-04 after the v2 result that the chat control also did not hijack)
-CONTROLS = ("raw", "chat", "rawq")
+# rawpad: the raw documents followed by FILLER of exactly the token length of the query tail
+#         ("\n\nQuestion: <query>") -- no question, no template. Two fillers per query style:
+#         rawpad_<q>    benign prose (distinct sentences not used in the dump)
+#         rawpadtok_<q> neutral random tokens, as in E1.5's gap test
+#         Separates "the model follows the task" from "the payload is no longer the last thing
+#         in context" (the recency gate). If rawpad hijacks like raw, the query does semantic
+#         work; if it does not, the C5 bound is the recency gate restated. (added 2026-11-05)
+CONTROLS = ("raw", "chat", "rawq", "rawpad")
+QUERY_TAIL = "\n\nQuestion: "
+
+
+def query_tail_ids(tok, query):
+    """Token ids of what rawq appends after the documents: the question line."""
+    return tok.encode(QUERY_TAIL + query)
+
+
+def prose_pad_ids(tok, n_tokens, rng, exclude_sentences=()):
+    """Exactly `n_tokens` ids of benign prose (leading blank line, then distinct sentences drawn
+    without replacement from tcc.corpus.SENTENCES minus `exclude_sentences`), truncated at the
+    token level so the length matches the query tail exactly."""
+    from tcc import corpus
+    bank = [s for s in corpus.SENTENCES if s not in set(exclude_sentences)]
+    order = [bank[i] for i in rng.permutation(len(bank))]
+    ids, i = list(tok.encode("\n\n")), 0
+    while len(ids) < n_tokens and i < len(order):
+        ids += tok.encode(" " + order[i]); i += 1
+    if len(ids) < n_tokens:
+        raise ValueError(f"prose bank too small for a {n_tokens}-token pad")
+    return ids[:n_tokens]
 
 
 def user_message(documents, query):
@@ -142,6 +170,14 @@ class ChatLM:
         ids = torch.tensor([self.tok.encode(user_message(documents, query))], device=self.device)
         return self._generate(ids, max_new)
 
+    def continue_rawpad_ids(self, documents, pad_ids, max_new=64):
+        """Control (rawpad): the raw documents followed by `pad_ids` (filler of the query tail's
+        token length), no question, no template. Token-level concatenation so the pad length
+        is exact."""
+        torch = self._torch
+        ids = torch.tensor([self.tok.encode(documents) + list(pad_ids)], device=self.device)
+        return self._generate(ids, max_new)
+
 
 def cell(vals):
     """Per-cell record: mean occupancy, fraction of trials hijacked (occupancy >= 1/2), and the
@@ -155,12 +191,19 @@ def cell(vals):
 def run(lm, args):
     rng = np.random.default_rng(args.seed)
     pool = payloads.short_token_pool(lm.tok)
-    control_keys = [c for c in args.controls if c != "rawq"] + \
-                   ([f"rawq_{q}" for q in args.queries] if "rawq" in args.controls else [])
+    control_keys = [c for c in args.controls if c not in ("rawq", "rawpad")] + \
+                   ([f"rawq_{q}" for q in args.queries] if "rawq" in args.controls else []) + \
+                   ([f"rawpad_{q}" for q in args.queries] + [f"rawpadtok_{q}" for q in args.queries]
+                    if "rawpad" in args.controls else [])
     out = {"placement": {}, "repetition": {q: {} for q in args.queries},
            "control": {c: {} for c in control_keys}, "context_tokens": args.context_tokens,
            "queries": {q: QUERIES[q] for q in args.queries}}
     q0 = args.queries[0]
+    # rawpad: one prose pad per query style (fixed across trials), length = that query's tail
+    pad_len = {q: len(query_tail_ids(lm.tok, QUERIES[q])) for q in args.queries}
+    prose_pad = ({q: prose_pad_ids(lm.tok, pad_len[q], rng, exclude_sentences=SENTENCES) for q in args.queries}
+                 if "rawpad" in args.controls else {})
+    out["rawpad_len"] = pad_len
 
     def fresh_payload():
         S = payloads.sample_payloads(pool, args.payload_len, 1, rng, tokenizer=lm.tok)[0]
@@ -196,6 +239,11 @@ def run(lm, args):
             if "rawq" in args.controls:
                 for q in args.queries:
                     ctl[f"rawq_{q}"].append(occupancy(lm.answer_raw_query_ids(docs, QUERIES[q]), alpha))
+            if "rawpad" in args.controls:
+                for q in args.queries:
+                    ctl[f"rawpad_{q}"].append(occupancy(lm.continue_rawpad_ids(docs, prose_pad[q]), alpha))
+                    tok_pad = payloads.filler_tokens(pool, pad_len[q], S, rng)     # E1.5-style neutral tokens
+                    ctl[f"rawpadtok_{q}"].append(occupancy(lm.continue_rawpad_ids(docs, tok_pad), alpha))
         for q in args.queries:
             out["repetition"][q][str(k)] = cell(hj[q])
         for c in control_keys:
@@ -236,9 +284,23 @@ def selftest():
     for q, text in QUERIES.items():
         assert text in user_message("DOCS", text)
     assert "Question:" not in continue_message("DOCS") and CONTINUE_INSTRUCTION in continue_message("DOCS")
-    assert set(CONTROLS) == {"raw", "chat", "rawq"}
+    assert set(CONTROLS) == {"raw", "chat", "rawq", "rawpad"}
     # the rawq control must use the experimental message verbatim (only the template differs)
     assert user_message("DOCS", QUERIES["summarize"]).startswith("You are given retrieved documents.")
+    # rawpad: the pad is exactly the query tail's token length, prose, and shares no sentence
+    # with the document dump; the token pad excludes the payload
+    class Tok2:
+        def encode(self, s, add_special_tokens=False): return s.split()
+    t2 = Tok2()
+    for q in QUERIES:
+        L = len(query_tail_ids(t2, QUERIES[q]))
+        assert L == len(("Question: " + QUERIES[q]).split()), (q, L)
+        pad = prose_pad_ids(t2, L, np.random.default_rng(0), exclude_sentences=SENTENCES)
+        assert len(pad) == L, (q, len(pad), L)
+        assert not any(" ".join(pad).find(s) >= 0 for s in SENTENCES)
+    from tcc import payloads as _pl
+    tp = _pl.filler_tokens(list(range(100, 200)), 12, exclude=[150, 151], rng=np.random.default_rng(1))
+    assert len(tp) == 12 and not ({150, 151} & set(tp))
     print("selftest: long-context construction (placement) + occupancy + cell + prompts OK")
 
 
@@ -254,8 +316,9 @@ def main():
     ap.add_argument("--queries", nargs="+", default=["summarize", "extract", "open"],
                     choices=list(QUERIES), help="query styles for the repetition sweep (first is used for placement)")
     ap.add_argument("--controls", nargs="*", default=["raw", "chat"], choices=list(CONTROLS),
-                    help="controls run on the same contexts: raw, chat (defaults, as in the 2026-11-04 v2 run) "
-                         "and rawq (documents + query with no template; pass all three to separate template from query)")
+                    help="controls run on the same contexts: raw, chat (defaults, as in the 2026-11-04 v2 run); "
+                         "rawq (documents + query, no template: template vs query); rawpad (documents + "
+                         "length-matched filler, no query: task-following vs the recency gate)")
     ap.add_argument("--dtype", default="bfloat16")
     ap.add_argument("--device", default="cuda")
     ap.add_argument("--seed", type=int, default=7)
