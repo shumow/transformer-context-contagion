@@ -84,3 +84,20 @@ wrote results/e6A_hiN_qwen3b_s8.png
 [snapshot] next: git add data/trackC && git commit -m 'Snapshot trackC results'
 [2026-11-04T21:59:27Z] <<< e6A_hiN_qwen3b_s8 exit=0
 [2026-11-04T21:59:27Z] >>> e6A_hiN_qwen3b_s9 :: -m experiments.e6_scale --part A --serial-models Qwen/Qwen2.5-3B --seed 9 --trials 20 --device cuda --prefix results/e6A_hiN_qwen3b_s9 --snapshot trackC
+`torch_dtype` is deprecated! Use `dtype` instead!
+
+=== A. serial passage at scale (sweep payload length) ===
+--- Qwen/Qwen2.5-3B ---
+Loading checkpoint shards:   0%|          | 0/2 [00:00<?, ?it/s]Loading checkpoint shards: 100%|██████████| 2/2 [00:00<00:00, 73.21it/s]
+  p= 1  3.4 -> 1.1 -> 1.0 -> 0.3 -> 0.3 -> 0.5 -> 1.0   survive(last)=25%
+  p= 2  32.1 -> 23.6 -> 22.0 -> 19.9 -> 20.1 -> 18.7 -> 14.2   survive(last)=40%
+  p= 3  23.6 -> 19.2 -> 17.7 -> 16.1 -> 14.4 -> 14.4 -> 12.8   survive(last)=45%
+  p= 5  14.0 -> 10.8 -> 7.6 -> 6.3 -> 6.6 -> 6.7 -> 6.3   survive(last)=35%
+  p= 8  11.4 -> 8.4 -> 6.8 -> 5.8 -> 4.2 -> 4.2 -> 3.5   survive(last)=35%
+
+wrote results/e6A_hiN_qwen3b_s9.json  [1116s]
+wrote results/e6A_hiN_qwen3b_s9.png
+[snapshot] copied 3 file(s) to data/trackC/: e6A_hiN_qwen3b_s9.console.log, e6A_hiN_qwen3b_s9.json, e6A_hiN_qwen3b_s9.png
+[snapshot] next: git add data/trackC && git commit -m 'Snapshot trackC results'
+[2026-11-04T22:18:06Z] <<< e6A_hiN_qwen3b_s9 exit=0
+[2026-11-04T22:18:06Z] >>> e5_scale_v2_rawq_qwen7b-instruct :: -m experiments.e5_scale --model Qwen/Qwen2.5-7B-Instruct --context-tokens 4000 --device cuda --controls raw chat rawq --prefix results/e5_scale_v2_rawq_qwen7b-instruct --snapshot trackC
