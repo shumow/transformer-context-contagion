@@ -65,3 +65,13 @@ device=cuda  seeds=[7 8 9] trials_A=20  reps_sweep=[8 16 32] trials_B=30
 [04:48:34] >>> e6B_reps16  ::  --part B --host0-reps 16 --trials 30
 [05:47:36] <<< e6B_reps16 OK  -> results/e6B_reps16.json
 [05:47:36] >>> e6B_reps32  ::  --part B --host0-reps 32 --trials 30
+[06:47:18] <<< e6B_reps32 OK  -> results/e6B_reps32.json
+=================== Track C / P1 DONE  (Wed Nov  4 06:47:18 UTC 2026) ===================
+results: results/e6A_hiN_s*.json  results/e6B_reps*.json  (+ matching .log/.png)
+         also copied to data/trackC/ -- commit that directory:  git add data/trackC && git commit && git push
+
+If the push did not happen, fetch them from your Mac before tearing the pod down, e.g.:
+  POD=root@<ip> PORT=<port> KEY=~/.ssh/<key> RREPO=/workspace/tcc \
+    PATTERNS="e6A_hiN_s7 e6A_hiN_s8 e6A_hiN_s9 e6B_reps8 e6B_reps16 e6B_reps32 " \
+    deploy/fetch_results.sh
+[2026-11-04T06:47:18Z] job body finished after 441 min
