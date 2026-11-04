@@ -36,8 +36,10 @@ The original Track A/B runs' JSON/PNG/log files were found still present in the 
 | `trackA/e1_1_gpt2.json`, `e1_2_gpt2.json`, `e1_3.json`, `e1_5_gpt2.json`, `e2_gpt2.json`, `e4_trust.json`, `e5_hijack.json`, `e6_worm.json`, `e7_detector.json`, `e8_substitution.json` (+ their PNGs and `*_run.log`) | **raw**, recovered 2026-11-03 from `results/`; original local GPT-2-small / Pythia-160m runs, 2026-06-25–29 |
 | `trackA/e6_worm.json` | raw E6 worm; **supersedes** `trackA/e6_worm_transcribed.json` (transcription kept per convention, now superseded by this raw file) |
 | `trackA/e1_greedy_gpt2.json` (+ `e1_greedy_*.png`, `e1_knee.png`) | raw GPT-2 greedy-decoding companion run to E1.1; recovered 2026-11-03; was not on the missing list below but preserved as raw output |
-| `trackB/e1_3_trackb_t4.json` (+ PNG), `e1_3_llama_t4.json`, `e2_gpt2-xl.json`, `e2_EleutherAI_pythia-1.4b.json`, `e2_EleutherAI_pythia-2.8b.json`, `e2_EleutherAI_pythia-6.9b.json`, `e2_Qwen_Qwen2.5-7B.json`, `e8_capstone.json` | **raw**, recovered 2026-11-03 from `results/`; T4/L40S cloud runs scp'd to the Mac, 2026-06-30–07-02 |
-| `trackB/e1_3_trackb_t4.json` | raw E1.3 scale-knee run; **partially supersedes** `trackB/e1_3_e1_4_knees_transcribed.json` (the E1.3 half only — E1.4 raw is still missing, so the transcription is kept) |
+| `trackB/e1_3_trackb_t4.json` (+ PNG), `e2_gpt2-xl.json`, `e2_EleutherAI_pythia-2.8b.json`, `e2_EleutherAI_pythia-6.9b.json`, `e2_Qwen_Qwen2.5-7B.json`, `e8_capstone.json` | **raw**, recovered 2026-11-03 from `results/`; T4/L40S cloud runs scp'd to the Mac, 2026-06-30–07-02. Verified 2026-11-04 against the log tables: every E2 cell and every E1.3 knee agree (one 2.25 vs 2.3 rounding). |
+| `trackB/e1_3_trackb_t4.json` | raw E1.3 scale-knee run for the **ten ungated models only**; **partially supersedes** `trackB/e1_3_e1_4_knees_transcribed.json` (those ten rows — the Llama-3.2 rows and all of E1.4 remain transcription-only, so the file is kept). Stores knees only, not per-N curves (the script did not retain them until 2026-11-03). |
+| `trackB/e1_3_llama_t4.json` | **NOT raw support for the Llama rows.** This is the *failed* Llama attempt: both models errored with a gated-repo 401 (`HF_HUB_OFFLINE` was not set). The successful offline rerun that produced the logged Llama-3.2-1B/3B knees was a separate file that was not recovered. Kept as a record of the failure; the Llama knees stay "from run log, raw data lost". |
+| `trackB/e2_EleutherAI_pythia-1.4b.json` | **raw for the first (T4, fixed 8-head) Pythia-1.4B E2 run only** (`k_heads=8`, `k_frac=null`, p=3 N=2: −80% / random −2%, matching the 2026-07-01 entry). The **C2-tidy rerun at `--k-frac 0.05` (19/384 heads, −88%)** that the E2-at-scale table and paper `tab:e2scale` report overwrote this filename on the pod and was not recovered; that row stays "from run log, raw data lost". |
 
 **Note on `trackA/e7_detector.json`:** the E7 rerun (2026-11-03, Task 2) writes to this same
 filename, so `trackA/e7_detector.json` (+ `.png`) now holds the **32-negative rerun**, not the
@@ -61,8 +63,12 @@ trajectories** (`runs`); `trackA/analysis_e6_r0_gpt2.json` is its R0/survival-CI
 recovered June run is preserved as `trackA/e6_worm_2026-06-26.json` (+ dated PNGs); this raw run
 also still supersedes `trackA/e6_worm_transcribed.json` (kept). See `results_log.md`, "E6 rerun".
 
-## Still missing (raw data lost unless recovered from the Azure disk)
+## Still missing (raw data lost unless recovered from a cloud disk)
 Track A: none — all recovered 2026-11-03 (see above).
-Track B: `e1_4` only (searched the dev Mac 2026-11-03, not found; its numbers remain in
-`trackB/e1_3_e1_4_knees_transcribed.json`, "from run log, raw data lost"). If it survives on the
-Azure VM disk, commit it here unmodified.
+Track B, three files (searched the dev Mac 2026-11-03, not found):
+- `e1_4.json` — the instruct-model knee sweep (Azure T4 VM disk, if it still exists);
+- the successful Llama-3.2 E1.3 run (Azure T4 VM disk) — the recovered `e1_3_llama_t4.json` is the failed attempt;
+- `e2_EleutherAI_pythia-1.4b.json` at `--k-frac 0.05` (RunPod pod `/workspace`, if the volume persisted) — the recovered file is the earlier 8-head run.
+Their numbers remain in `trackB/e1_3_e1_4_knees_transcribed.json` and the log tables, marked
+"from run log, raw data lost". If any survives, fetch with `deploy/fetch_results.sh` and commit
+unmodified.
