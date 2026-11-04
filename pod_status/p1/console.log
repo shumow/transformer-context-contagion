@@ -63,3 +63,5 @@ device=cuda  seeds=[7 8 9] trials_A=20  reps_sweep=[8 16 32] trials_B=30
 [03:48:19] >>> e6B_reps8  ::  --part B --host0-reps 8 --trials 30
 [04:48:34] <<< e6B_reps8 OK  -> results/e6B_reps8.json
 [04:48:34] >>> e6B_reps16  ::  --part B --host0-reps 16 --trials 30
+[05:47:36] <<< e6B_reps16 OK  -> results/e6B_reps16.json
+[05:47:36] >>> e6B_reps32  ::  --part B --host0-reps 32 --trials 30
