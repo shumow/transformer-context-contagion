@@ -1149,7 +1149,9 @@ repetition loop; everything that does not lock decays by ≈0.6–0.9× per hop 
 
 **Verdict on "the worm gets worse at scale".** With 60 trials the only model that locks in a
 large fraction of chains is the Qwen2.5-7B **base** model (0.30–0.50 for p = 2–8, intervals clear
-of every other model's). Pythia-2.8B and Llama-3.2-3B lock in 0–0.20, and — the change from the
+of every other model's). **Its survival is flat in p** — 0.47, 0.30, 0.42, 0.50 from p = 2 to 8,
+every pair within the others' intervals — so there is no critical length in the one model that
+transmits at all: the toy's "R0 falls with payload length" is not weakened here, it is absent. Pythia-2.8B and Llama-3.2-3B lock in 0–0.20, and — the change from the
 5-trial run — **Qwen2.5-7B-Instruct locks in only 0.08–0.13**, indistinguishable from the 3B
 base models. The earlier sentence "the instruct model transmits it too (20–40%)" was the top of
 a 5-trial interval. The defensible statement is: *one 7B base model (Qwen2.5-7B) falls into a
@@ -1197,14 +1199,26 @@ host0-reps = 32:
 | 16 | 3.86 | 4.13 | 0.94 (0.54–1.45) | 0 / 5 | 0.594 | 2.9 / 3.1 / **5.5** / 3.4 / 5.5 |
 | 32 | 3.99 | 4.69 | 0.85 (0.55–1.22) | 1 / 5 | 0.654 | 2.3 / 3.6 / **8.2** / 3.3 / 5.4 |
 
-**Verdict on the firebreak.** At three hops there is **no same-tokenizer advantage at any seeding
-strength**: the diagonal/off-diagonal ratio is below 1 at 8, 16 and 32 copies, every bootstrap
-interval spans 1, the diagonal is the row maximum in 0–1 of 5 rows, and the permutation p is
-≈0.6 each time. What the matrices do show is a **host effect**: the Qwen2.5-0.5B column is the
+**Verdict on the firebreak.** At three hops the test finds no same-tokenizer advantage at any
+seeding strength: the diagonal/off-diagonal ratio is below 1 at 8, 16 and 32 copies, every
+bootstrap interval spans 1, the diagonal is the row maximum in 0–1 of 5 rows, and the
+permutation p is ≈0.6 each time. **But the honest summary is that three hops on 0.5–2B hosts is
+below the floor where a firebreak could show.** Only 10%, 17% and 18% of chains (8/16/32 copies)
+are still alive at hop 3 in the whole matrix, the same fraction on the diagonal (0.10, 0.16,
+0.17) as off it (0.10, 0.17, 0.18); mean loads of 2–8 out of a possible 32 are averages over
+mostly-extinct chains, and the bootstrap ratio intervals are half a unit wide. The design can
+rule out a *large* same-tokenizer advantage at 3 hops; it cannot see a modest one. The one
+configuration in which an effect was measured (1 hop) is rerun at n = 30 in the follow-up
+below. What the matrices do show is a **host effect**: the Qwen2.5-0.5B column is the
 largest in every sweep (8.2 vs 2.3–5.4 at 32 copies), i.e. gemma→qwen (9.6) and pythia→qwen
-(10.1) transmit far better than gemma→gemma (0.7) or pythia→pythia (3.8). Which model *hosts* the
-hop matters; whether its tokenizer matches the payload's does not, once the payload has passed
-through more than one host. The only configuration in which a same-tokenizer advantage has been
+(10.1) transmit far better than gemma→gemma (0.7) or pythia→pythia (3.8); by chains alive at
+hop 3, the Qwen host keeps 0.31 vs 0.09–0.21 for the other four. Which model *hosts* the hop
+matters; whether its tokenizer matches the payload's does not, once the payload has passed
+through more than one host. Read together with Part A — where the Qwen2.5-7B *base* model is
+the only one that locks in 30–50% of chains — this is one pattern, not two: **Qwen2.5 base
+models fall into repetition loops more readily than Pythia, Llama, Gemma or GPT-2.** That makes
+the scale-vs-family confound named above more likely family; Qwen2.5-3B base in the same
+protocol (follow-up) decides it. The only configuration in which a same-tokenizer advantage has been
 measured remains the 2026-07-02 run at **1 hop** with 32 copies (ratio 1.6, p = 0.004). The
 "partial firebreak" should therefore be stated as a one-hop attenuation and withdrawn as a
 multi-hop claim; plan item 2.4 (the firebreak matrix at ≥ 7B per family) is not triggered by
@@ -1273,10 +1287,19 @@ within the non-repetitive pair the useful and useless contexts are within each o
 intervals. corr(P_probe, T) is positive with the interval clear of zero on all three;
 corr(P_probe, U) is zero or slightly negative. The ordering of T agrees: the repeated gibberish
 draws the most induction attention on every model (0.138 / 0.071 / 0.088 vs 0.04–0.08
-elsewhere). The reading "trust is about repetition, not meaning" survives the redesign; the
-quantitative dissociation is weaker than the first run's +0.71 vs +0.09, which was inflated by a
-copy-rate that is ≈1 by construction (the P_copy columns above reproduce that artifact:
-corr(P_copy, T) 0.30–0.58).
+elsewhere). The quantitative dissociation is weaker than the first run's +0.71 vs +0.09, which was
+inflated by a copy-rate that is ≈1 by construction (the P_copy columns above reproduce that
+artifact: corr(P_copy, T) 0.30–0.58).
+
+**What the measurement is, said plainly.** In the repetitive cells the probe is planted after
+eight copies of a span, so the model is already in a repetition regime and continues whatever
+comes last; in the non-repetitive cells the useful and useless contexts barely differ
+(0.25 vs 0.31, 0.69 vs 0.72, 0.62 vs 0.44). The result is therefore *"a context that has put
+the model into repetition mode makes any trailing span reproduced, and whether the context is
+useful has no bearing on that"* — the E6 degeneration mechanism seen from the poisoning side,
+with T acting as a proxy for how repetitive the context is rather than as an independently
+measured "trust". That is the sentence the paper should carry; "trust" as the explanatory
+variable is a label for the repetition axis, not something this design measures separately.
 
 **Caveats.** probe_k = 2 and greedy decoding put Llama-3.2-3B-Instruct near the ceiling (it
 reproduces a two-copy probe in 69–72% of *non-repetitive* contexts), which compresses its

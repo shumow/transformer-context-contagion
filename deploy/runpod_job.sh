@@ -3,7 +3,7 @@
 # pod as its start command (deploy/runpod_pod.py creates the pod with this as dockerArgs via
 # a git clone). Everything is driven by env:
 #
-#   TCC_JOB             diag | smoke | p1 | e4e5 | followup   (what to run; see run_job below)
+#   TCC_JOB             diag | smoke | p1 | e4e5 | followup | followup2   (see run_job below)
 #   TCC_BRANCH          code branch to run         (the clone is made by the start command)
 #   TCC_RESULTS_BRANCH  branch to push results to  (created here from TCC_BRANCH)
 #   TCC_MAX_HOURS       watchdog: terminate the pod after this many hours no matter what
@@ -146,6 +146,20 @@ PY
       for reps in ${REPS_SWEEP:-8 16 32}; do
         run_one "e6B_1hop_reps$reps" -m experiments.e6_scale --part B --cross-hops 1 --host0-reps "$reps" \
           --trials 30 --device cuda --prefix "results/e6B_1hop_reps$reps" --snapshot trackC
+      done
+      ;;
+    followup2)
+      # advisor items (2026-11-04): (c) Qwen2.5-3B BASE in serial passage -- if it locks like the 7B, the
+      # "worse at scale" pattern is a Qwen-family trait; (d) E5 with the rawq control (documents + query,
+      # no template) to separate "the template defuses" from "the query defuses". Same seeds/contexts as v2.
+      for s in ${SEEDS:-7 8 9}; do
+        run_one "e6A_hiN_qwen3b_s$s" -m experiments.e6_scale --part A --serial-models Qwen/Qwen2.5-3B \
+          --seed "$s" --trials 20 --device cuda --prefix "results/e6A_hiN_qwen3b_s$s" --snapshot trackC
+      done
+      for m in ${E4E5_MODELS:-Qwen/Qwen2.5-7B-Instruct meta-llama/Llama-3.2-3B-Instruct microsoft/Phi-3.5-mini-instruct}; do
+        tag=$(echo "$m" | sed 's#.*/##; s/Qwen2.5-7B-Instruct/qwen7b-instruct/; s/Llama-3.2-3B-Instruct/llama3b-instruct/; s/Phi-3.5-mini-instruct/phi35mini-instruct/')
+        run_one "e5_scale_v2_rawq_$tag" -m experiments.e5_scale --model "$m" --context-tokens 4000 --device cuda \
+          --controls raw chat rawq --prefix "results/e5_scale_v2_rawq_$tag" --snapshot trackC
       done
       ;;
     e4e5)
