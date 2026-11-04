@@ -3,7 +3,7 @@
 # pod as its start command (deploy/runpod_pod.py creates the pod with this as dockerArgs via
 # a git clone). Everything is driven by env:
 #
-#   TCC_JOB             diag | smoke | p1 | e4e5   (what to run; see run_job below)
+#   TCC_JOB             diag | smoke | p1 | e4e5 | followup   (what to run; see run_job below)
 #   TCC_BRANCH          code branch to run         (the clone is made by the start command)
 #   TCC_RESULTS_BRANCH  branch to push results to  (created here from TCC_BRANCH)
 #   TCC_MAX_HOURS       watchdog: terminate the pod after this many hours no matter what
@@ -131,6 +131,22 @@ PY
     p1)
       # plan item 2.1: E6 at power (3 seeds x 20 trials Part A; seeding sweep x 30 trials Part B)
       deploy/run_trackC_p1.sh
+      ;;
+    followup)
+      # two follow-ups raised by the 2.1 results (2026-11-04):
+      #  (a) a second 7B BASE family in serial passage, to separate scale from family: the only model that
+      #      locked at 30-50% in 2.1 was also the only Qwen base model. Same protocol as Part A of
+      #      run_trackC_p1.sh (hops 6, host0-reps 16, T 96, T=1.0, 20 trials x seeds 7 8 9).
+      #  (b) the firebreak matrix at 1 HOP, the only configuration where a same-tokenizer advantage has
+      #      ever been measured (2026-07-02, 8 trials), at the same n and seeding sweep as the 3-hop run.
+      for s in ${SEEDS:-7 8 9}; do
+        run_one "e6A_hiN_pythia69b_s$s" -m experiments.e6_scale --part A --serial-models EleutherAI/pythia-6.9b \
+          --seed "$s" --trials 20 --device cuda --prefix "results/e6A_hiN_pythia69b_s$s" --snapshot trackC
+      done
+      for reps in ${REPS_SWEEP:-8 16 32}; do
+        run_one "e6B_1hop_reps$reps" -m experiments.e6_scale --part B --cross-hops 1 --host0-reps "$reps" \
+          --trials 30 --device cuda --prefix "results/e6B_1hop_reps$reps" --snapshot trackC
+      done
       ;;
     e4e5)
       # plan items 2.2 and 2.3 on both instruct families; new prefixes so the 2026-07-02 files stay.
