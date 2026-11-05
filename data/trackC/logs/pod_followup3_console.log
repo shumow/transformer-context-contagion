@@ -1,0 +1,137 @@
+[2026-11-05T00:28:32Z] === job=followup3 code=claude/fervent-ritchie-l5m9uw-iter9-followups results=claude/fervent-ritchie-l5m9uw-iter9-pod-followup3 max_hours=2.0 pod=dzzvaeg7estzuh ===
+name, memory.total [MiB], driver_version
+NVIDIA L40S, 46068 MiB, 595.91.07
+[2026-11-05T00:28:32Z] bootstrap
+==> GPU / driver
+name, memory.total [MiB], driver_version
+NVIDIA L40S, 46068 MiB, 595.91.07
+==> base packages (git, python venv/pip)
+debconf: delaying package configuration, since apt-utils is not installed
+==> clone https://github.com/shumow/transformer-context-contagion.git -> /workspace/tcc
+==> venv + CUDA torch (index: https://download.pytorch.org/whl/cu121)
+==> sanity: can torch see the GPU?
+CUDA: True | NVIDIA L40S | torch 2.5.1+cu121
+==> PREDOWNLOAD=0 -- models will be fetched on demand by from_pretrained
+
+Ready.  cd /workspace/tcc && . .venv/bin/activate
+  E1.3 size sweep (355M-7B):
+    python -m experiments.e1_3_size_sweep --models gpt2-xl Qwen/Qwen2.5-7B \
+        --lengths 1 3 5 8 --reps 1 2 4 8 16 32 --device cuda --dtype float16
+  E2 induction attribution (a >=24GB GPU handles 7B; checkpoints per cell + resumes):
+    python -m experiments.e2_induction --model Qwen/Qwen2.5-7B --device cuda \
+        --lengths 1 3 5 --reps 2 3 4 8 16 --payloads 4 --k-heads 8
+  For long runs, detach:  nohup python -m experiments.e2_induction ... > run.log 2>&1 &
+
+  COST: specialist GPU clouds bill for as long as the box exists and there is NO
+  idle auto-deallocate here -- TERMINATE the instance when you're done.
+  test_knee_interpolates: OK
+  test_noise_is_low: OK
+  test_order_two_payload: OK
+  test_payload_constructors: OK
+  test_perfect_reproduction: OK
+  test_phase_shift_is_robust: OK
+  test_single_slip: OK
+all 7 tests passed
+  test_benign_repetitive_really_repeats: OK
+  test_clean_paragraphs_count_and_no_repeats: OK
+  test_prose_of_length_matches_and_does_not_repeat: OK
+  test_prose_of_length_refuses_impossible_target: OK
+  test_sentence_bank_is_distinct_and_sized: OK
+all 5 tests passed
+  test_add_args_and_arm: OK
+  test_copy_outputs_copies_prefix_matches_only: OK
+  test_copy_outputs_no_track_is_noop: OK
+  test_copy_outputs_nothing_matching: OK
+all 4 tests passed
+selftest: count_payload + passage_chain plumbing OK; ks(sustain)= [5, 5, 5, 5]
+selftest: 32 facts, 2x2 construction (distinct, length-matched), answer matching, correlation + bootstrap OK
+selftest: long-context construction (placement) + occupancy + cell + prompts OK
+remote:      https://github.com/shumow/transformer-context-contagion/pull/new/claude/fervent-ritchie-l5m9uw-iter9-pod-followup3        
+remote: 
+[2026-11-05T00:30:14Z] >>> e5_scale_v2_rawpad_qwen7b-instruct :: -m experiments.e5_scale --model Qwen/Qwen2.5-7B-Instruct --context-tokens 4000 --device cuda --controls raw chat rawq rawpad --prefix results/e5_scale_v2_rawpad_qwen7b-instruct --snapshot trackC
+`torch_dtype` is deprecated! Use `dtype` instead!
+Fetching 4 files:   0%|          | 0/4 [00:00<?, ?it/s]Fetching 4 files:  25%|██▌       | 1/4 [00:09<00:29,  9.79s/it]Fetching 4 files:  50%|█████     | 2/4 [00:15<00:15,  7.60s/it]Fetching 4 files:  75%|███████▌  | 3/4 [00:18<00:06,  6.26s/it]Fetching 4 files: 100%|██████████| 4/4 [00:20<00:00,  5.06s/it]Fetching 4 files: 100%|██████████| 4/4 [00:20<00:00,  5.06s/it]
+Loading checkpoint shards:   0%|          | 0/4 [00:00<?, ?it/s]Loading checkpoint shards: 100%|██████████| 4/4 [00:00<00:00, 114.10it/s]
+The following generation flags are not valid and may be ignored: ['temperature', 'top_p', 'top_k']. Set `TRANSFORMERS_VERBOSITY=info` for more details.
+=== E5-scale on Qwen/Qwen2.5-7B-Instruct ===
+
+=== A. placement sweep (k=16, ~4000 tok context, query='summarize') ===
+  pos=0.00  hijack mean=0.00  hijacked=0.00
+  pos=0.25  hijack mean=0.00  hijacked=0.00
+  pos=0.50  hijack mean=0.00  hijacked=0.00
+  pos=0.75  hijack mean=0.00  hijacked=0.00
+  pos=1.00  hijack mean=0.00  hijacked=0.00
+
+=== B. repetition sweep (pos=1.0) x query styles ['summarize', 'extract', 'open']; C. positive controls ['raw', 'chat', 'rawq', 'rawpad'] ===
+  k= 1  summarize=0.00  extract=0.00  open=0.00  |  controls: raw=0.01  chat=0.00  rawq_summarize=0.01  rawq_extract=0.00  rawq_open=0.00  rawpad_summarize=0.00  rawpad_extract=0.00  rawpad_open=0.00
+  k= 2  summarize=0.00  extract=0.01  open=0.01  |  controls: raw=0.35  chat=0.01  rawq_summarize=0.04  rawq_extract=0.03  rawq_open=0.00  rawpad_summarize=0.01  rawpad_extract=0.01  rawpad_open=0.02
+  k= 4  summarize=0.00  extract=0.00  open=0.01  |  controls: raw=0.69  chat=0.00  rawq_summarize=0.01  rawq_extract=0.03  rawq_open=0.00  rawpad_summarize=0.01  rawpad_extract=0.01  rawpad_open=0.01
+  k= 8  summarize=0.00  extract=0.00  open=0.00  |  controls: raw=0.66  chat=0.00  rawq_summarize=0.01  rawq_extract=0.02  rawq_open=0.00  rawpad_summarize=0.00  rawpad_extract=0.00  rawpad_open=0.00
+  k=16  summarize=0.00  extract=0.00  open=0.01  |  controls: raw=0.68  chat=0.01  rawq_summarize=0.00  rawq_extract=0.04  rawq_open=0.00  rawpad_summarize=0.00  rawpad_extract=0.02  rawpad_open=0.00
+  k=32  summarize=0.00  extract=0.00  open=0.00  |  controls: raw=0.63  chat=0.00  rawq_summarize=0.01  rawq_extract=0.02  rawq_open=0.00  rawpad_summarize=0.00  rawpad_extract=0.00  rawpad_open=0.00
+
+positive control at k=32: best mean occupancy 0.63 -> OK: the harness can hijack; a null in B is a real null
+
+wrote results/e5_scale_v2_rawpad_qwen7b-instruct.json
+wrote results/e5_scale_v2_rawpad_qwen7b-instruct.png
+[snapshot] copied 3 file(s) to data/trackC/: e5_scale_v2_rawpad_qwen7b-instruct.console.log, e5_scale_v2_rawpad_qwen7b-instruct.json, e5_scale_v2_rawpad_qwen7b-instruct.png
+[snapshot] next: git add data/trackC && git commit -m 'Snapshot trackC results'
+[2026-11-05T00:46:49Z] <<< e5_scale_v2_rawpad_qwen7b-instruct exit=0
+[2026-11-05T00:46:49Z] >>> e5_scale_v2_rawpad_llama3b-instruct :: -m experiments.e5_scale --model meta-llama/Llama-3.2-3B-Instruct --context-tokens 4000 --device cuda --controls raw chat rawq rawpad --prefix results/e5_scale_v2_rawpad_llama3b-instruct --snapshot trackC
+`torch_dtype` is deprecated! Use `dtype` instead!
+Fetching 2 files:   0%|          | 0/2 [00:00<?, ?it/s]Fetching 2 files:  50%|█████     | 1/2 [00:04<00:04,  4.66s/it]Fetching 2 files: 100%|██████████| 2/2 [00:08<00:00,  4.17s/it]Fetching 2 files: 100%|██████████| 2/2 [00:08<00:00,  4.17s/it]
+Loading checkpoint shards:   0%|          | 0/2 [00:00<?, ?it/s]Loading checkpoint shards: 100%|██████████| 2/2 [00:00<00:00, 78.68it/s]
+The following generation flags are not valid and may be ignored: ['temperature', 'top_p']. Set `TRANSFORMERS_VERBOSITY=info` for more details.
+=== E5-scale on meta-llama/Llama-3.2-3B-Instruct ===
+
+=== A. placement sweep (k=16, ~4000 tok context, query='summarize') ===
+  pos=0.00  hijack mean=0.00  hijacked=0.00
+  pos=0.25  hijack mean=0.00  hijacked=0.00
+  pos=0.50  hijack mean=0.00  hijacked=0.00
+  pos=0.75  hijack mean=0.00  hijacked=0.00
+  pos=1.00  hijack mean=0.00  hijacked=0.00
+
+=== B. repetition sweep (pos=1.0) x query styles ['summarize', 'extract', 'open']; C. positive controls ['raw', 'chat', 'rawq', 'rawpad'] ===
+  k= 1  summarize=0.00  extract=0.00  open=0.00  |  controls: raw=0.10  chat=0.00  rawq_summarize=0.00  rawq_extract=0.00  rawq_open=0.00  rawpad_summarize=0.00  rawpad_extract=0.00  rawpad_open=0.00
+  k= 2  summarize=0.00  extract=0.00  open=0.00  |  controls: raw=0.63  chat=0.00  rawq_summarize=0.00  rawq_extract=0.00  rawq_open=0.00  rawpad_summarize=0.00  rawpad_extract=0.00  rawpad_open=0.00
+  k= 4  summarize=0.01  extract=0.01  open=0.01  |  controls: raw=0.68  chat=0.01  rawq_summarize=0.01  rawq_extract=0.01  rawq_open=0.00  rawpad_summarize=0.01  rawpad_extract=0.00  rawpad_open=0.00
+  k= 8  summarize=0.00  extract=0.00  open=0.00  |  controls: raw=0.69  chat=0.00  rawq_summarize=0.00  rawq_extract=0.00  rawq_open=0.00  rawpad_summarize=0.01  rawpad_extract=0.00  rawpad_open=0.00
+  k=16  summarize=0.00  extract=0.01  open=0.01  |  controls: raw=0.68  chat=0.02  rawq_summarize=0.00  rawq_extract=0.01  rawq_open=0.00  rawpad_summarize=0.02  rawpad_extract=0.02  rawpad_open=0.02
+  k=32  summarize=0.00  extract=0.00  open=0.00  |  controls: raw=0.63  chat=0.04  rawq_summarize=0.00  rawq_extract=0.00  rawq_open=0.00  rawpad_summarize=0.00  rawpad_extract=0.00  rawpad_open=0.00
+
+positive control at k=32: best mean occupancy 0.63 -> OK: the harness can hijack; a null in B is a real null
+
+wrote results/e5_scale_v2_rawpad_llama3b-instruct.json
+wrote results/e5_scale_v2_rawpad_llama3b-instruct.png
+[snapshot] copied 3 file(s) to data/trackC/: e5_scale_v2_rawpad_llama3b-instruct.console.log, e5_scale_v2_rawpad_llama3b-instruct.json, e5_scale_v2_rawpad_llama3b-instruct.png
+[snapshot] next: git add data/trackC && git commit -m 'Snapshot trackC results'
+[2026-11-05T00:56:31Z] <<< e5_scale_v2_rawpad_llama3b-instruct exit=0
+[2026-11-05T00:56:31Z] >>> e5_scale_v2_rawpad_phi35mini-instruct :: -m experiments.e5_scale --model microsoft/Phi-3.5-mini-instruct --context-tokens 4000 --device cuda --controls raw chat rawq rawpad --prefix results/e5_scale_v2_rawpad_phi35mini-instruct --snapshot trackC
+`torch_dtype` is deprecated! Use `dtype` instead!
+Fetching 2 files:   0%|          | 0/2 [00:00<?, ?it/s]Fetching 2 files:  50%|█████     | 1/2 [00:07<00:07,  7.16s/it]Fetching 2 files: 100%|██████████| 2/2 [00:10<00:00,  5.04s/it]Fetching 2 files: 100%|██████████| 2/2 [00:10<00:00,  5.04s/it]
+Loading checkpoint shards:   0%|          | 0/2 [00:00<?, ?it/s]Loading checkpoint shards: 100%|██████████| 2/2 [00:00<00:00, 98.13it/s]
+=== E5-scale on microsoft/Phi-3.5-mini-instruct ===
+
+=== A. placement sweep (k=16, ~4000 tok context, query='summarize') ===
+  pos=0.00  hijack mean=0.00  hijacked=0.00
+  pos=0.25  hijack mean=0.00  hijacked=0.00
+  pos=0.50  hijack mean=0.00  hijacked=0.00
+  pos=0.75  hijack mean=0.00  hijacked=0.00
+  pos=1.00  hijack mean=0.00  hijacked=0.00
+
+=== B. repetition sweep (pos=1.0) x query styles ['summarize', 'extract', 'open']; C. positive controls ['raw', 'chat', 'rawq', 'rawpad'] ===
+  k= 1  summarize=0.00  extract=0.01  open=0.00  |  controls: raw=0.01  chat=0.00  rawq_summarize=0.01  rawq_extract=0.01  rawq_open=0.00  rawpad_summarize=0.01  rawpad_extract=0.00  rawpad_open=0.01
+  k= 2  summarize=0.00  extract=0.00  open=0.00  |  controls: raw=0.75  chat=0.00  rawq_summarize=0.00  rawq_extract=0.00  rawq_open=0.00  rawpad_summarize=0.00  rawpad_extract=0.00  rawpad_open=0.00
+  k= 4  summarize=0.00  extract=0.00  open=0.00  |  controls: raw=1.00  chat=0.02  rawq_summarize=0.00  rawq_extract=0.00  rawq_open=0.00  rawpad_summarize=0.00  rawpad_extract=0.00  rawpad_open=0.00
+  k= 8  summarize=0.00  extract=0.00  open=0.00  |  controls: raw=1.00  chat=0.30  rawq_summarize=0.00  rawq_extract=0.00  rawq_open=0.00  rawpad_summarize=0.00  rawpad_extract=0.00  rawpad_open=0.00
+  k=16  summarize=0.00  extract=0.00  open=0.01  |  controls: raw=1.00  chat=0.00  rawq_summarize=0.01  rawq_extract=0.00  rawq_open=0.00  rawpad_summarize=0.00  rawpad_extract=0.00  rawpad_open=0.01
+  k=32  summarize=0.00  extract=0.01  open=0.00  |  controls: raw=1.00  chat=0.25  rawq_summarize=0.00  rawq_extract=0.01  rawq_open=0.01  rawpad_summarize=0.01  rawpad_extract=0.01  rawpad_open=0.01
+
+positive control at k=32: best mean occupancy 1.00 -> OK: the harness can hijack; a null in B is a real null
+
+wrote results/e5_scale_v2_rawpad_phi35mini-instruct.json
+wrote results/e5_scale_v2_rawpad_phi35mini-instruct.png
+[snapshot] copied 3 file(s) to data/trackC/: e5_scale_v2_rawpad_phi35mini-instruct.console.log, e5_scale_v2_rawpad_phi35mini-instruct.json, e5_scale_v2_rawpad_phi35mini-instruct.png
+[snapshot] next: git add data/trackC && git commit -m 'Snapshot trackC results'
+[2026-11-05T01:09:46Z] <<< e5_scale_v2_rawpad_phi35mini-instruct exit=0
+[2026-11-05T01:09:46Z] job body finished after 41 min

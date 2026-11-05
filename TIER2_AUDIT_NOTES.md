@@ -138,7 +138,9 @@ Each JSON carries the configuration it was run with (`cross_config`, `config`, `
 | followup: (a) Pythia-6.9B serial passage 3 × 20; (b) 1-hop firebreak 8/16/32 × 30 | p407b8bnpr1coq, secure L40S, 11-04 18:49 → 21:08 | 2.3 h | 6/6 OK. (a) survival 0.07–0.10: **family, not scale**. (b) ratio 1.05 (0.84–1.26) at the July configuration: **firebreak does not replicate**. |
 | followup2: (c) Qwen2.5-3B base serial passage 3 × 20; (d) E5 v2 with the `rawq` control, three models | zjkvc40b0mej33, secure L40S, 11-04 21:19 → 22:50 | 1.5 h | 6/6 OK. (c) survival 0.28–0.38: **Qwen-family trait at 3B as at 7B**. (d) untemplated query 0.00–0.10, no trial ≥ ½, while the bare prefix hijacks 0.4–1.0: **template not the active ingredient**; recency vs task-following not separated (every non-hijacking condition appends text after the payload); a `rawpad` filler control is proposed, not run. Query cells byte-identical to v2 (same seed, greedy). |
 
-Totals for iteration 9: 3.8 pod-hours, ≈ $4.15; RunPod balance after: see `deploy/runpod_pod.py balance`.
+| followup3 **v1** (files `e5_scale_v2_rawpad_v1_*`; control as implemented at commit `ff07531`, prose filler from the dump's own sentence bank): (e) E5 v2 with the `rawpad` control, three models | dzzvaeg7estzuh, secure L40S, 11-05 00:28 → 01:11 | 0.7 h | 3/3 OK. rawpad **0/120 hijacked** per model (Wilson upper 0.03; max trial 0.12) while raw hijacks 35–39/40 on the same pod: **the C5 bound is the recency gate; the task query is incidental.** raw/chat contexts differ from the rawq run after trial 1 (rawpad consumes the RNG), so raw/chat are a fresh replication, not a byte-identical repeat. |
+
+Totals for iteration 9: 4.5 pod-hours, ≈ $4.9; session total ≈ 12.9 pod-hours, ≈ $14. RunPod balance after: see `deploy/runpod_pod.py balance`.
 
 Pod results branches were **squash-merged** into the work branch for iteration 9 (one commit per
 pod, files byte-identical to the pod's final snapshot, verified with `git diff --quiet`), per the
