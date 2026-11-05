@@ -46,3 +46,6 @@ all 4 tests passed
 selftest: count_payload + passage_chain plumbing OK; ks(sustain)= [5, 5, 5, 5]
 selftest: 32 facts, 2x2 construction (distinct, length-matched), answer matching, correlation + bootstrap OK
 selftest: long-context construction (placement) + occupancy + cell + prompts OK
+remote:      https://github.com/shumow/transformer-context-contagion/pull/new/claude/fervent-ritchie-l5m9uw-iter11-pod-followup3        
+remote: 
+[2026-11-05T08:51:03Z] >>> e5_scale_v2_rawpad_qwen7b-instruct :: -m experiments.e5_scale --model Qwen/Qwen2.5-7B-Instruct --context-tokens 4000 --device cuda --controls raw rawpad --prefix results/e5_scale_v2_rawpad_qwen7b-instruct --snapshot trackC
