@@ -1,0 +1,48 @@
+[2026-11-05T08:49:05Z] === job=followup3 code=claude/fervent-ritchie-l5m9uw results=claude/fervent-ritchie-l5m9uw-iter11-pod-followup3 max_hours=1.5 pod=ojympcqx0xvmp7 ===
+name, memory.total [MiB], driver_version
+NVIDIA L40S, 46068 MiB, 595.91.07
+[2026-11-05T08:49:06Z] bootstrap
+==> GPU / driver
+name, memory.total [MiB], driver_version
+NVIDIA L40S, 46068 MiB, 595.91.07
+==> base packages (git, python venv/pip)
+debconf: delaying package configuration, since apt-utils is not installed
+==> clone https://github.com/shumow/transformer-context-contagion.git -> /workspace/tcc
+==> venv + CUDA torch (index: https://download.pytorch.org/whl/cu121)
+==> sanity: can torch see the GPU?
+CUDA: True | NVIDIA L40S | torch 2.5.1+cu121
+==> PREDOWNLOAD=0 -- models will be fetched on demand by from_pretrained
+
+Ready.  cd /workspace/tcc && . .venv/bin/activate
+  E1.3 size sweep (355M-7B):
+    python -m experiments.e1_3_size_sweep --models gpt2-xl Qwen/Qwen2.5-7B \
+        --lengths 1 3 5 8 --reps 1 2 4 8 16 32 --device cuda --dtype float16
+  E2 induction attribution (a >=24GB GPU handles 7B; checkpoints per cell + resumes):
+    python -m experiments.e2_induction --model Qwen/Qwen2.5-7B --device cuda \
+        --lengths 1 3 5 --reps 2 3 4 8 16 --payloads 4 --k-heads 8
+  For long runs, detach:  nohup python -m experiments.e2_induction ... > run.log 2>&1 &
+
+  COST: specialist GPU clouds bill for as long as the box exists and there is NO
+  idle auto-deallocate here -- TERMINATE the instance when you're done.
+  test_knee_interpolates: OK
+  test_noise_is_low: OK
+  test_order_two_payload: OK
+  test_payload_constructors: OK
+  test_perfect_reproduction: OK
+  test_phase_shift_is_robust: OK
+  test_single_slip: OK
+all 7 tests passed
+  test_benign_repetitive_really_repeats: OK
+  test_clean_paragraphs_count_and_no_repeats: OK
+  test_prose_of_length_matches_and_does_not_repeat: OK
+  test_prose_of_length_refuses_impossible_target: OK
+  test_sentence_bank_is_distinct_and_sized: OK
+all 5 tests passed
+  test_add_args_and_arm: OK
+  test_copy_outputs_copies_prefix_matches_only: OK
+  test_copy_outputs_no_track_is_noop: OK
+  test_copy_outputs_nothing_matching: OK
+all 4 tests passed
+selftest: count_payload + passage_chain plumbing OK; ks(sustain)= [5, 5, 5, 5]
+selftest: 32 facts, 2x2 construction (distinct, length-matched), answer matching, correlation + bootstrap OK
+selftest: long-context construction (placement) + occupancy + cell + prompts OK
