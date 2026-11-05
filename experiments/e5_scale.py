@@ -199,9 +199,14 @@ def run(lm, args):
            "control": {c: {} for c in control_keys}, "context_tokens": args.context_tokens,
            "queries": {q: QUERIES[q] for q in args.queries}}
     q0 = args.queries[0]
-    # rawpad: one prose pad per query style (fixed across trials), length = that query's tail
+    # rawpad: one prose pad per query style (fixed across trials), length = that query's tail.
+    # Built from its OWN seeded stream so that adding the control does not shift the payload
+    # and document draws -- the 2026-11-05 run consumed `rng` here and its contexts therefore
+    # differed from v2's (reported in results_log.md, "Follow-ups 3"). Future runs with the
+    # same --seed reproduce v2's contexts exactly whether or not rawpad is requested.
     pad_len = {q: len(query_tail_ids(lm.tok, QUERIES[q])) for q in args.queries}
-    prose_pad = ({q: prose_pad_ids(lm.tok, pad_len[q], rng, exclude_sentences=SENTENCES) for q in args.queries}
+    pad_rng = np.random.default_rng(args.seed + 7919)
+    prose_pad = ({q: prose_pad_ids(lm.tok, pad_len[q], pad_rng, exclude_sentences=SENTENCES) for q in args.queries}
                  if "rawpad" in args.controls else {})
     out["rawpad_len"] = pad_len
 
