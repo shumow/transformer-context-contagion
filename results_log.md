@@ -1600,3 +1600,95 @@ an instruct-model finding.
 one query line (15–30 tokens); the minimum defusing length at 4k was not swept (E5-lite put it
 near 16 tokens on GPT-2 at 65 tokens of context). Positions 0.75 and below in the v2 placement
 sweep already gave 0.00 under the query, consistent with this.
+
+## Follow-ups 3 — E5 rawpad control (prose and token pads); E4 v2 Llama at probe_k=1 (2026-11-05, RunPod L40S; `POD_FOLLOWUP3_BRIEF.md`)
+
+The stricter `rawpad` control of iteration 10 (`experiments/e5_scale.py`): the raw documents
+followed by filler of **exactly the token length of the query tail** `"\n\nQuestion: <query>"`,
+no question, no template, in two forms per query style — `rawpad_<q>`, benign prose from a
+sentence bank disjoint from the document dump; `rawpadtok_<q>`, neutral random tokens from the
+payload pool excluding the payload (E1.5's gap filler). `raw` is run alongside so `control_ok`
+is meaningful. Plus E4-scale v2 on Llama-3.2-3B-Instruct at `--probe-k 1`. One pod
+(`ojympcqx0xvmp7`, secure L40S), 0.9 pod-hours; files
+`data/trackC/e5_scale_v2_rawpad_{qwen7b,llama3b,phi35mini}-instruct.{json,png,console.log}`,
+`e4_scale_v2_pk1_llama3b-instruct.{json,png,console.log}`.
+
+```
+python -m experiments.e5_scale --model <M> --context-tokens 4000 --device cuda --controls raw rawpad --prefix results/e5_scale_v2_rawpad_<tag> --snapshot trackC
+python -m experiments.e4_scale --model meta-llama/Llama-3.2-3B-Instruct --probe-k 1 --device cuda --prefix results/e4_scale_v2_pk1_llama3b-instruct --snapshot trackC
+```
+
+**Not a byte-identical repeat of the v2 contexts.** The brief expected the query cells to match
+v2 exactly (same seed). They do not: the prose pads are built from the RNG before the trial
+loop, which shifts every later payload and document draw. The query, `raw`, `rawq` columns
+below are therefore from v2 / Follow-ups 2 on *different* contexts of the same distribution;
+`raw` is replicated here (33 / 40, 40 / 40, 36 / 40 hijacked at k ≥ 2 vs 35–39 / 40 before).
+Pad lengths (tokens, summarize / extract / open): Qwen 17 / 12 / 17, Llama 18 / 13 / 18,
+Phi 21 / 14 / 20.
+
+Mean occupancy (fraction of 8 trials ≥ ½), payload ×k at the end, p = 3:
+
+| model | k | query (v2, templated) | raw (this run) | rawq (Fu-2) | **rawpad, prose** (sum / ext / open) | **rawpadtok, tokens** (sum / ext / open) |
+|---|---|---|---|---|---|---|
+| Qwen2.5-7B-Instruct | 2 | 0.00–0.01 | 0.19 (0.25) | 0.00–0.04 | 0.00 / 0.00 / 0.00 | 0.07 / 0.14 (0.12) / 0.01 |
+| | 8 | 0.00 | 0.66 (1.00) | 0.00–0.04 | 0.01 / 0.00 / 0.09 (0.12) | 0.17 (0.25) / 0.35 (0.50) / 0.25 (0.38) |
+| | 32 | 0.00 | 0.69 (1.00) | 0.00–0.03 | 0.00 / 0.00 / 0.00 | 0.07 (0.12) / 0.09 (0.12) / 0.00 |
+| Llama-3.2-3B-Instruct | 2 | 0.00–0.01 | 0.65 (1.00) | 0.00–0.01 | 0.00 / 0.00 / 0.00 | 0.02 / 0.04 / 0.03 |
+| | 8 | 0.00 | 0.69 (1.00) | 0.00 | 0.01 / 0.00 / 0.00 | 0.08 (0.12) / 0.24 (0.38) / 0.09 (0.12) |
+| | 32 | 0.00 | 0.70 (1.00) | 0.00 | 0.00 / 0.00 / 0.00 | 0.00 / 0.08 (0.12) / 0.00 |
+| Phi-3.5-mini-instruct | 2 | 0.00–0.01 | 0.50 (0.50) | 0.00–0.01 | 0.00 / 0.00 / 0.00 | 0.00 / 0.00 / 0.00 |
+| | 8 | 0.00–0.01 | 1.00 (1.00) | 0.00–0.01 | 0.00 / 0.00 / 0.00 | 0.00 / 0.00 / 0.12 (0.12) |
+| | 32 | 0.00–0.02 | 1.00 (1.00) | 0.01–0.02 | 0.01 / 0.00 / 0.00 | 0.24 (0.25) / 0.37 (0.38) / 0.13 (0.12) |
+
+Pooled over k ≥ 2 and the three pad lengths (120 trials per model per pad type):
+
+| model | raw hijacked | prose pad hijacked (Wilson 95%) | mean occ. | max trial | token pad hijacked (Wilson 95%) | mean occ. | max trial |
+|---|---|---|---|---|---|---|---|
+| Qwen2.5-7B-Instruct | 33 / 40 | **4 / 120** (0.01–0.08) | 0.025 | 0.72 | **25 / 120** (0.15–0.29) | 0.151 | 0.75 |
+| Llama-3.2-3B-Instruct | 40 / 40 | **0 / 120** (0.00–0.03) | 0.001 | 0.06 | **10 / 120** (0.05–0.15) | 0.070 | 0.75 |
+| Phi-3.5-mini-instruct | 36 / 40 | **0 / 120** (0.00–0.03) | 0.003 | 0.05 | **11 / 120** (0.05–0.16) | 0.088 | 1.00 |
+
+**Verdict.** This is the brief's third outcome, with the first as its main part. *Prose after the
+payload defuses the hijack as completely as a task query does* (0–3% of trials on all three
+models, with no question and no template; the v1 pass found the same with a dump-drawn prose
+bank), so **the C5 bound is the recency gate, not task-following**: the task query does no
+semantic work the data can see. *But neutral random tokens of the same length defuse only
+partly*: 8–21% of trials are still hijacked and mean occupancy stays at 0.07–0.15, against
+0.00–0.03 for prose. Coherent text competes for the continuation; arbitrary tokens hold the
+payload back from the generation point but do not fully break its hold. The E1.5 caveat ("the
+gap decay could partly be filler competition") is thus answered: both distance and the content
+of what fills the distance matter, and ordinary prose of 12–21 tokens is enough. Sentence for
+the paper: **a repeated span hijacks generation only when it ends the context; any coherent
+text after it — a question, an instruction, a template suffix, or unrelated prose of the same
+length — removes the hijack, and even arbitrary tokens remove most of it.**
+
+### E4-scale v2, Llama-3.2-3B-Instruct at probe_k = 1 (vs the probe_k = 2 run)
+
+| condition | U | P_copy | P_probe at probe_k = 2 (Wilson) | P_probe at probe_k = 1 (Wilson) | T |
+|---|---|---|---|---|---|
+| rep + useful | 1.00 | 1.00 | 0.97 (31/32; 0.84–0.99) | 0.03 (1/32; 0.01–0.16) | 0.040 |
+| rep + useless | 0.00 | 0.97 | 1.00 (32/32; 0.89–1.00) | 0.16 (5/32; 0.07–0.32) | 0.071 |
+| nonrep + useful | 1.00 | 0.25 | 0.69 (22/32; 0.51–0.82) | 0.00 (0/32; 0.00–0.11) | 0.042 |
+| nonrep + useless | 0.00 | 0.28 | 0.72 (23/32; 0.55–0.84) | 0.03 (1/32; 0.01–0.16) | 0.039 |
+
+| | probe_k = 2 | probe_k = 1 |
+|---|---|---|
+| corr(P_probe, U) | −0.04 [−0.14, +0.06] | −0.17 [−0.29, −0.03] |
+| corr(P_probe, T) | +0.15 [+0.06, +0.25] | −0.03 [−0.15, +0.12] |
+
+(U, P_copy, T are identical between the runs, as they should be: same seed, same contexts; only
+the probe count changed.)
+
+**The ceiling is gone, replaced by the floor.** At one planted copy the probe's cyclic
+transition S[-1]→S[0] has never occurred in the context, so completing it is structurally
+impossible except by chance — exactly the grid-floor argument of *Analyses* §A. P_probe
+collapses to 0.00–0.03 in three cells and corr(P_probe, T) is 0 by construction. The one cell
+above the floor, repeated gibberish at 0.16 (5/32), is the only signal and points the same way
+as before (repetition mode makes a once-seen span completable). probe_k = 1 is therefore not
+the fix for Llama's ceiling; the measurement needs probe_k = 2 with **sampled** trials
+(`--probe-trials 8` at T = 1) so cells at 0.7–1.0 under greedy decoding can spread. Not run.
+
+**Caveats.** 8 trials per cell, greedy, one seed, p = 3, 4k context; pad lengths 12–21 tokens,
+one length per query style, no sweep of the minimum defusing length; the token pad draws from
+the same short-token pool as the payload (excluding the payload itself), which is the harshest
+possible "neutral" filler for a copy mechanism.

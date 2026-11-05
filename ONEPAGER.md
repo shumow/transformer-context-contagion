@@ -89,10 +89,11 @@ if so, by what mechanism?**
     repeated gibberish.
   - **RAG hijack — a recency gate, not a task effect.** A repeated span hijacks generation
     only when it is the last thing in the context. On three instruct models at 4k tokens the
-    raw prefix ending inside the payload is hijacked in 35–39 of 40 trials; a task query, a
-    "continue" instruction, or 15–30 tokens of unrelated filler after the payload all give 0
-    of 120, with or without a chat template. The task is incidental; the RAG convention of
-    putting the question after the documents is itself the mitigation. The residual RAG
+    raw prefix ending inside the payload is hijacked in 33–40 of 40 trials; a task query, a
+    "continue" instruction, or 12–21 tokens of unrelated prose after the payload all give
+    0–4 of 120, with or without a chat template, while random tokens of the same length still
+    let 8–21% through. The task is incidental; any coherent text after the span defuses it, and
+    the RAG convention of putting the question after the documents is itself the mitigation. The residual RAG
     threat is *semantic* injection, outside this project's benign-copy scope.
   - **Worm — re-measured at power.** With 60 chains per cell, Qwen2.5 base models (3B and
     7B) keep the payload alive in 30–50% of chains where Pythia (2.8B and 6.9B), Llama-3.2-3B
