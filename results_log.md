@@ -1535,3 +1535,62 @@ a different mechanism. Not run; ten pod-minutes per model.
 
 **Caveats.** 8 trials per cell, greedy, one seed, p = 3, 4k context; the query line is 15–30
 tokens on these tokenizers, above the GPT-2 recency limit measured in E5-lite.
+
+## Follow-ups 3 — E5 with the length-matched filler control: the C5 bound is the recency gate (2026-11-05, RunPod L40S)
+
+The `rawpad` control proposed in §D, run the next morning on the advisor's go-ahead: the raw
+documents followed by benign filler prose truncated to **exactly the token length of the query
+line** (`"\n\nQuestion: " + query`, 15–30 tokens), no question, no instruction, no template.
+Job `deploy/runpod_job.sh followup3`, 0.7 pod-hours; files
+`data/trackC/e5_scale_v2_rawpad_{qwen7b,llama3b,phi35mini}-instruct.{json,png,console.log}`.
+The selftest checks the length match and that the filler contains no question.
+
+```
+python -m experiments.e5_scale --model <M> --context-tokens 4000 --device cuda --controls raw chat rawq rawpad --prefix results/e5_scale_v2_rawpad_<tag> --snapshot trackC
+```
+
+Mean occupancy (fraction of 8 trials ≥ ½), payload ×k at the end of ~4000 tokens, p = 3. The
+raw and chat columns are a fresh replication (the rawpad draw consumes the RNG, so the contexts
+after the first trial differ from the v2/rawq runs):
+
+| model | k | task query, templated | raw, no query | chat "continue" | rawq (query, no template) | **rawpad (filler, no query, no template)** |
+|---|---|---|---|---|---|---|
+| Qwen2.5-7B-Instruct | 2 | 0.00–0.01 | 0.35 (0.50) | 0.01 | 0.00–0.04 (0.00) | 0.01–0.02 (0.00) |
+| | 8 | 0.00 | 0.66 (1.00) | 0.00 | 0.00–0.02 (0.00) | 0.00 (0.00) |
+| | 32 | 0.00 | 0.63 (1.00) | 0.00 | 0.00–0.02 (0.00) | 0.00 (0.00) |
+| Llama-3.2-3B-Instruct | 2 | 0.00 | 0.63 (1.00) | 0.00 | 0.00 (0.00) | 0.00 (0.00) |
+| | 8 | 0.00 | 0.69 (1.00) | 0.00 | 0.00 (0.00) | 0.00–0.01 (0.00) |
+| | 32 | 0.00 | 0.63 (0.88) | 0.04 | 0.00 (0.00) | 0.00 (0.00) |
+| Phi-3.5-mini-instruct | 2 | 0.00 | 0.75 (0.75) | 0.00 | 0.00 (0.00) | 0.00 (0.00) |
+| | 8 | 0.00 | 1.00 (1.00) | 0.30 (0.25) | 0.00 (0.00) | 0.00 (0.00) |
+| | 32 | 0.00–0.01 | 1.00 (1.00) | 0.25 (0.25) | 0.00–0.01 (0.00) | 0.01 (0.00) |
+
+Pooled over k ≥ 2 and the three filler lengths (120 trials per model): **rawpad hijacked
+0 / 120** on every model (Wilson 95% upper bound 0.03); largest single rawpad trial 0.12 / 0.11 /
+0.06. The raw control on the same pod: 35 / 40, 39 / 40, 38 / 40 hijacked.
+
+**Verdict: the C5 bound is the recency gate, restated at 4k tokens on instruct models.** The
+only thing the hijacking condition has that the four non-hijacking ones lack is that the
+context *ends inside the payload*. Fifteen to thirty tokens of benign prose after the payload
+remove the hijack as completely as a task query does, with or without a chat template; the
+query, the instruction and the template add nothing the data can see. The v2 and §D sentences
+"a task query defuses raw-repetition hijack" and "the template is not the active ingredient"
+are both superseded by: **a repeated span hijacks generation only when it is the last thing in
+the context; anything that follows it — a question, an instruction, a template suffix, or
+unrelated prose of the same length — defuses it on every instruct model tested.** This is
+E5-lite's placement result (hijack 0.52 at frac 1.0, ≤ 0.003 at frac 0.75) and E1.5's distance
+decay, now shown at 4000 tokens on Qwen2.5-7B-Instruct, Llama-3.2-3B-Instruct and
+Phi-3.5-mini-instruct, with controls.
+
+**What this does to the claims.** C5 should no longer be framed as "instruct models asked to do
+a task are not hijacked"; the task is incidental. The defensive reading survives and gets
+simpler: in a RAG prompt the question conventionally follows the retrieved text, and that
+ordering alone is the mitigation against raw-repetition hijack; the residual threat is
+semantic injection. For the paper's Tier-3 ordering, the "bound" result (item 2 of the
+rewrite) becomes a recency result and should be merged with E1.5/E5-lite rather than stand as
+an instruct-model finding.
+
+**Caveats.** 8 trials per cell, greedy, one seed, p = 3, 4k context, filler length matched to
+one query line (15–30 tokens); the minimum defusing length at 4k was not swept (E5-lite put it
+near 16 tokens on GPT-2 at 65 tokens of context). Positions 0.75 and below in the v2 placement
+sweep already gave 0.00 under the query, consistent with this.
