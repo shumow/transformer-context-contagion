@@ -140,7 +140,24 @@ Each JSON carries the configuration it was run with (`cross_config`, `config`, `
 
 | followup3 **v1** (files `e5_scale_v2_rawpad_v1_*`; control as implemented at commit `ff07531`, prose filler from the dump's own sentence bank): (e) E5 v2 with the `rawpad` control, three models | dzzvaeg7estzuh, secure L40S, 11-05 00:28 → 01:11 | 0.7 h | 3/3 OK. rawpad **0/120 hijacked** per model (Wilson upper 0.03; max trial 0.12) while raw hijacks 35–39/40 on the same pod: **the C5 bound is the recency gate; the task query is incidental.** raw/chat contexts differ from the rawq run after trial 1 (rawpad consumes the RNG), so raw/chat are a fresh replication, not a byte-identical repeat. |
 
-Totals for iteration 9: 4.5 pod-hours, ≈ $4.9; session total ≈ 12.9 pod-hours, ≈ $14. RunPod balance after: see `deploy/runpod_pod.py balance`.
+Totals for iteration 9: 4.5 pod-hours, ≈ $4.9.
+
+## 9. Iteration 11: the brief's follow-up 3 (branch `…-iter11-followup3`; pushed, held for review)
+
+| job | pod | wall | result |
+|---|---|---|---|
+| followup3 (parent-branch job of iteration 10): E5 `rawpad` (prose pad from a dump-disjoint bank + random-token pad, both exactly the query tail's length) with `raw`, three models; E4 v2 Llama-3.2-3B-Instruct at `--probe-k 1` | ojympcqx0xvmp7, secure L40S, 11-05 08:49 → 09:42 | 0.9 h | 4/4 OK. Prose pad hijacked 4/120, 0/120, 0/120 (Qwen, Llama, Phi); token pad 25/120, 10/120, 11/120; raw 33/40, 40/40, 36/40. E4 at probe_k=1 is a floor (P_probe 0.00–0.16), corr(P_probe,T) −0.03 [−0.15, +0.12]. |
+
+Derivations: every number from the JSONs (`control[<key>][k].trials`, `rawpad_len`, `rows`),
+Wilson intervals from `tcc.scoring.wilson_interval`; the same one-off script pattern as §4.
+Deviation from the brief: the query cells are **not** identical to v2 (the brief assumed they
+would be), because `prose_pad_ids` draws from the RNG before the trial loop; stated in the log
+entry, and the `raw` column is reported from this run rather than reused. The brief's
+probe_k = 1 suggestion turned out to be a floor by the §A argument; the log says so and names
+the alternative (sampled trials at probe_k = 2). Pod branch squash-merged as before; data
+verified byte-identical.
+
+Session total ≈ 13.8 pod-hours, ≈ $15. RunPod balance after: see `deploy/runpod_pod.py balance`.
 
 Pod results branches were **squash-merged** into the work branch for iteration 9 (one commit per
 pod, files byte-identical to the pod's final snapshot, verified with `git diff --quiet`), per the
