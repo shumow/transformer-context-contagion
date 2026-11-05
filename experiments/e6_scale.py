@@ -29,6 +29,7 @@ import time
 import numpy as np
 
 from tcc import payloads
+from tcc import snapshot
 from experiments.e6_worm import passage_chain, count_payload
 
 # one small model per distinct tokenizer family for the cross-tokenizer matrix (Part B).
@@ -47,7 +48,7 @@ SERIAL = ["EleutherAI/pythia-2.8b", "Qwen/Qwen2.5-7B", "meta-llama/Llama-3.2-3B"
 def serial_at_scale(name, args, LM, torch):
     lm = LM(name, device=args.device, dtype=getattr(torch, args.dtype))
     rng = np.random.default_rng(args.seed)
-    pool = payloads.rare_token_pool(lm.tokenizer)
+    pool = payloads.short_token_pool(lm.tokenizer)
     curves = {}
     for p in args.lengths:
         runs = []
@@ -59,7 +60,8 @@ def serial_at_scale(name, args, LM, torch):
                                       args.hops, rng, args.temperature))
         arr = np.array(runs, float)
         curves[str(p)] = dict(mean=arr.mean(axis=0).tolist(),
-                              survive=float(np.mean(arr[:, -1] >= 1)))
+                              survive=float(np.mean(arr[:, -1] >= 1)),
+                              runs=arr.tolist())              # per-trial, for R0 / survival CIs
         print(f"  p={p:2d}  " + " -> ".join(f"{v:.1f}" for v in arr.mean(axis=0)) +
               f"   survive(last)={curves[str(p)]['survive']:.0%}")
     del lm
@@ -80,10 +82,10 @@ def cross_matrix(args, LM, torch):
     fams = list(lms)
     rng = np.random.default_rng(args.seed + 1)
     p = args.cross_p
-    mat = {}
+    mat, trials = {}, {}
     for X in fams:
-        pool = payloads.rare_token_pool(lms[X].tokenizer)
-        mat[X] = {}
+        pool = payloads.short_token_pool(lms[X].tokenizer)
+        mat[X], trials[X] = {}, {}
         for Y in fams:
             loads = []
             for _ in range(args.trials):
@@ -94,8 +96,9 @@ def cross_matrix(args, LM, torch):
                                    args.cross_hops, rng, args.temperature)
                 loads.append(ks[-1])                       # surviving load at last hop
             mat[X][Y] = float(np.mean(loads))
+            trials[X][Y] = [float(v) for v in loads]       # per-trial, for CIs
         print(f"  {X:7s} -> " + "  ".join(f"{Y}:{mat[X][Y]:.1f}" for Y in fams))
-    return mat
+    return mat, trials
 
 
 def main():
@@ -115,8 +118,10 @@ def main():
     ap.add_argument("--device", default="cuda")
     ap.add_argument("--seed", type=int, default=7)
     ap.add_argument("--prefix", default="results/e6_scale")
+    snapshot.add_args(ap)
     ap.add_argument("--selftest", action="store_true")
     args = ap.parse_args()
+    snapshot.arm(args)
 
     if args.selftest:
         selftest()
@@ -145,7 +150,10 @@ def main():
     if args.part in ("B", "all"):
         print(f"\n=== B. cross-tokenizer firebreak matrix (p={args.cross_p}, "
               f"{args.cross_hops} hops) ===")
-        out["cross"] = cross_matrix(args, LM, torch)
+        out["cross"], out["cross_trials"] = cross_matrix(args, LM, torch)
+        out["cross_config"] = dict(cross_p=args.cross_p, cross_hops=args.cross_hops,
+                                   host0_reps=args.host0_reps, trials=args.trials, T=args.T,
+                                   temperature=args.temperature, seed=args.seed)
         json.dump(out, open(f"{args.prefix}.json", "w"), indent=2)
 
     print(f"\nwrote {args.prefix}.json  [{time.time()-t0:.0f}s]")

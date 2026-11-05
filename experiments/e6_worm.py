@@ -26,6 +26,7 @@ import time
 import numpy as np
 
 from tcc import payloads
+from tcc import snapshot
 
 
 def count_payload(text, payload_text):
@@ -55,7 +56,7 @@ def passage_chain(hosts, S0_ids, payload_text, host0_reps, T, n_hops, rng, tempe
 
 def experiment_A(gpt2, args, rng):
     print("\n=== A. same-model serial passage (GPT-2), sweep payload length ===")
-    pool = payloads.rare_token_pool(gpt2.tokenizer)
+    pool = payloads.short_token_pool(gpt2.tokenizer)
     curves = {}
     for p in args.lengths:
         runs = []
@@ -67,7 +68,9 @@ def experiment_A(gpt2, args, rng):
                                       args.hops, rng, args.temperature))
         arr = np.array(runs, float)
         survive = float(np.mean(arr[:, -1] >= 1))             # fraction alive at last hop
-        curves[str(p)] = dict(mean=arr.mean(axis=0).tolist(), survive=survive)
+        # 'runs' = per-trial trajectories, so R0 / survival CIs can be computed afterwards
+        # (experiments/analysis_e6_r0.py); means alone cannot support a CI.
+        curves[str(p)] = dict(mean=arr.mean(axis=0).tolist(), survive=survive, runs=arr.tolist())
         print(f"  p={p:2d}  mean load/hop: " +
               " -> ".join(f"{v:.1f}" for v in arr.mean(axis=0)) +
               f"   survive(last hop)={survive:.0%}")
@@ -76,7 +79,7 @@ def experiment_A(gpt2, args, rng):
 
 def experiment_B(gpt2, pythia, args, rng):
     print("\n=== B. cross-tokenizer firebreak (GPT-2 patient zero) ===")
-    pool = payloads.rare_token_pool(gpt2.tokenizer)
+    pool = payloads.short_token_pool(gpt2.tokenizer)
     p = args.cross_p
     out = {}
     for label, hosts_after in [('same (GPT-2 hosts)', gpt2), ('cross (Pythia-160M hosts)', pythia)]:
@@ -89,6 +92,7 @@ def experiment_B(gpt2, pythia, args, rng):
                                       args.hops, rng, args.temperature))
         arr = np.array(runs, float)
         out[label] = arr.mean(axis=0).tolist()
+        out[label + " [runs]"] = arr.tolist()                  # per-trial trajectories
         print(f"  {label:26s} load per hop: " +
               " -> ".join(f"{v:.1f}" for v in arr.mean(axis=0)))
     return out
@@ -106,7 +110,9 @@ def main():
     ap.add_argument('--device', default=None)
     ap.add_argument('--seed', type=int, default=7)
     ap.add_argument('--prefix', default='results/e6_worm')
+    snapshot.add_args(ap)
     args = ap.parse_args()
+    snapshot.arm(args)
 
     try:
         from tcc.models import LM
@@ -158,7 +164,10 @@ def plot_cross(args, out):
     import matplotlib.pyplot as plt
     fig, ax = plt.subplots(figsize=(7.0, 4.8))
     hops = range(args.hops + 1)
-    for (label, curve), col, mk in zip(out.items(), ['navy', 'crimson'], ['o-', 's--']):
+    # out holds both a mean curve per label and a "<label> [runs]" per-trial array (for the
+    # R0 analysis); plot only the mean curves.
+    mean_items = [(label, curve) for label, curve in out.items() if not label.endswith(" [runs]")]
+    for (label, curve), col, mk in zip(mean_items, ['navy', 'crimson'], ['o-', 's--']):
         ax.plot(hops, np.clip(curve, 0.05, None), mk, color=col, lw=2, label=label)
     ax.axhline(1.0, color='k', lw=0.8, ls=':', label='extinction')
     ax.set_yscale('log'); ax.set_xlabel('transmission hop'); ax.set_ylabel('viral load')

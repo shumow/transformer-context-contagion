@@ -1,0 +1,9 @@
+`torch_dtype` is deprecated! Use `dtype` instead!
+
+=== B. cross-tokenizer firebreak matrix (p=3, 3 hops) ===
+  loaded gpt2 (gpt2)
+  loaded pythia (EleutherAI/pythia-410m)
+  loaded qwen (Qwen/Qwen2.5-0.5B)
+  loaded llama (meta-llama/Llama-3.2-1B)
+Fetching 3 files:   0%|          | 0/3 [00:00<?, ?it/s]Fetching 3 files:  33%|███▎      | 1/3 [00:05<00:11,  5.67s/it]Fetching 3 files:  67%|██████▋   | 2/3 [00:07<00:03,  3.92s/it]Fetching 3 files: 100%|██████████| 3/3 [00:10<00:00,  3.65s/it]Fetching 3 files: 100%|██████████| 3/3 [00:10<00:00,  3.65s/it]
+Loading checkpoint shards:   0%|          | 0/3 [00:00<?, ?it/s]Loading checkpoint shards:  33%|███▎      | 1/3 [00:01<00:02,  1.12s/it]Loading checkpoint shards:  67%|██████▋   | 2/3 [00:02<00:01,  1.17s/it]Loading checkpoint shards: 100%|██████████| 3/3 [00:02<00:00,  1.26it/s]

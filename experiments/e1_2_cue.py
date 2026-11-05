@@ -32,6 +32,7 @@ import time
 import numpy as np
 
 from tcc import payloads, scoring
+from tcc import snapshot
 
 
 def pr(lm, ctx, S, prefix, args):
@@ -56,7 +57,9 @@ def main():
     ap.add_argument('--device', default=None)
     ap.add_argument('--seed', type=int, default=7)
     ap.add_argument('--prefix', default='results/e1_2')
+    snapshot.add_args(ap)
     args = ap.parse_args()
+    snapshot.arm(args)
 
     try:
         from tcc.models import LM
@@ -65,7 +68,7 @@ def main():
 
     rng = np.random.default_rng(args.seed)
     lm = LM(args.model, device=args.device)
-    pool = payloads.rare_token_pool(lm.tokenizer)
+    pool = payloads.short_token_pool(lm.tokenizer)
     t0 = time.time()
     print(f"model={args.model}  device={lm.device}  payloads/length={args.payloads}  "
           f"trials={args.trials}  N={args.reps}\n")

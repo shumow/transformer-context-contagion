@@ -25,6 +25,7 @@ import time
 import numpy as np
 
 from tcc import payloads, scoring
+from tcc import snapshot
 
 # approximate parameter counts (millions) for the size axis
 PARAMS_M = {
@@ -43,7 +44,7 @@ def measure_model(name, args):
     if args.dtype and args.dtype != 'float32':
         dt = 'auto' if args.dtype == 'auto' else getattr(torch, args.dtype)
     lm = LM(name, device=args.device, dtype=dt)
-    pool = payloads.rare_token_pool(lm.tokenizer)
+    pool = payloads.short_token_pool(lm.tokenizer)
     out = {}
     for p in args.lengths:
         pls = payloads.sample_payloads(pool, p, args.payloads, rng, tokenizer=lm.tokenizer)
@@ -51,8 +52,8 @@ def measure_model(name, args):
         for j, N in enumerate(args.reps):
             for pi, S in enumerate(pls):
                 ctx = payloads.build_context(S, N)
-                conts = lm.continue_ids(ctx, args.max_new, n=args.trials,
-                                        temperature=args.temperature)
+                conts = lm.continue_ids(ctx, args.max_new, n=1 if args.greedy else args.trials,
+                                        temperature=args.temperature, greedy=args.greedy)
                 per_pl[pi, j] = np.mean([scoring.reproduces(c, S, k=1, prefix=ctx[-1:],
                                          fid_threshold=args.fid_threshold) for c in conts])
         curve = per_pl.mean(axis=0)
@@ -65,7 +66,19 @@ def measure_model(name, args):
             if kv is not None:
                 boot.append(kv)
         ci = (float(np.percentile(boot, 2.5)), float(np.percentile(boot, 97.5))) if boot else (None, None)
-        out[str(p)] = (nstar, ci[0], ci[1])
+        # Store the per-N curve, not just the knee: for p >= 3 the knee sits in the first grid
+        # interval (one prior occurrence suffices), so the informative quantity is P(N=2) -- the
+        # one-shot copy rate -- which can only be read from the curve. Wilson intervals pool
+        # payloads x trials per N.
+        n_per_cell = len(pls) * (1 if args.greedy else args.trials)
+        wilson = [list(scoring.wilson_interval(int(round(per_pl[:, j].mean() * n_per_cell)), n_per_cell))
+                  for j in range(len(args.reps))]
+        osr = scoring.one_shot_rate(args.reps, curve)
+        out[str(p)] = dict(knee=nstar, ci=[ci[0], ci[1]],
+                           curve=[float(v) for v in curve], wilson=wilson,
+                           per_payload=per_pl.tolist(), n_per_cell=n_per_cell,
+                           one_shot=None if osr is None else dict(p_n1=osr[0], p_n2=osr[1]),
+                           at_floor=scoring.knee_at_floor(nstar, args.reps))
     # teardown -- free memory before the next model (critical on 8 GB)
     del lm
     gc.collect()
@@ -85,13 +98,17 @@ def main():
     ap.add_argument('--trials', type=int, default=8)
     ap.add_argument('--max-new', type=int, default=48)
     ap.add_argument('--temperature', type=float, default=1.0)
+    ap.add_argument('--greedy', action='store_true',
+                    help='deterministic decoding (one continuation per cell), as in the other E1 scripts')
     ap.add_argument('--fid-threshold', type=float, default=0.5)
     ap.add_argument('--device', default=None)
     ap.add_argument('--dtype', default='float16',
                     help="load dtype: float16 (default; fits 7B on a 16GB T4), bfloat16, float32, or auto")
     ap.add_argument('--seed', type=int, default=7)
     ap.add_argument('--prefix', default='results/e1_3')
+    snapshot.add_args(ap)
     args = ap.parse_args()
+    snapshot.arm(args)
 
     try:
         import tcc.models  # noqa: F401
@@ -104,8 +121,11 @@ def main():
         try:
             res = measure_model(name, args)
             results[name] = res
-            knees = {p: (None if v[0] is None else round(v[0], 1)) for p, v in res.items()}
-            print(f"[{time.time()-t0:5.0f}s] {name:28s} ({PARAMS_M.get(name,'?')}M)  knees {knees}")
+            knees = {p: (None if v['knee'] is None else round(v['knee'], 1)) for p, v in res.items()}
+            one_shot = {p: (None if v['one_shot'] is None else round(v['one_shot']['p_n2'], 2))
+                        for p, v in res.items()}
+            print(f"[{time.time()-t0:5.0f}s] {name:28s} ({PARAMS_M.get(name,'?')}M)  knees {knees}  "
+                  f"P(N=2) {one_shot}")
         except Exception as e:                       # OOM, download failure, etc.
             results[name] = {'error': str(e)[:200]}
             print(f"[{time.time()-t0:5.0f}s] {name:28s}  FAILED: {str(e)[:120]}")
@@ -117,6 +137,11 @@ def main():
                        seconds=round(time.time() - t0, 1)), f, indent=2)
     print(f"\nwrote {args.prefix}.json")
     plot(args, results)
+
+
+def _knee(cell):
+    """Knee from either the old tuple format (N*, lo, hi) or the new dict format."""
+    return cell["knee"] if isinstance(cell, dict) else cell[0]
 
 
 def plot(args, results):
@@ -131,8 +156,8 @@ def plot(args, results):
     order = sorted(ok, key=lambda m: PARAMS_M.get(m, 1e9))
     colors = plt.cm.plasma(np.linspace(0.1, 0.85, len(order)))
     for m, col in zip(order, colors):
-        ps = [int(p) for p in sorted(ok[m], key=int) if ok[m][p][0] is not None]
-        ns = [ok[m][str(p)][0] for p in ps]
+        ps = [int(p) for p in sorted(ok[m], key=int) if _knee(ok[m][p]) is not None]
+        ns = [_knee(ok[m][str(p)]) for p in ps]
         ax.plot(ps, ns, 'o-', color=col, lw=1.9,
                 label=f"{m.split('/')[-1]} ({PARAMS_M.get(m,'?')}M)")
     ax.set_xlabel('string length $p$ (tokens)'); ax.set_ylabel('knee $N^*$')
@@ -142,7 +167,7 @@ def plot(args, results):
     # knee vs params, averaged over lengths
     xs, ys = [], []
     for m in order:
-        vals = [ok[m][p][0] for p in ok[m] if ok[m][p][0] is not None]
+        vals = [_knee(ok[m][p]) for p in ok[m] if _knee(ok[m][p]) is not None]
         if vals:
             xs.append(PARAMS_M.get(m, np.nan)); ys.append(np.mean(vals))
     ax2.plot(xs, ys, 'o-', color='crimson', lw=1.9)

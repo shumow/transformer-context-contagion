@@ -130,6 +130,12 @@ larger host populations, and the semantic-injection version of C5.
 
 ## Open experiments — the running list (post–Track C)
 
+> **2026-11-03.** This list is superseded by [`review_remediation_plan.md`](review_remediation_plan.md),
+> which absorbs every item below and adds the design fixes the critical review found
+> (E4-scale's repeating "non-repetitive" cells, E7's three negatives and missing baseline,
+> E8-lite's mislabeled control, both firebreak runs, the knee floor). The P0 data items are
+> done to the extent the data still existed; see `data/README.md`. Kept for the record.
+
 Ordered by priority. These came out of a critical review of the Track C results (2026-07-02):
 the science strengthened, but the newest, most surprising findings are the least-replicated in
 the project and their raw data is not durably stored. Items marked **[data]** are integrity/ops,

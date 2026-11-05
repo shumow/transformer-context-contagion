@@ -31,100 +31,97 @@ A Progress Report}
 \texttt{transformer-context-contagion}, the empirical follow-on to the toy-model analyses
 \texttt{trust-is-the-attack-surface}. All numbers and figures are reproduced by the
 \texttt{experiments/} scripts in that repository; the running log is \texttt{results\_log.md}.}}
-\date{June 2026 --- \emph{draft, in progress}}
+\date{November 2026 (revised from the June 2026 progress report)}
 
 \begin{document}
 \maketitle
 
+\begin{center}\small
+\fbox{\parbox{0.93\textwidth}{\textbf{Revision note.} The June 2026 draft of this report was
+reviewed in November 2026 and found to overstate several results: the ``condensation knee'' for
+multi-token payloads was the grid floor; the at-scale trust-versus-usefulness test had repeating
+``non-repetitive'' cells; the detector's AUC rested on three negatives with no baseline; one of
+two firebreak runs went unreported; no reproduction number had been computed. Every affected
+experiment was redesigned and rerun with committed per-trial data (GPT-2-small locally; 355M--7B
+on cloud GPUs, 60 chains per cell where survival is reported). This version states only what
+those reruns support. The record of every run is \texttt{results\_log.md}; the review and its
+work plan are \texttt{review\_remediation\_plan.md}; the pod runs are audited in
+\texttt{TIER2\_AUDIT\_NOTES.md}.}}
+\end{center}
+
 \begin{abstract}
-Two companion analyses~\cite{shumow2026trust,shumow2026contagion} establish, \emph{exactly}
-on a toy global-plus-cache Markov model, that in-context exploitability tracks \emph{trust}
-rather than usefulness, and that self-reproducing token strings (\emph{quines}) can be
-planted in a cache, hijack an occupied one, and spread between caches as a
-context-window worm---all cheapest and most transmissible under a longest-match
-(\emph{induction-head}) surrogate. Those results were stated as \emph{conjectures} for real
-transformers. This report is the running status of testing them on real models---established
-end to end on GPT-2-small, then taken to scale (355M--7B, four families, instruct models) and
-to the downstream claims' real settings. We find (i) a clear \emph{condensation knee}: a repeated out-of-distribution
-string begins to be regenerated past a sharp threshold in the repetition count, with the
-threshold \emph{decreasing} in string length (the induction-like, length-robust signature,
-opposite of fixed-order brittleness); and (ii) that reproduction is predominantly
-\emph{cue-dependent}---a non-matching prime mostly fails to elicit the string while a
-matching one reliably does---a behavioral induction signature obtained without
-interpretability tooling; and (iii) confirmed \emph{mechanistically} that the model's own
-induction heads carry it---ablating the canonical GPT-2 induction heads collapses
-reproduction near the knee, far beyond random-head damage. Controls further show the knee
-is a repetition (not context-length) effect though distance-sensitive, and the phenomena
-replicate in a second model family (Pythia). We then confirm the three downstream claims:
-\emph{(iv)} poisonability tracks \emph{trust}, not usefulness---repetitive gibberish is fully
-poisonable while useful non-repetitive prose is not ($\mathrm{corr}(P,\text{useful}){=}{-}0.20$
-vs.\ $\mathrm{corr}(P,\text{trust}){=}{+}0.54$, C4); \emph{(v)} a payload planted in a document
-hijacks generation only when recent \emph{and} sufficiently repeated---delivery factors as
-entry$\,\times\,$lock-in (C5); and \emph{(vi)} output fed back as another context propagates
-as a \emph{worm} with a critical string length (short strings reach an endemic load, long ones
-die out) and a \emph{cross-tokenizer firebreak} (GPT-2$\to$Pythia transmission collapses, C6).
-A \emph{paired detector} closes the loop: scoring contexts by induction-trust on repeated spans
-separates poisoned from clean documents perfectly (AUC $1.0$) and flags the poisonable
-configuration before it crosses the hijack knee---the transformer realization of the toy's
-\emph{bound-trust} defense. We then take the keystone to \emph{scale} on a cloud GPU: the
-condensation knee is low and length-robust across \mbox{355M--7B} in four model families and
-essentially \emph{flat with parameter count}---the copy mechanism is saturated by 355M (C3)---and
-it \emph{persists in instruction-tuned/chat models}, which copy rather than refuse, with only a
-modest threshold increase (E1.3/E1.4, \S\ref{sec:scale}). Finally, activation-patching up the
-size ladder shows the copy is \emph{induction-head-mediated at every scale} (124M--7B; GPT-2,
-Pythia, Qwen2.5): ablating the top few percent of heads by induction score collapses reproduction,
-while random heads do not (E2, \S\ref{sec:e2scale}). A capstone confirms that capable
-instruct models perform the coherent self-extraction the induction-only toy could not---unfolding
-nested substitution into text and self-executing a decoded benign instruction (E8). Taking the
-downstream claims to scale gives mixed, informative outcomes: the trust-not-usefulness law holds
-with a real task (C4), the worm is \emph{more} transmissible at larger scale with only a partial
-tokenizer firebreak (C6), and the raw-repetition RAG hijack is \emph{bounded}---a task query
-defuses it on an instruct model (C5). What remains is the very-long-context and semantic-injection
-regimes.
+Two companion analyses~\cite{shumow2026trust,shumow2026contagion} conjectured, from an exactly
+solvable Markov toy model, that in-context exploitability tracks \emph{trust} rather than
+usefulness, and that repeated token strings can be planted in a context, hijack generation, and
+spread between contexts as a worm. We test these conjectures on real transformers (124M--7B,
+five families, base and instruct) with controls and committed per-trial data.
+\emph{What holds.} A novel span of three or more tokens is reproduced after a single prior
+occurrence in most settings, and ablating the top 5\% of heads by induction score collapses
+this at every scale, while a fixed head count produces a false null. A repeated span hijacks generation only when it \emph{ends} the context: any
+coherent text after it, whether a task query or unrelated prose of the same length, removes the
+hijack on three instruct models, so the retrieval-augmented threat is a recency gate, not a
+matter of task-following. \emph{What does not hold.} There is no reproduction number above one,
+no critical payload length, and no tokenizer firebreak; surviving chains are locked repetition
+loops, and the family that loops most (Qwen2.5 base, at every size) is a model trait, not a
+scale law. A detector built on induction attention is no better than counting repeated
+$n$-grams.
 \end{abstract}
 
 % ===========================================================================
-\section{Scope and status}\label{sec:status}
+\section{Scope and summary}\label{sec:status}
 % ===========================================================================
-This is a \emph{progress report}, not a finished paper: sections marked \tbd\ are planned
-but not yet run. The conceptual framing, the exact toy results, and the falsifiable
-conjecture all live in the companion write-ups~\cite{shumow2026trust,shumow2026contagion};
-we recap only what is needed. The threat is concrete---context poisoning and
-self-replicating prompts already target real retrieval-augmented and agent
-pipelines~\cite{greshake2023,cohen2024}---and the toy substrate is a from-scratch analogue
-of the parametric-versus-in-context split studied by Bietti et al.~\cite{bietti2023}. The
-detailed experiment plan (claims, controls, statistics,
-phasing) is the repository's \texttt{transformer\_validation\_plan.md} and
-\texttt{e1\_plan.md}; this report records what those plans have produced so far.
+The conceptual framing, the exact toy results, and the falsifiable conjectures live in the
+companion write-ups~\cite{shumow2026trust,shumow2026contagion}; we recap only what is needed.
+The threat is concrete---context poisoning and self-replicating prompts already target real
+retrieval-augmented and agent pipelines~\cite{greshake2023,cohen2024}---and the toy substrate
+is a from-scratch analogue of the parametric-versus-in-context split studied by Bietti et
+al.~\cite{bietti2023}. The experiment plan (claims, controls, statistics, phasing) is the
+repository's \texttt{transformer\_validation\_plan.md}; every run, including the ones this
+version supersedes, is in \texttt{results\_log.md}.
+
+In order of what we think matters:
+\begin{enumerate}\itemsep2pt
+\item \textbf{Scale-matched ablation.} The induction-head attribution holds from 124M to 7B
+  only when the ablated set is a \emph{fraction} of heads; a fixed count of eight heads gives a
+  false null at 1.5B. (\S\ref{sec:e2scale})
+\item \textbf{The RAG bound is a recency gate.} On three instruct models, a repeated span that
+  ends the context is copied in 85--100\% of trials; the same span followed by a task query,
+  an instruction, or 12--21 tokens of unrelated prose is copied in 0--3\%, with or without a
+  chat template. The task is incidental. (\S\ref{sec:e5scale})
+\item \textbf{One occurrence suffices.} For spans of $\ge3$ tokens the one-shot copy rate is
+  $\ge\tfrac12$ in 36 of 48 model--length cells at 355M--7B; instruction tuning raises the
+  count needed but does not remove copying. The ``condensation knee'' of the first draft was
+  the grid floor. (\S\ref{sec:scale})
+\item \textbf{Poisonability follows repetition, not usefulness}, on three instruct models
+  with a real task---but the measurement is the model being in repetition mode, and ``trust''
+  is a label for that axis, not a separately measured quantity. (\S\ref{sec:e4scale})
+\item \textbf{No worm.} No per-hop reproduction ratio above one in any of 30 model--length
+  cells at 60 chains each; survivors are locked loops; survival is flat in payload length; the
+  tokenizer firebreak does not replicate at $n{=}30$. Qwen2.5 base models loop far more than
+  Pythia, Llama, Gemma or GPT-2 at every size, which is a family trait. (\S\ref{sec:e6scale})
+\item \textbf{The detector is an $n$-gram counter.} Induction attention and a repeated-trigram
+  count both separate poisoned from clean at AUC $1.0$; the count has fewer false positives on
+  benign repetition. (\S\ref{sec:e7})
+\end{enumerate}
 
 \begin{table}[h]
 \centering\small
-\begin{tabular}{llp{0.46\textwidth}}
+\begin{tabular}{llp{0.50\textwidth}}
 \toprule
-Stage & Status & What \\
+Experiment & Final status & Result (section) \\
 \midrule
-E1.0 smoke test & done & knee exists on GPT-2 (qualitative). \\
-E1.1 measured knee & done & knee vs length with controls + CIs (\S\ref{sec:e1}). \\
-E1.2 copy vs.\ frequency & done & cue-dependence; behavioral induction (\S\ref{sec:e1b}). \\
-E1.5 context confound & done & knee is an $N$ effect; distance-sensitive (\S\ref{sec:e15}). \\
-E1.3 size sweep & partial & cross-family replication; 8\,GB caps it at $\le$162M (\S\ref{sec:e13}). \\
-E2 induction attribution & done & induction heads \emph{causally} carry it (\S\ref{sec:e2}). \\
-E4-lite trust, not usefulness & done & poisonability $\perp$ usefulness, $\parallel$ trust (\S\ref{sec:e4}). \\
-E5-lite delivery in a document & done & hijack $=$ entry $\times$ lock-in (\S\ref{sec:e5}). \\
-E6 the worm / $R_0$ & done & critical length; cross-tokenizer firebreak (\S\ref{sec:e6}). \\
-E7 paired detector & done & flags poisonable repeated spans, AUC $1.0$ (\S\ref{sec:e7}). \\
-E1.4 modern / chat models & done & knee persists in chat models, base$\to$instruct (\S\ref{sec:scale}). \\
-E1.3 size sweep ($\ge$355M) & done & knee flat with scale, 355M--7B, 4 families (\S\ref{sec:scale}). \\
-E2 attribution at scale & done & induction heads carry the knee to 7B, three families (\S\ref{sec:e2scale}). \\
-E8-lite substitution & done & substitution is induction-carried, depth-limited on GPT-2. \\
-E8 capstone (instruct) & done & coherent self-extraction beats the toy depth limit (\S\ref{sec:e8}). \\
-E4 trust at scale & done & C4 holds with a real task, $\mathrm{corr}(P,U){\approx}0$ (\S\ref{sec:trackc}). \\
-E5 RAG hijack at scale & bound & a task query defuses the raw-copy hijack (\S\ref{sec:trackc}). \\
-E6 worm at scale & done & worm \emph{more} transmissible at scale; firebreak partial (\S\ref{sec:trackc}). \\
+E1.1--E1.5 GPT-2-small & done, reruns committed & one-shot rate $0.20$ at $p{=}3$, $0.60$ at $p{=}5$; cue-dependent; $N$ not length; distance-sensitive (\S\ref{sec:e1}--\ref{sec:e15}) \\
+E1.3/E1.4 at scale & done & $\ge\tfrac12$ one-shot in 36/48 cells; instruct models need more occurrences (\S\ref{sec:scale}) \\
+E2 attribution & done, 124M--7B & induction ablation $-64$ to $-98\%$ vs random $\le -28\%$ near threshold; fixed count fails (\S\ref{sec:e2}, \ref{sec:e2scale}) \\
+E4 trust vs usefulness & redesigned, rerun & $\mathrm{corr}(P,T)$ $+0.15$ to $+0.38$, $\mathrm{corr}(P,U)$ $-0.18$ to $+0.07$ on three instruct models (\S\ref{sec:e4scale}) \\
+E5 RAG hijack & rerun with controls & recency gate: raw 85--100\% hijacked, anything after the span 0--3\% (\S\ref{sec:e5scale}) \\
+E6 worm / firebreak & rerun at $n{=}60$ / $30$ & withdrawn: no $R>1$, no critical length, no firebreak; Qwen-family looping (\S\ref{sec:e6scale}) \\
+E7 detector & rerun with baseline & no better than a trigram count (\S\ref{sec:e7}) \\
+E8 substitution / capstone & rerun control & induction-carried at $m\ge8$, smaller effect; instruct models self-extract (\S\ref{sec:e8}) \\
 \bottomrule
 \end{tabular}
-\caption{Status of the experimental program. Stage numbering follows
-\texttt{transformer\_validation\_plan.md} and \texttt{e1\_plan.md}.}
+\caption{Final status of the experimental program. Stage numbering follows
+\texttt{transformer\_validation\_plan.md}.}
 \label{tab:status}
 \end{table}
 
@@ -148,11 +145,15 @@ C5 & delivery $=$ entry $\times$ lock-in & a planted span hijacks generation in 
 C6 & worm with $R_0\approx T/(p\,k_{\mathrm{thresh}})$ & output fed back propagates; short strings spread, long die \\
 \bottomrule
 \end{tabular}
-\caption{The conjecture, claim by claim. All six now have a real-transformer result on
-GPT-2-small: \textbf{C1}, \textbf{C3} (\S\ref{sec:e1}); \textbf{C2} behaviorally (\S\ref{sec:e1b})
-and mechanistically (\S\ref{sec:e2}); \textbf{C4} (\S\ref{sec:e4}); \textbf{C5} (\S\ref{sec:e5});
-\textbf{C6} (\S\ref{sec:e6}); and all six are then taken to scale / real settings
-(\S\ref{sec:scale},~\S\ref{sec:e2scale},~\S\ref{sec:trackc}).}
+\caption{The conjecture, claim by claim, and its outcome. \textbf{C1/C3} hold in the weak form
+``one prior occurrence suffices for spans of $\ge3$ tokens''; the sharp threshold and its
+length-decrease are a grid artifact for multi-token payloads (\S\ref{sec:e1}, \S\ref{sec:scale}).
+\textbf{C2} holds behaviorally and mechanistically at every scale tested (\S\ref{sec:e1b},
+\S\ref{sec:e2}, \S\ref{sec:e2scale}). \textbf{C4} holds in direction on three instruct models,
+as a repetition effect (\S\ref{sec:e4scale}). \textbf{C5} holds as entry$\,\times\,$lock-in on a
+base model and reduces to a recency gate on instruct models (\S\ref{sec:e5},
+\S\ref{sec:e5scale}). \textbf{C6} does not hold: no reproduction number above one, no critical
+length, no firebreak (\S\ref{sec:e6}, \S\ref{sec:e6scale}).}
 \label{tab:claims}
 \end{table}
 
@@ -166,45 +167,73 @@ falsify its own comforting predictions.
 \paragraph{Induction heads.} Olsson et al.~\cite{olsson2022} identified induction heads as the
 in-context copy circuit (``saw $AB$, now see $A\!\to$ predict $B$''), and Bietti et
 al.~\cite{bietti2023} gave a memory-viewpoint account of how such copying is learned. We do
-\emph{not} claim to discover this mechanism. Our delta is to recast in-context copying as a
-\emph{security} phenomenon: it has a sharp threshold in the repetition count (the
-\emph{condensation knee}, C1) whose position \emph{decreases} with payload length (C3, the
-signature that distinguishes an induction surrogate from a fixed-order count model), and it is
-the \emph{same} circuit that carries reproduction of an \emph{injected, out-of-distribution}
-payload---which we establish causally by ablation and show holds from 124M to 7B across three
-families (C2, \S\ref{sec:e2scale}). The mechanism is borrowed; that it is the engine of
-context-poisoning \emph{persistence}, with a measurable threshold, is the claim.
+\emph{not} claim to discover this mechanism. Our delta is to measure it as a \emph{security}
+quantity: for an \emph{injected, out-of-distribution} span of three or more tokens, one prior
+occurrence suffices for reproduction more often than not across 355M--7B (C1/C3 in the only
+form the data support), and it is the \emph{same} circuit that carries that reproduction, which
+we establish causally by ablation from 124M to 7B across three families (C2,
+\S\ref{sec:e2scale})---with the methodological caveat that the ablated set must scale with the
+model or the attribution fails. The mechanism is borrowed; that it is the engine of
+context-poisoning \emph{persistence} is the claim.
 
 \paragraph{Indirect prompt injection.} Greshake et al.~\cite{greshake2023} established that
 retrieved / tool-supplied content can compromise LLM-integrated applications. That work
 characterizes the \emph{threat}; we add a \emph{mechanistic} account of one axis of it---why a
-\emph{repeated} payload persists and gets re-emitted---and a defensive corollary that follows
-from the mechanism rather than from content: the quantity that predicts poisonability is
-\emph{induction trust on a repeated span}, and we show it is empirically \emph{decoupled from
-content usefulness} ($\mathrm{corr}(P,\text{useful}){\approx}0$ vs.\ $\mathrm{corr}(P,\text{trust})
-{=}{+}0.71$ with a real task, C4, \S\ref{sec:e4scale}). This motivates a \emph{structural}
-detector (\S\ref{sec:e7}) that watches the trust signal, not the content. We also \emph{bound}
-the injection story honestly: for a benign OOD span, a real task query on an instruct model
-defuses the raw-copy hijack (C5, \S\ref{sec:e5scale})---so the copy-dynamics account applies to
-the persistence/echo of repeated spans, and the residual RAG threat of a \emph{semantically
-plausible} planted instruction is a distinct problem we do not claim to cover.
+\emph{repeated} payload persists and gets re-emitted---and two bounds on it. First, what predicts
+poisonability is \emph{repetition}, decoupled from content usefulness on three instruct models
+with a real task ($\mathrm{corr}(P,\text{useful})$ from $-0.18$ to $+0.07$ vs.\
+$\mathrm{corr}(P,\text{repetition})$ from $+0.15$ to $+0.38$, C4, \S\ref{sec:e4scale}); the
+``structural'' detector this motivates turns out to be a repeated-$n$-gram counter
+(\S\ref{sec:e7}). Second, the hijack is gated by \emph{recency}, not by the task: a benign OOD
+span copied in 85--100\% of raw continuations is copied in 0--3\% once \emph{anything} coherent
+follows it, with or without a chat template (C5, \S\ref{sec:e5scale}). So the copy-dynamics
+account applies to the echo of a repeated span that ends the context, and the residual RAG
+threat of a \emph{semantically plausible} planted instruction is a distinct problem we do not
+claim to cover.
 
 \paragraph{GenAI worms.} Cohen et al.~\cite{cohen2024} demonstrated self-propagating worms in
 GenAI-powered application pipelines (e.g.\ via RAG/embedding stores). We study the copy dynamics
-\emph{underneath} such propagation on the models themselves: a critical string length (short
-strings reach an endemic load, long ones die out), a reproduction number that falls with length,
-and a \emph{cross-tokenizer firebreak}. At scale these become \emph{less} comforting than the toy
-predicted: the critical length \emph{grows} with model capability (a 7B host sustains a worm that
-smaller hosts kill), and the firebreak is only \emph{partial} under strong seeding
-(\S\ref{sec:trackc}).
+\emph{underneath} such propagation on the models themselves: whether a payload survives serial
+passage, how fast an unlocked chain decays, and whether re-tokenization attenuates it. With 60
+chains per cell on six models (\S\ref{sec:e6scale}) there is no reproduction number above one
+anywhere; what differs between models is how readily each \emph{locks} into a payload loop,
+and that is a family trait (Qwen2.5 base at 0.5B--7B) rather than a function of scale. Any
+``GenAI worm'' built on repetition therefore inherits the epidemiology of a degeneration bug,
+not of an infection.
+
+\paragraph{Repetition and degeneration.} Holtzman et al.~\cite{holtzman2019} documented that
+sampled and greedy decoding from language models falls into repetition loops; Xu et
+al.~\cite{xu2022} studied why and proposed training-time mitigations. The ``endemic'' chains in
+\S\ref{sec:trackc}, with a flat viral load equal to the generation budget divided by the payload
+length, are this phenomenon seeded deliberately. Any claim that the worm ``gets worse at scale''
+has to be made against this baseline: it is a claim about the propensity of larger models to
+enter and stay in such a loop. McDougall et al.~\cite{mcdougall2023} identified
+\emph{copy-suppression} heads that actively reduce the probability of repeating a token just
+seen; this is the natural account of why single-token payloads ($p{=}1$) fail to lock in most
+families here while $\ge3$-token spans lock after one occurrence (\S\ref{sec:scale}). Jelassi
+et al.~\cite{jelassi2024} measured transformers' capacity to copy long strings from context,
+the ability our length-robustness result (C3) rides on.
+
+\paragraph{In-context repetition as an attack.} The closest security-relevant prior is
+many-shot jailbreaking~\cite{anil2024}: repeating demonstrations in context shifts a chat model's
+behavior with a power law in the number of shots, which is in-context ``trust'' accumulated by
+repetition in exactly the sense of C4. Nasr et al.~\cite{nasr2023} showed that asking a model
+to repeat a single token indefinitely makes it diverge and emit memorized training data---a
+repeated-token attack whose first stage is the $p{=}1$ frequency regime of \S\ref{sec:e1b}. Liu
+et al.~\cite{liu2023} characterized the position dependence of in-context use (``lost in the
+middle''), which is the recency profile that E1.5 and E5 measure for a planted span. Our delta
+with respect to all three is narrower than the first draft implied: a controlled measurement of
+the copy mechanism's one-shot rate and placement dependence for a \emph{meaningless} span, with
+the mechanism attributed by ablation, and a bound showing that the hijack is a recency gate.
 
 \paragraph{Toy companions.} The two companion analyses~\cite{shumow2026trust,shumow2026contagion}
 work all of this out \emph{exactly} on a global-plus-cache Markov model and state each result as a
-conjecture for real transformers. This paper is the real-transformer test---confirming C1--C4,
-bounding C5, and finding C6 worse than conjectured. The frame's three non-obvious predictions
-(the length-robustness sign, trust~$\perp$~usefulness, and the tokenizer firebreak) are exactly
-what we put at risk at scale; two held (one strengthened) and one held only partially, which is
-the evidence that the framing does work rather than merely relabel a known circuit.
+conjecture for real transformers. This paper is the real-transformer test. Of the frame's three
+non-obvious predictions, the length-robustness sign (C3) holds in the weak form ``one occurrence
+suffices for $p\ge3$''; trust~$\perp$~usefulness (C4) holds in direction on three instruct models
+as a repetition effect; and the tokenizer firebreak (C6) does not hold. The toy's reproduction
+number $R_0\approx T/(p\,k_{\mathrm{thresh}})$, and the critical length it implies, are absent
+from the transformer data (\S\ref{sec:e6scale}).
 
 % ===========================================================================
 \section{Method}\label{sec:method}
@@ -275,10 +304,22 @@ $p$ (see text).}
 (Table~\ref{tab:e1})---the payloads are genuinely out-of-distribution, so reproduction is
 caused by the repetitions, not the model's prior.
 
-\paragraph{C3 (length robustness): confirmed, and stronger than ``flat.''} $N^*$
+\paragraph{C3 (length robustness): holds, in a weaker form than first stated.} $N^*$
 \emph{decreases} with length, $7.2\to4.3\to3.0\to1.9$ (Figure~\ref{fig:nstar}): longer
-strings are \emph{easier} to plant. This is the induction-like signature---the opposite of
-the fixed-order count cache's doubly-exponential brittleness ladder~\cite{shumow2026contagion}.
+strings are \emph{easier} to plant, the opposite of the fixed-order count cache's brittleness
+ladder~\cite{shumow2026contagion}. But the $p{=}5$ value sits in the first grid interval: at
+$N{=}1$ the cyclic transition $S[-1]\!\to\!S[0]$ has never occurred, so copying it is impossible
+except by chance, and at $N{=}2$ it has occurred once. Any copy mechanism therefore jumps
+between $N{=}1$ and $N{=}2$, and an interpolated $N^*\in(1,2]$ says only that the one-shot copy
+rate $P(\text{reproduce}\mid N{=}2)$ exceeds $\tfrac12$ ($N^* = 1 + \tfrac{1}{2P(N{=}2)}$ when
+$P(N{=}1){=}0$). The decrease from $p{=}1$ to $p{=}3$ is a real threshold change; from $p{=}3$
+on, ``$N^*$'' is the one-shot rate in disguise. \S\ref{sec:scale} makes this explicit.
+A 2026-11-03 rerun of this experiment with the per-$N$ curves retained gives the one-shot rate
+directly on GPT-2-small (Wilson 95\% intervals, 40 samples per cell): $P(N{=}2) = 0.00$,
+$0.28\,[0.16,0.43]$, $0.20\,[0.11,0.35]$ and $0.60\,[0.45,0.74]$ at $p=1,2,3,5$, with
+$P(N{=}1)\le0.03$ everywhere. So on the small model only $p{=}5$ is at the floor; one occurrence
+is \emph{not} enough at $p{=}3$ (the knee of $3.0$--$3.2$ there is a real threshold), and
+GPT-2-small is the weak end of the at-scale range in \S\ref{sec:scale}.
 
 \paragraph{The scrambled control exposed a length-dependent mechanism.} For $p\ge3$ the
 scrambled control stays near $0$ while the payload locks: reproduction needs the
@@ -292,7 +333,8 @@ copying from frequency directly.
 \includegraphics[width=0.56\textwidth]{e1_1_Nstar_gpt2.png}
 \caption{Knee $N^*$ vs.\ string length (bootstrap CI). Decreasing $N^*$ is the
 induction-like, length-robust behavior; a rising curve would indicate fixed-order
-brittleness.}
+brittleness. Values at or below $2$ are at the grid floor (one prior occurrence already
+suffices) and should be read as a one-shot copy rate, not a threshold.}
 \label{fig:nstar}
 \end{figure}
 
@@ -453,24 +495,32 @@ $p\ge3$ knee is low ($N^*\!\approx\!1.5$--$2.7$) and essentially size-independen
 \label{tab:scale}
 \end{table}
 
-\paragraph{C3 holds across scale and family.} For $p\ge3$ the knee is low and roughly flat
-everywhere ($N^*\!\approx\!1.5$--$2.7$, decreasing in $p$): a novel span of $\ge3$ tokens
-locks in after $\sim$2 presentations at every size up to 7B and in all four families
-(Fig.~\ref{fig:scale}). Induction-style length-robustness is not a small-model artifact.
+\paragraph{C3 holds across scale and family, as a one-shot rate.} For $p\ge3$, 30 of the 36
+base-model cells in Table~\ref{tab:scale} have $N^*\le2$, i.e.\ the curve crosses $\tfrac12$
+inside the first grid interval: a novel span of $\ge3$ tokens is reproduced after \emph{one}
+prior occurrence more often than not, at every size up to 7B and in all four families
+(Fig.~\ref{fig:scale}). Inverting the interpolation (assuming $P(N{=}1){=}0$, which the
+GPT-2-small curves show) gives an implied one-shot copy rate with median $0.71$ over the floor
+cells. The six cells above the floor (gpt2-medium $p{=}3$; Pythia-410m/1.4b/2.8b $p{=}3$;
+Pythia-1.4b $p{=}8$; Llama-3.2-1B $p{=}5$) need between one and three prior occurrences.
 
-\paragraph{The knee does not fall with scale.} Contrary to the loose expectation that larger
-models give a lower or sharper knee, $N^*(p\ge3)$ is essentially flat in parameter count---the
-copy mechanism is already saturated by 355M. Any size dependence lives in \emph{single-token}
-lock-in: only the GPT-2 family locks $p{=}1$ within $N\le32$, and its knee \emph{rises} with
-size ($5.1\to6.3\to9.3$). This sharpens E1.2's reading---$p{=}1$ reproduction is a
-model-specific frequency-prior effect, not induction, while the induction-carried $p\ge3$ knee
-is universal.
+\paragraph{The ``flat knee'' is the grid floor, not a scaling result.} The first draft read the
+size-independence of $N^*(p\ge3)$ as ``the copy mechanism is saturated by 355M.'' That reading
+is not supported: a quantity pinned to the first grid interval cannot show a trend. What the
+sweep does establish is that the one-shot rate is $\ge\tfrac12$ nearly everywhere; whether it
+\emph{rises} with scale within $[0.5,1]$ is a question the stored knees cannot answer and the
+per-$N$ curves (not retained by the sweep script, now fixed) can. Size dependence proper lives in
+\emph{single-token} lock-in: only the GPT-2 family locks $p{=}1$ within $N\le32$, and its knee
+\emph{rises} with size ($5.1\to6.3\to9.3$). With E1.2 this says $p{=}1$ reproduction is a
+model-specific frequency-prior effect, consistent with copy suppression~\cite{mcdougall2023},
+while the $p\ge3$ one-shot copy is universal.
 
 \paragraph{E1.4: instruction-tuning does not immunize.} The worry that chat models would
 refuse or summarize rather than copy did not materialize: all four ran clean and reproduced
-the planted span, with the knee in the same low regime (Table~\ref{tab:instruct}).
-Instruction-tuning \emph{raises} the threshold modestly---most for Llama-3.2-3B-Instruct
-($p{=}5$ knee $6.3$ vs.\ base $1.9$, the most resistant chat model)---but never removes it.
+the planted span (Table~\ref{tab:instruct}). Here the knees are informative: six of the twelve
+multi-token instruct cells sit \emph{above} the floor (three of the four models at $p{=}3$),
+so instruction-tuning raises the number of occurrences needed---most for Llama-3.2-3B-Instruct
+($p{=}5$ knee $6.3$ vs.\ base $1.9$)---but never removes copying.
 The small instruct model gemma-2-2b-it is the most eager copier and the only model in either
 sweep to lock a \emph{single} token ($p{=}1$, $N^*{=}1.0$). C1/C3 thus extend to the realistic
 chat condition.
@@ -656,24 +706,31 @@ it); we count payload copies in each host's output across hops.
 \centering
 \includegraphics[width=0.49\textwidth]{e6_worm_serial.png}\hfill
 \includegraphics[width=0.49\textwidth]{e6_worm_crosstok.png}
-\caption{E6. \emph{Left:} same-model serial passage---short strings ($p{=}1$) sustain at an
-endemic load while longer strings die out, faster as $p$ grows (a critical length). \emph{Right:}
-the cross-tokenizer firebreak---GPT-2$\to$GPT-2 transmission persists, GPT-2$\to$Pythia collapses
-after one hop. Reproduced by \texttt{experiments/e6\_worm.py}.}
+\caption{E6, 2026-11-03 rerun with per-trial trajectories (8 trials). \emph{Left:} same-model
+serial passage on GPT-2---mean viral load decays at every payload length; the June run's
+``$p{=}1$ endemic'' plateau did not reproduce. \emph{Right:} the cross-tokenizer chain
+(GPT-2$\to$Pythia-160M) and the same-tokenizer chain both go extinct within a few hops at this
+$n$. Reproduced by \texttt{experiments/e6\_worm.py}.}
 \label{fig:e6}
 \end{figure}
 
-\textbf{A real worm with a critical length.} In same-model serial passage (Fig.~\ref{fig:e6},
-left), a length-1 string \emph{propagates indefinitely} at an endemic load ($\sim$12 copies/host)
-while longer strings \emph{die out}, faster as $p$ grows (gone by hop 2 at $p{=}8$): the basic
-reproduction number falls with string length and crosses $1$ around $p\!\approx\!1$--$2$,
-exactly the toy's prediction (short $=$ epidemic, long $=$ one-shot). The epidemic is carried by
-\emph{super-spreader} payloads that fully take over a host's output (occupancy $\to 1$, ending
-mid-payload so the next host re-enters); most payloads reproduce weakly and die, tying the
-critical length to the recency limit of E1.5. \textbf{Cross-tokenizer firebreak}
-(Fig.~\ref{fig:e6}, right): same-tokenizer transmission survives to hop 6, but switching hosts
-to Pythia-160M collapses it after one hop---re-tokenizing fragments the payload so induction
-cannot copy it cleanly. A heterogeneous-model pipeline is naturally worm-resistant.
+\textbf{What the June run showed, and what the rerun shows.} The first run (June 2026, 8
+trials, means only) had a length-1 string holding a mean load of $\sim$12 copies per host to hop
+6 while every longer string died, and GPT-2$\to$Pythia-160M transmission collapsing after one
+hop; it was read as an epidemic with a critical length near $p\!\approx\!1$--$2$ and a
+firebreak. The rerun with the same command, retaining each trial's trajectory, does not support
+the epidemic reading. The per-hop multiplication ratio is below one at \emph{every} length
+(per-trial medians $0.33$--$0.77$; every bootstrap 95\% interval caps below $1$, the widest at
+$p{=}5$ reaching $0.99$). The $p{=}1$ mean load decays to zero by hop 6; two of eight $p{=}1$
+trials and one of eight $p{=}5$ trials are still alive at the last hop, and every survivor is a
+\emph{fully locked} loop---a host emitting the payload at a fixed rate---with no
+surviving-but-fluctuating trial anywhere. Survival intervals at $n{=}8$ ($[0.00,0.50]$) do not
+separate ``endemic'' from extinction. So on GPT-2-small the worm is one or two hosts stuck in a
+repetition loop~\cite{holtzman2019}, not a chain that spreads; the ``super-spreader'' reading of
+the June entry was those locked trials seen through a mean. The cross-tokenizer chain went
+extinct in both conditions this seed (the cross chain lasting one hop longer), which is not
+evidence about a firebreak either way at this $n$; the at-scale analysis of the firebreak is in
+\S\ref{sec:trackc}.
 
 % ===========================================================================
 \section{The paired detector}\label{sec:e7}
@@ -682,37 +739,74 @@ The attacks of \S\ref{sec:e4}--\ref{sec:e6} all key on one quantity: the inducti
 repeated span earns. The defense watches the same quantity. We score a context by its mean
 \emph{induction engagement}---the attention the canonical induction heads (from E2) pay to
 repeated-bigram continuations---which is high on a repeated/poisoned span and $\approx 0$ on
-natural prose, regardless of whether the content is meaningful. As a binary detector (clean
-prose documents vs.\ the same documents with an OOD payload repeated $k$ times), it separates
-the two \emph{perfectly}: ROC-AUC $=1.0$ at every $k\in\{2,4,8,16\}$, with the score rising
-monotonically in $k$ (Fig.~\ref{fig:e7}). It fires already at $k{=}2$, well below the
-in-document hijack knee ($\sim$10--12, \S\ref{sec:e5}): it flags the poisonable configuration
-\emph{before} it is dangerous, and on the trust signal independent of usefulness.
+natural prose, regardless of whether the content is meaningful. The June run tested it as a
+binary detector against \emph{three} clean documents and reported ROC-AUC $=1.0$ at every
+$k\in\{2,4,8,16\}$, with no model-free baseline. The 2026-11-03 rerun scores 32 clean paragraphs
+(64 poisoned instances per $k$), adds a baseline that needs no model---the fraction of positions
+whose trigram already occurred earlier in the context---and measures both on eight legitimately
+repetitive texts (a license header, an email footer, a code loop, a numbered list, a chorus, a
+CSV dump, a form letter, a menu) at the threshold that gives zero false positives on clean prose.
+
+\begin{table}[h]
+\centering\small
+\begin{tabular}{lccccc}
+\toprule
+detector & AUC $k{=}2$ & $k{=}4$ & $k{=}8$ & $k{=}16$ & benign-repetitive FPR \\
+\midrule
+induction engagement (8 heads) & $1.000$ & $1.000$ & $1.000$ & $1.000$ & $1.00$ (8/8) \\
+repeated-trigram count (no model) & $1.000$ & $1.000$ & $1.000$ & $1.000$ & $0.88$ (7/8) \\
+\bottomrule
+\end{tabular}
+\caption{E7 rerun on GPT-2-small: 32 clean paragraphs vs.\ the same with a $p{=}3$ payload
+planted $k$ times. Bootstrap 95\% intervals on every AUC are $[1.000, 1.000]$. FPR is the
+fraction of the eight benign-repetitive texts flagged at the zero-FP-on-clean threshold.}
+\label{tab:e7}
+\end{table}
 
 \begin{figure}[t]
 \centering
 \includegraphics[width=\textwidth]{e7_detector.png}
-\caption{The detector. \emph{Left:} score (mean induction trust) for clean docs vs.\ docs with
-a payload repeated $k$ times---clean sits at $\approx 0$, poisoned rises with $k$. \emph{Right:}
-detection AUC vs.\ $k$ ($=1.0$ throughout). Reproduced by \texttt{experiments/e7\_detector.py}.}
+\caption{E7 rerun. \emph{Left, middle:} score distributions for clean, poisoned ($k$) and
+benign-repetitive texts under the induction score and under the trigram-repeat count, with the
+operating threshold. \emph{Right:} AUC vs.\ $k$ for both, with bootstrap intervals; the curves
+coincide at $1.0$. Reproduced by \texttt{experiments/e7\_detector.py}.}
 \label{fig:e7}
 \end{figure}
 
-Flagging---or capping the trust earned by---repeated spans that approach the condensation knee
-is precisely what neutralizes the E5 hijack and the E6 worm; it is the transformer realization
-of the toy's defensive corollary, \emph{bound trust, not usefulness}. \emph{Caveat:} the
-detector flags \emph{any} induction-engaging repeated span, malicious or benign (boilerplate,
-templates, repeated instructions). That is the correct behavior under the thesis---such spans
-are genuinely poisonable (\S\ref{sec:e4})---but it identifies the poisonable \emph{configuration},
-not malicious \emph{intent}, so a deployment needs a benign-repetition allowlist or a trust cap
-rather than a hard block.
+\textbf{The induction score does not beat the trigram count} (Table~\ref{tab:e7},
+Fig.~\ref{fig:e7}). Both separate poisoned from clean perfectly from $k{=}2$ up, because clean
+prose carries essentially none of either signal (induction mean $10^{-4}$, trigram count exactly
+$0$), so any planted repeated span is trivially separable by either. Where they differ, the
+model-free count is slightly better: at the zero-false-positive threshold the induction detector
+flags all eight benign-repetitive texts and the trigram count flags seven (it alone passes the
+license header). The detector's advertised edge---keying on \emph{trust} independent of
+usefulness---buys nothing on this benchmark and costs one false positive. The one qualitative
+difference is dynamic range (the trigram mean rises from $0.03$ to $0.54$ across $k$ while the
+induction score saturates near $0.08$), which does not translate into detection here since both
+are already perfect at $k{=}2$.
+
+\textbf{What survives.} The toy's defensive corollary, \emph{bound trust, not usefulness},
+survives as a statement about what to watch: repeated spans, regardless of content. But the
+watching can be done by counting repeated $n$-grams. The induction score is the \emph{reason}
+repetition is dangerous (\S\ref{sec:e2}, \S\ref{sec:e4}), not a better alarm, and either detector
+identifies the poisonable \emph{configuration} rather than malicious \emph{intent}: boilerplate,
+code and templates are flagged alike, so a deployment needs a benign-repetition allowlist or a
+trust cap rather than a hard block. Whether the induction score earns its cost on harder cases
+(a payload buried mid-document, or repeated only twice in a long context, where a trigram count
+may fail) is untested; this benchmark cannot say.
 
 % ===========================================================================
 \section{E8 capstone: coherent self-extraction on instruct models}\label{sec:e8}
 % ===========================================================================
 E8-lite established that in-context substitution is induction-carried but sharply
 depth-limited on GPT-2-small (a 2-step cascade succeeds only $0.19$, below $f^2$, from
-cross-layer interference), predicting that a \emph{coherent} self-extracting payload---and the
+cross-layer interference). Its original ``random heads'' control was in fact the eight
+lowest-induction-score heads; a 2026-11-03 rerun against a genuinely random matched control
+keeps the conclusion at the reliable table sizes but with a smaller effect---top-1 substitution
+accuracy drops $-57\%$ (induction) vs.\ $-33\%$ (true random) at $m{=}8$ and $-68\%$ vs.\ $-3\%$
+at $m{=}16$, while the lowest-induction set barely moves ($-7\%$ at $m{=}8$); the $m\le4$ rows
+are too noisy to order, and no intervals were computed. The cascade result is unchanged
+(step-1 $0.97$, two-step $0.19 < f^2 = 0.25$). This predicted that a \emph{coherent} self-extracting payload---and the
 ``decode this, then follow it'' self-execution loop---would need a capable, instruction-tuned
 model. We test both on three chat models, \emph{strictly benignly}: the decoded payload is a
 harmless English sentence and the executed instruction is a harmless marker task (``reply with
@@ -762,51 +856,161 @@ greedy; benign markers by design.)
 % ===========================================================================
 \section{At scale: the downstream claims C4/C5/C6}\label{sec:trackc}
 % ===========================================================================
-The three downstream claims had lite/proxy results on GPT-2-small; we now test them in their
-real settings on instruct models (Qwen2.5-7B-Instruct unless noted). The outcomes are
-\emph{mixed}---one confirmation, one bound, one that is \emph{worse} than the toy predicted---
-which is exactly the pre-registered discipline: either direction is informative.
+The three downstream claims had lite/proxy results on GPT-2-small (\S\ref{sec:e4}--\ref{sec:e6}).
+The June 2026 at-scale runs of all three were found deficient on review (a $2{\times}2$ whose
+non-repetitive cells repeated; a null with no positive control; five-trial survival figures and
+an unreported firebreak run) and were redone on a cloud L40S in November 2026 with the designs
+below, committed per-trial data, and 60 chains per cell wherever survival is reported. All
+numbers here are from those reruns; the superseded ones remain in \texttt{results\_log.md}.
+Models: Qwen2.5-7B-Instruct, Llama-3.2-3B-Instruct and Phi-3.5-mini-instruct for C4 and C5;
+Qwen2.5-\{3B,\,7B\}, Pythia-\{2.8B,\,6.9B\}, Llama-3.2-3B and Qwen2.5-7B-Instruct for C6.
 
-\paragraph{C4 holds with a real task (\S~E4-scale).}\label{sec:e4scale}
-E4-lite used a naturalness \emph{proxy} for usefulness. Here usefulness is a genuine task:
-benign \emph{synthetic} facts the model cannot already know, so a context containing the fact is
-the only source of the answer. Across a $2\times2$ \{repetitive, non-repetitive\} $\times$
-\{useful, useless\}, poisonability $P$ (copy-rate) tracks the repetition/trust axis, not the task
-axis: repetitive \emph{useless} gibberish is fully poisonable ($P{=}1.0$, $U{=}0$) while the
-non-repetitive \emph{useful} fact is barely poisonable ($P{=}0.38$, $U{=}1.0$).
-$\mathrm{corr}(P,U){=}{+}0.09$, $\mathrm{corr}(P,T){=}{+}0.71$---the trust-not-usefulness
-conservation law holds on a capable instruct model with a genuine benefit (the OOD gibberish even
-draws \emph{more} induction attention than the repeated real fact).
+\paragraph{C4 with a real task: poisonability follows repetition, not usefulness.}\label{sec:e4scale}
+Usefulness is a genuine task: benign \emph{synthetic} facts the model cannot already know, so a
+context containing the fact is the only source of the answer ($U$ = chat-QA accuracy). The
+$2{\times}2$ crosses \{repetitive: the fact or an OOD span $\times 8$\} with \{non-repetitive:
+distinct sentences, length-matched in tokens, with the fact inserted once or not at all\}.
+Poisonability $P$ is whether an E1-style probe span planted twice at the end of the context is
+reproduced (greedy); $T$ is the attention the last token pays to positions after a prior
+occurrence of itself (induction attention). 32 facts; bootstrap intervals over facts.
 
-\paragraph{C5 is bounded: a task query defuses the raw-copy hijack (\S~E5-scale).}\label{sec:e5scale}
-E5-lite hijacked a base model's \emph{continuation} with a recent, repeated payload. At scale we
-plant an OOD payload $\times k$ inside a $\sim$4000-token benign retrieval dump on an instruct
-model and ask it to \emph{answer a query}: hijack (payload occupancy of the answer) is
-\textbf{$0.00$} at every placement and for $k$ up to 32. The same model reproduces a planted span
-in raw continuation (E1.4), so this is not an inability to copy---the \emph{task query anchors
-generation away from the payload}. The raw-repetition hijack is thus a base-model-continuation
-phenomenon; a capable instruct model doing a real task is not hijacked by it. A well-posed query
-is itself a mitigation; the residual RAG threat is \emph{semantic} injection, outside this
-project's benign-OOD copy-dynamics scope.
+\begin{table}[h]
+\centering\small
+\begin{tabular}{lcccc}
+\toprule
+model & $P$: rep.\ useless / rep.\ useful & $P$: non-rep.\ useful / useless & $\mathrm{corr}(P,T)$ & $\mathrm{corr}(P,U)$ \\
+\midrule
+Qwen2.5-7B-Instruct   & $0.97$ / $0.66$ & $0.25$ / $0.31$ & $+0.38\,[+0.26,+0.50]$ & $-0.18\,[-0.31,-0.04]$ \\
+Llama-3.2-3B-Instruct & $1.00$ / $0.97$ & $0.69$ / $0.72$ & $+0.15\,[+0.06,+0.25]$ & $-0.04\,[-0.14,+0.06]$ \\
+Phi-3.5-mini-instruct & $1.00$ / $0.94$ & $0.62$ / $0.44$ & $+0.34\,[+0.26,+0.42]$ & $+0.07\,[+0.00,+0.16]$ \\
+\bottomrule
+\end{tabular}
+\caption{E4 at scale, redesigned. $P$ is the fraction of 32 facts whose planted probe was
+reproduced; correlations are Pearson over the 128 context rows with bootstrap 95\% intervals
+over facts. Llama-3.2-3B-Instruct is near the probe ceiling in the non-repetitive cells, which
+compresses its correlations; one planted copy instead of two puts it at the floor, so the fix
+is sampled trials, not run.}
+\label{tab:e4scale}
+\end{table}
 
-\paragraph{C6 is worse: the worm scales up, the firebreak only partly holds (\S~E6-scale).}\label{sec:e6scale}
-Serial passage on larger/instruct models shows the worm's \emph{critical length grows with
-capability}: GPT-2-small and the smaller models (Pythia-2.8B, Llama-3.2-3B) kill it for
-$p\ge2$, but Qwen2.5-7B sustains it across all six hops for $p{=}2$--$8$ (viral load $\sim\!28$
-at $p{=}2$), and the instruct model transmits it too. A stronger copier is a better host, so
-scale makes transmission \emph{more}, not less, likely. (Single-token $p{=}1$ dies off the GPT-2
-family, which does not lock single tokens, so Track-A's ``$p{=}1$ endemic'' was a GPT-2 quirk.)
-The cross-tokenizer firebreak (a 5-family patient-zero\,$\times$\,host matrix) holds in
-\emph{direction}---the same-tokenizer diagonal is generally the strongest transmission---but is
-\emph{partial}: under strong seeding a re-tokenized payload still partly copies, so a
-heterogeneous-tokenizer pipeline is a worst-case-reducing measure, not a hard barrier.
+On all three models the most poisonable cell is \emph{repeated gibberish} ($U{=}0$), the
+non-repetitive useful and useless cells are within each other's intervals, $\mathrm{corr}(P,T)$
+is positive with the interval clear of zero, and $\mathrm{corr}(P,U)$ is zero or slightly
+negative (Table~\ref{tab:e4scale}). The direction of C4 holds with the design confounds removed.
+Said plainly, the measurement is this: a context that has put the model into a repetition
+regime makes any trailing span reproduced, and whether the context is useful has no bearing on
+that. $T$ is a proxy for how repetitive the context is, not an independently measured ``trust'';
+the first draft's $\mathrm{corr}(P,T){=}{+}0.71$ was inflated by a copy-rate measure that is
+$\approx1$ for any repeated span by construction.
+
+\paragraph{C5: the hijack is a recency gate.}\label{sec:e5scale}
+We plant an OOD payload $\times k$ at the end of a $\sim$4000-token benign retrieval dump and
+compare, on the same contexts, conditions that differ only in what follows the payload
+(Table~\ref{tab:e5scale}). The raw prefix that ends inside the payload is the positive control.
+
+\begin{table}[h]
+\centering\small
+\begin{tabular}{lccc}
+\toprule
+condition (what follows the payload) & Qwen2.5-7B-I & Llama-3.2-3B-I & Phi-3.5-mini-I \\
+\midrule
+nothing (raw prefix; positive control) & $33/40$ & $40/40$ & $36/40$ \\
+task query, chat template (3 query styles, $k\le32$) & $0/120$ & $0/120$ & $0/120$ \\
+``Continue the documents'', chat template & $0/40$ & $1/40$ & $3/40$ \\
+task query, no template & $0/120$ & $0/120$ & $0/120$ \\
+unrelated prose of the query's token length, no query, no template & $4/120$ & $0/120$ & $0/120$ \\
+neutral random tokens of the same length & $25/120$ & $10/120$ & $11/120$ \\
+\bottomrule
+\end{tabular}
+\caption{E5 at scale: trials in which the payload occupies $\ge\tfrac12$ of the 64-token output,
+pooled over $k\in\{2,\dots,32\}$ and the three query styles where applicable; $p{=}3$, greedy,
+8 trials per cell. The prose and token pads are 12--21 tokens, matched exactly to the query
+line's length on each tokenizer. The last three rows are from a replication draw of the same
+distribution; the others share identical contexts.}
+\label{tab:e5scale}
+\end{table}
+
+The first draft read the zero in the second row as ``a task query anchors generation away from
+the payload.'' The controls say otherwise. Removing the chat template does not restore the
+hijack; removing the query and the template and leaving \emph{unrelated prose of the same length}
+does not restore it either (0--3\% of trials, Wilson upper bound $\le0.08$). What follows the
+span is what matters, and almost anything coherent will do. Neutral random tokens of the same
+length are the one filler that only partly defuses (8--21\% of trials still hijacked), so both
+the distance and the content of what fills it count; E1.5's gap decay on GPT-2 was both. The
+defensible statement is: \emph{a repeated span hijacks generation only when it ends the
+context; a question, an instruction, a template suffix or unrelated prose after it removes the
+hijack, and even arbitrary tokens remove most of it.} The retrieval-augmented convention of
+placing the question after the documents is itself the mitigation; the residual RAG threat is
+\emph{semantic} injection, outside this project's benign-copy scope.
+
+\paragraph{C6: there is no worm.}\label{sec:e6scale}
+Serial passage: an infected host's output becomes the next host's context, passed as text;
+six hops, 16 seed copies, $T{=}96$ tokens per host, sampled at temperature 1; three seeds of 20
+chains per cell. A chain ``survives'' if the payload is still in the output at hop six.
+
+\begin{table}[h]
+\centering\small
+\begin{tabular}{lcccc}
+\toprule
+model & $p{=}2$ & $p{=}3$ & $p{=}5$ & $p{=}8$ \\
+\midrule
+Qwen2.5-7B (base)     & $0.47\,(0.35$--$0.59)$ & $0.30\,(0.20$--$0.43)$ & $0.42\,(0.30$--$0.54)$ & $0.50\,(0.38$--$0.62)$ \\
+Qwen2.5-3B (base)     & $0.33\,(0.23$--$0.46)$ & $0.37\,(0.26$--$0.49)$ & $0.38\,(0.27$--$0.51)$ & $0.28\,(0.19$--$0.41)$ \\
+Pythia-6.9B           & $0.07\,(0.03$--$0.16)$ & $0.10\,(0.05$--$0.20)$ & $0.10\,(0.05$--$0.20)$ & $0.10\,(0.05$--$0.20)$ \\
+Pythia-2.8B           & $0.12\,(0.06$--$0.22)$ & $0.07\,(0.03$--$0.16)$ & $0.20\,(0.12$--$0.32)$ & $0.05\,(0.02$--$0.14)$ \\
+Llama-3.2-3B          & $0.00\,(0.00$--$0.06)$ & $0.12\,(0.06$--$0.22)$ & $0.07\,(0.03$--$0.16)$ & $0.00\,(0.00$--$0.06)$ \\
+Qwen2.5-7B-Instruct   & $0.13\,(0.07$--$0.24)$ & $0.13\,(0.07$--$0.24)$ & $0.08\,(0.04$--$0.18)$ & $0.13\,(0.07$--$0.24)$ \\
+\bottomrule
+\end{tabular}
+\caption{E6 at scale: fraction of 60 chains with the payload alive at hop six, Wilson 95\%
+intervals. The $p{=}1$ column is omitted: a one-token payload decodes to a short common
+substring that text-level counting matches by accident (its 0.2--0.4 is the false-positive
+floor).}
+\label{tab:e6scale}
+\end{table}
+
+Three things follow from Table~\ref{tab:e6scale} and the per-trial trajectories behind it.
+\emph{No reproduction number above one.} The per-hop load ratio, computed per chain over its
+living hops, has median $\le1.00$ in every cell; every chain alive at hop six carries exactly
+$T/p$ copies, which is a host emitting its entire output as payload---a locked repetition
+loop~\cite{holtzman2019,xu2022}---and every chain that does not lock decays by $0.6$--$0.9\times$
+per hop and dies. The toy's $R_0\approx T/(p\,k_{\mathrm{thresh}})$ describes nothing here.
+\emph{No critical length.} Survival is flat in $p$ for the only models that survive at all.
+\emph{Family, not scale.} The first draft's five-trial reading was ``the worm gets worse at
+scale.'' A second 7B base family (Pythia-6.9B) locks at 7--10\%, the same as its 2.8B sibling
+and as Llama-3.2-3B; a smaller Qwen (3B) locks at 28--38\%, inside the 7B's intervals. The
+trait is Qwen2.5 base models at every size tested, and instruction tuning removes most of it.
+
+\emph{No tokenizer firebreak.} The conjecture was that re-tokenizing a payload under a different
+model's tokenizer fragments it and breaks transmission. A $5\times5$ matrix (patient-zero family
+$\times$ host family; GPT-2, Pythia, Qwen2.5, Llama-3.2, Gemma-2 at 0.5--2B; $p{=}3$) was run
+at three hops and at one hop, each at 8, 16 and 32 seed copies with 30 chains per cell. Under
+an exact permutation test of ``the host's tokenizer is irrelevant'' ($5^5$ assignments of a
+diagonal per row), the diagonal-to-off-diagonal ratio of mean surviving load is $0.85$--$0.94$
+at three hops ($p\approx0.6$, but with only 10--18\% of chains alive the test is below its
+floor) and $1.03$--$1.15$ at one hop with 30--51\% alive (bootstrap intervals $0.82$--$1.52$,
+$0.80$--$1.29$, $0.84$--$1.26$; $p = 0.24$, $0.40$, $0.36$). The June 2026 one-hop result of
+ratio $1.6$ at $p{=}0.004$ was an eight-trial fluctuation. What the matrices do show is a host
+effect: the Qwen2.5-0.5B column is the largest at every hop count and seeding strength, which is
+the same family trait seen in serial passage. Which model hosts the next hop matters; whether
+its tokenizer matches the payload's does not.
 
 % ===========================================================================
 \section{Threats to validity}\label{sec:threats}
 % ===========================================================================
-Beyond the small scale (one model, $R\!\sim\!4$--$6$ payloads, $\sim\!72$--$128$ samples per
-cell, sampled $T{=}1.0$ only), the standing concerns are: \textbf{tokenization}---length is
-in tokens and OOD spans tokenize unstably, addressed by a round-trip-stability filter;
+Sample sizes are now 60 chains per cell for survival, 30 per cell for the firebreak matrices,
+32 facts for C4, and 8 trials per cell for C5 (where the pooled counts over $k$ and query style
+carry the statistics); the GPT-2-small experiments remain at 3--6 payloads $\times$ 8--12
+trials. Single seeds except where stated. The standing concerns are: \textbf{grid floor}---for
+$p\ge3$ the interpolated knee lies in the first grid interval in three quarters of cells, so
+``$N^*$'' is a one-shot rate and cannot show sharpness or a scale trend (\S\ref{sec:scale});
+\textbf{raw data}---three Track B result files (the instruct-model knee sweep, the Llama E1.3
+run and the 19-head Pythia-1.4B ablation) were lost and their tables are transcriptions; all
+other numbers in this version derive from committed files; \textbf{text-level payload
+counting}---survival is measured by substring count of the decoded payload, which is unreliable
+for one-token payloads and is why $p{=}1$ is excluded from Table~\ref{tab:e6scale};
+\textbf{tokenization}---length is in tokens and OOD spans tokenize unstably, addressed by a
+round-trip-stability filter;
 \textbf{decoding}---the knee persists under \emph{greedy} decoding (with lower $N^*$, less
 sampling noise to break reproduction), so it is a model property, not a sampling artifact; a
 full temperature sweep is still future work; \textbf{instruction-tuned models} may comment or
@@ -815,11 +1019,11 @@ base models are used for the clean mechanism and chat models are a separate cond
 run (E1.4, \S\ref{sec:scale}), where the knee persists with only a modest threshold rise;
 \textbf{context-length vs.\ $N$}---addressed by E1.5 (\S\ref{sec:e15}): the knee
 persists at fixed total length, so it is an $N$ effect, though reproduction is
-distance-sensitive; and \textbf{scale}---the behavioral knee extends cleanly to 7B across four
-families and is flat with size (\S\ref{sec:scale}), and the \emph{mechanistic} attribution now
-holds there too (E2 to 7B in three families, \S\ref{sec:e2scale}); what remains is thin-$n$: the
-Track C reversals (\S\ref{sec:trackc}) rest on $\sim$4--8 payloads/facts per cell and warrant
-higher-power replication.
+distance-sensitive; \textbf{family coverage}---the C6 conclusion that looping is a Qwen2.5
+trait rests on two Qwen base sizes against four other models; Gemma-2 and Llama-3.1 base models
+at 7B--9B were not run in serial passage; and \textbf{what the controls cannot separate}---C5's
+recency gate is established for pads of 12--21 tokens; the minimum defusing length and the
+behavior at 32k--128k context were not swept.
 
 % ===========================================================================
 \section{What is established, and what is not}\label{sec:honesty}
@@ -833,26 +1037,36 @@ ablating the canonical GPT-2 induction heads \emph{causally} collapses reproduct
 knee, far beyond random-head damage, so \textbf{C2 is mechanistically established} on this
 model (E2). The downstream claims also hold on GPT-2-small: poisonability is dissociated from
 usefulness and aligned with induction trust (C4, \S\ref{sec:e4}); a planted span hijacks
-generation as entry$\,\times\,$lock-in (C5, \S\ref{sec:e5}); and the worm has a critical string
-length and a cross-tokenizer firebreak (C6, \S\ref{sec:e6}). The phenomena replicate in a second
-model family (Pythia-160M). So all six conjectures C1--C6 have a qualitative real-transformer
-result, and a paired detector (\S\ref{sec:e7}) realizes the toy's bound-trust defense (poisoned
-vs.\ clean documents separate at AUC $1.0$ on the induction-trust signal). The keystone now also holds \emph{at scale}: the condensation knee is low and length-robust
-from 355M to 7B across four model families and flat in parameter count (\S\ref{sec:scale}),
-and it persists in instruction-tuned models---chat models copy rather than refuse, with only a
-modest threshold rise (E1.4). And ablating the induction heads \emph{causally} collapses
-reproduction across scale and three families (124M--7B; GPT-2, Pythia, Qwen2.5), so \textbf{C2 is now
-mechanistically established at scale} (\S\ref{sec:e2scale}), not just on GPT-2-small. The downstream claims are now tested \emph{at scale} too, with mixed and honest outcomes
-(\S\ref{sec:trackc}): the trust-not-usefulness law (C4) holds with a real task
-($\mathrm{corr}(P,U){\approx}0$, $\mathrm{corr}(P,T){=}{+}0.71$); the self-extraction capstone
-(E8) succeeds on instruct models; and---less comfortingly---the worm (C6) is \emph{more}
-transmissible at larger scale, its critical length growing with capability, with only a
-\emph{partial} cross-tokenizer firebreak. One claim was \emph{bounded}: the raw-repetition RAG
-hijack (C5) does \emph{not} transfer to a capable instruct model answering a real query---the
-task query defuses it, so the residual RAG threat is semantic rather than copy-dynamic. What
-genuinely \emph{remains} is the very-long-context (128k) and larger host-population regimes, and
-the \emph{semantic}-injection version of the RAG threat (a plausible planted instruction rather
-than an OOD span), which is outside this project's benign copy-dynamics scope.
+generation as entry$\,\times\,$lock-in (C5, \S\ref{sec:e5}). The worm (C6, \S\ref{sec:e6}) does
+\emph{not} hold on GPT-2-small in the form first reported: the per-trial rerun finds a per-hop
+ratio below one at every length and only locked repetition loops among the survivors. The
+one-shot copy rate on this small model is below $\tfrac12$ at $p{=}3$, so the floor reading of
+the knee applies at scale, not here. The paired detector (\S\ref{sec:e7}) separates poisoned
+from clean at AUC $1.0$, but a model-free trigram count does the same with fewer false
+positives on benign repetition, so the bound-trust defense reduces in practice to counting
+repeated spans.
+
+At scale, what holds is narrower than the June draft said, and two things it said are false.
+The one-shot copy rate for multi-token spans is $\ge\tfrac12$ in 36 of 48 cells from 355M to
+7B across four families (\S\ref{sec:scale}); the ``knee'' for those payloads is the grid floor
+and its flatness with parameter count is not a finding. Copying persists in instruction-tuned
+models, which need more occurrences but still copy (E1.4). Ablating the top $\sim5\%$ of heads
+by induction score collapses reproduction across scale and three families (124M--7B; GPT-2,
+Pythia, Qwen2.5), so \textbf{C2 is mechanistically established at scale} (\S\ref{sec:e2scale});
+the scale-matched ablation, and the false null a fixed head count produced, is this report's
+clearest methodological contribution. Poisonability follows repetition and not usefulness on
+three instruct models with a real task (C4, \S\ref{sec:e4scale}), as a repetition-mode effect.
+The raw-repetition hijack on instruct models is gated by \emph{recency} and not by the task: a
+span that ends the context is copied, a span followed by anything coherent is not (C5,
+\S\ref{sec:e5scale}); the residual RAG threat is semantic. The self-extraction capstone (E8)
+succeeds on instruct models. \textbf{What is false:} there is no worm. No reproduction number
+above one, no critical payload length and no tokenizer firebreak survive 60-chain and 30-chain
+replication; what the June draft called ``worse at scale'' is the Qwen2.5 base family falling
+into repetition loops at every size (C6, \S\ref{sec:e6scale}). And the paired detector is not a
+contribution: a repeated-trigram count matches it. What \emph{remains} is the very-long-context
+(32k--128k) regime, serial passage on further 7B--9B base families, the minimum defusing length
+behind the recency gate, and the \emph{semantic}-injection version of the RAG threat, which is
+outside this project's benign copy-dynamics scope.
 
 \begin{thebibliography}{9}
 \bibitem{shumow2026trust} D.\ Shumow. \emph{Trust Is the Attack Surface: A Cryptanalytic
@@ -878,6 +1092,28 @@ AISec, 2023.
 
 \bibitem{radford2019} A.\ Radford, J.\ Wu, R.\ Child, D.\ Luan, D.\ Amodei, I.\ Sutskever.
 \emph{Language Models are Unsupervised Multitask Learners.} OpenAI, 2019.
+
+\bibitem{holtzman2019} A.\ Holtzman, J.\ Buys, L.\ Du, M.\ Forbes, Y.\ Choi. \emph{The Curious
+Case of Neural Text Degeneration.} ICLR, 2020 (arXiv 2019).
+
+\bibitem{xu2022} J.\ Xu, X.\ Liu, J.\ Yan, D.\ Cai, H.\ Li, J.\ Li. \emph{Learning to Break the
+Loop: Analyzing and Mitigating Repetitions for Neural Text Generation.} NeurIPS, 2022.
+
+\bibitem{mcdougall2023} C.\ McDougall, A.\ Conmy, C.\ Rushing, T.\ McGrath, N.\ Nanda.
+\emph{Copy Suppression: Comprehensively Understanding an Attention Head.} 2023.
+
+\bibitem{jelassi2024} S.\ Jelassi, D.\ Brandfonbrener, S.\ M.\ Kakade, E.\ Malach. \emph{Repeat
+After Me: Transformers are Better than State Space Models at Copying.} ICML, 2024.
+
+\bibitem{anil2024} C.\ Anil et al. \emph{Many-Shot Jailbreaking.} NeurIPS, 2024.
+
+\bibitem{nasr2023} M.\ Nasr, N.\ Carlini, J.\ Hayase, M.\ Jagielski, A.\ F.\ Cooper, D.\ Ippolito,
+C.\ A.\ Choquette-Choo, E.\ Wallace, F.\ Tram\`er, K.\ Lee. \emph{Scalable Extraction of
+Training Data from (Production) Language Models.} 2023.
+
+\bibitem{liu2023} N.\ F.\ Liu, K.\ Lin, J.\ Hewitt, A.\ Paranjape, M.\ Bevilacqua, F.\ Petroni,
+P.\ Liang. \emph{Lost in the Middle: How Language Models Use Long Contexts.} TACL, 2024
+(arXiv 2023).
 \end{thebibliography}
 
 \end{document}

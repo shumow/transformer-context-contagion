@@ -32,6 +32,7 @@ import json
 import os
 import re
 import numpy as np
+from tcc import snapshot
 
 # Benign target sentences for E8a (harmless English, ~6-9 words).
 TARGETS = [
@@ -137,7 +138,8 @@ class ChatLM:
         msgs = [{"role": "user", "content": user}]
         ids = self.tok.apply_chat_template(msgs, add_generation_prompt=True, return_tensors="pt").to(self.device)
         with torch.no_grad():
-            out = self.model.generate(ids, max_new_tokens=max_new, do_sample=False,
+            out = self.model.generate(ids, attention_mask=torch.ones_like(ids),
+                                      max_new_tokens=max_new, do_sample=False,
                                       pad_token_id=self.tok.eos_token_id)
         return self.tok.decode(out[0, ids.shape[1]:], skip_special_tokens=True).strip()
 
@@ -211,8 +213,10 @@ def main():
     ap.add_argument("--dtype", default="float16")
     ap.add_argument("--seed", type=int, default=7)
     ap.add_argument("--prefix", default="results/e8_capstone")
+    snapshot.add_args(ap)
     ap.add_argument("--selftest", action="store_true")
     args = ap.parse_args()
+    snapshot.arm(args)
 
     if args.selftest:
         selftest()

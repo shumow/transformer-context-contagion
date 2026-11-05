@@ -1,0 +1,686 @@
+[2026-11-04T06:47:38Z] === job=e4e5 code=claude/fervent-ritchie-l5m9uw-iter7-tier2-pods results=claude/fervent-ritchie-l5m9uw-iter7-pod-e4e5 max_hours=4.0 pod=yln3iriq7jiilt ===
+name, memory.total [MiB], driver_version
+NVIDIA L40S, 46068 MiB, 595.91.07
+[2026-11-04T06:47:39Z] bootstrap
+==> GPU / driver
+name, memory.total [MiB], driver_version
+NVIDIA L40S, 46068 MiB, 595.91.07
+==> base packages (git, python venv/pip)
+debconf: delaying package configuration, since apt-utils is not installed
+==> clone https://github.com/shumow/transformer-context-contagion.git -> /workspace/tcc
+==> venv + CUDA torch (index: https://download.pytorch.org/whl/cu121)
+==> sanity: can torch see the GPU?
+CUDA: True | NVIDIA L40S | torch 2.5.1+cu121
+==> PREDOWNLOAD=0 -- models will be fetched on demand by from_pretrained
+
+Ready.  cd /workspace/tcc && . .venv/bin/activate
+  E1.3 size sweep (355M-7B):
+    python -m experiments.e1_3_size_sweep --models gpt2-xl Qwen/Qwen2.5-7B \
+        --lengths 1 3 5 8 --reps 1 2 4 8 16 32 --device cuda --dtype float16
+  E2 induction attribution (a >=24GB GPU handles 7B; checkpoints per cell + resumes):
+    python -m experiments.e2_induction --model Qwen/Qwen2.5-7B --device cuda \
+        --lengths 1 3 5 --reps 2 3 4 8 16 --payloads 4 --k-heads 8
+  For long runs, detach:  nohup python -m experiments.e2_induction ... > run.log 2>&1 &
+
+  COST: specialist GPU clouds bill for as long as the box exists and there is NO
+  idle auto-deallocate here -- TERMINATE the instance when you're done.
+  test_knee_interpolates: OK
+  test_noise_is_low: OK
+  test_order_two_payload: OK
+  test_payload_constructors: OK
+  test_perfect_reproduction: OK
+  test_phase_shift_is_robust: OK
+  test_single_slip: OK
+all 7 tests passed
+  test_benign_repetitive_really_repeats: OK
+  test_clean_paragraphs_count_and_no_repeats: OK
+  test_prose_of_length_matches_and_does_not_repeat: OK
+  test_prose_of_length_refuses_impossible_target: OK
+  test_sentence_bank_is_distinct_and_sized: OK
+all 5 tests passed
+  test_add_args_and_arm: OK
+  test_copy_outputs_copies_prefix_matches_only: OK
+  test_copy_outputs_no_track_is_noop: OK
+  test_copy_outputs_nothing_matching: OK
+all 4 tests passed
+selftest: count_payload + passage_chain plumbing OK; ks(sustain)= [5, 5, 5, 5]
+selftest: 32 facts, 2x2 construction (distinct, length-matched), answer matching, correlation + bootstrap OK
+selftest: long-context construction (placement) + occupancy + cell + prompts OK
+remote:      https://github.com/shumow/transformer-context-contagion/pull/new/claude/fervent-ritchie-l5m9uw-iter7-pod-e4e5        
+remote: 
+[2026-11-04T06:49:40Z] >>> e4_scale_v2_qwen7b-instruct :: -m experiments.e4_scale --model Qwen/Qwen2.5-7B-Instruct --device cuda --prefix results/e4_scale_v2_qwen7b-instruct --snapshot trackC
+`torch_dtype` is deprecated! Use `dtype` instead!
+Fetching 4 files:   0%|          | 0/4 [00:00<?, ?it/s]Fetching 4 files:  25%|██▌       | 1/4 [00:06<00:20,  6.75s/it]Fetching 4 files:  50%|█████     | 2/4 [00:07<00:07,  3.97s/it]Fetching 4 files:  75%|███████▌  | 3/4 [00:08<00:02,  2.97s/it]Fetching 4 files: 100%|██████████| 4/4 [00:09<00:00,  2.50s/it]Fetching 4 files: 100%|██████████| 4/4 [00:09<00:00,  2.50s/it]
+Loading checkpoint shards:   0%|          | 0/4 [00:00<?, ?it/s]Loading checkpoint shards: 100%|██████████| 4/4 [00:00<00:00, 122.62it/s]
+The following generation flags are not valid and may be ignored: ['top_k']. Set `TRANSFORMERS_VERBOSITY=info` for more details.
+=== E4-scale on Qwen/Qwen2.5-7B-Instruct (k=8, probe_k=2, 32 facts) ===
+  [1/32] 'The Vantor crystal emits light at 512 nanome'  (tokens: {'rep_useful': 112, 'rep_useless': 39, 'nonrep_useful': 112, 'nonrep_useless': 114})
+    rep_useful       U=1  P_copy=1.00  P_probe=1.00  T=0.083
+    rep_useless      U=0  P_copy=1.00  P_probe=1.00  T=0.171
+    nonrep_useful    U=1  P_copy=0.54  P_probe=0.00  T=0.061
+    nonrep_useless   U=0  P_copy=0.00  P_probe=0.00  T=0.086
+  [2/32] 'Professor Quilby discovered the element brin'  (tokens: {'rep_useful': 136, 'rep_useless': 39, 'nonrep_useful': 150, 'nonrep_useless': 136})
+    rep_useful       U=1  P_copy=1.00  P_probe=0.00  T=0.052
+    rep_useless      U=0  P_copy=1.00  P_probe=1.00  T=0.168
+    nonrep_useful    U=1  P_copy=0.00  P_probe=0.00  T=0.062
+    nonrep_useless   U=0  P_copy=0.06  P_probe=1.00  T=0.085
+  [3/32] 'The city of Marnth has a population of 84 th'  (tokens: {'rep_useful': 120, 'rep_useless': 32, 'nonrep_useful': 136, 'nonrep_useless': 132})
+    rep_useful       U=0  P_copy=1.00  P_probe=1.00  T=0.076
+    rep_useless      U=0  P_copy=1.00  P_probe=1.00  T=0.160
+    nonrep_useful    U=1  P_copy=0.00  P_probe=0.00  T=0.077
+    nonrep_useless   U=0  P_copy=0.02  P_probe=0.00  T=0.074
+  [4/32] 'The Glimmer protocol uses a key length of 21'  (tokens: {'rep_useful': 128, 'rep_useless': 32, 'nonrep_useful': 139, 'nonrep_useless': 131})
+    rep_useful       U=1  P_copy=1.00  P_probe=0.00  T=0.080
+    rep_useless      U=0  P_copy=1.00  P_probe=1.00  T=0.117
+    nonrep_useful    U=1  P_copy=0.00  P_probe=0.00  T=0.050
+    nonrep_useless   U=0  P_copy=0.25  P_probe=0.00  T=0.085
+  [5/32] 'The Drenn spacecraft reached a speed of 39 k'  (tokens: {'rep_useful': 128, 'rep_useless': 39, 'nonrep_useful': 139, 'nonrep_useless': 133})
+    rep_useful       U=1  P_copy=1.00  P_probe=0.00  T=0.072
+    rep_useless      U=0  P_copy=1.00  P_probe=0.00  T=0.185
+    nonrep_useful    U=1  P_copy=0.02  P_probe=0.00  T=0.073
+    nonrep_useless   U=0  P_copy=0.00  P_probe=0.00  T=0.088
+  [6/32] 'The Ostara festival is celebrated on the sev'  (tokens: {'rep_useful': 112, 'rep_useless': 32, 'nonrep_useful': 117, 'nonrep_useless': 119})
+    rep_useful       U=1  P_copy=1.00  P_probe=0.00  T=0.073
+    rep_useless      U=0  P_copy=1.00  P_probe=1.00  T=0.169
+    nonrep_useful    U=1  P_copy=0.31  P_probe=1.00  T=0.070
+    nonrep_useless   U=0  P_copy=0.00  P_probe=0.00  T=0.067
+  [7/32] 'The Pellam reservoir holds 73 million liters'  (tokens: {'rep_useful': 104, 'rep_useless': 39, 'nonrep_useful': 116, 'nonrep_useless': 113})
+    rep_useful       U=1  P_copy=1.00  P_probe=1.00  T=0.088
+    rep_useless      U=0  P_copy=1.00  P_probe=1.00  T=0.129
+    nonrep_useful    U=1  P_copy=0.21  P_probe=0.00  T=0.064
+    nonrep_useless   U=0  P_copy=0.00  P_probe=0.00  T=0.082
+  [8/32] 'The Orvane bridge was completed in 1962.'  (tokens: {'rep_useful': 112, 'rep_useless': 32, 'nonrep_useful': 118, 'nonrep_useless': 122})
+    rep_useful       U=1  P_copy=1.00  P_probe=1.00  T=0.070
+    rep_useless      U=0  P_copy=1.00  P_probe=1.00  T=0.150
+    nonrep_useful    U=1  P_copy=0.19  P_probe=1.00  T=0.055
+    nonrep_useless   U=0  P_copy=0.00  P_probe=0.00  T=0.061
+  [9/32] 'The Kessrin lighthouse stands 41 meters tall'  (tokens: {'rep_useful': 104, 'rep_useless': 39, 'nonrep_useful': 122, 'nonrep_useless': 118})
+    rep_useful       U=1  P_copy=1.00  P_probe=1.00  T=0.076
+    rep_useless      U=0  P_copy=1.00  P_probe=1.00  T=0.132
+    nonrep_useful    U=1  P_copy=0.00  P_probe=0.00  T=0.095
+    nonrep_useless   U=0  P_copy=0.02  P_probe=0.00  T=0.081
+  [10/32] 'The Tulvar comet returns every 58 years.'  (tokens: {'rep_useful': 88, 'rep_useless': 32, 'nonrep_useful': 103, 'nonrep_useless': 100})
+    rep_useful       U=1  P_copy=1.00  P_probe=0.00  T=0.084
+    rep_useless      U=0  P_copy=1.00  P_probe=1.00  T=0.128
+    nonrep_useful    U=1  P_copy=0.00  P_probe=0.00  T=0.087
+    nonrep_useless   U=0  P_copy=0.00  P_probe=0.00  T=0.080
+  [11/32] 'The mineral zorbite melts at 640 degrees.'  (tokens: {'rep_useful': 104, 'rep_useless': 39, 'nonrep_useful': 113, 'nonrep_useless': 117})
+    rep_useful       U=1  P_copy=1.00  P_probe=1.00  T=0.085
+    rep_useless      U=0  P_copy=1.00  P_probe=1.00  T=0.144
+    nonrep_useful    U=0  P_copy=0.21  P_probe=1.00  T=0.071
+    nonrep_useless   U=0  P_copy=0.00  P_probe=0.00  T=0.080
+  [12/32] 'Captain Elvane commanded the ship Meridian.'  (tokens: {'rep_useful': 80, 'rep_useless': 32, 'nonrep_useful': 81, 'nonrep_useless': 83})
+    rep_useful       U=1  P_copy=1.00  P_probe=1.00  T=0.056
+    rep_useless      U=0  P_copy=1.00  P_probe=1.00  T=0.126
+    nonrep_useful    U=0  P_copy=0.00  P_probe=0.00  T=0.063
+    nonrep_useless   U=0  P_copy=0.00  P_probe=0.00  T=0.056
+  [13/32] 'The Brashford library holds 125 thousand vol'  (tokens: {'rep_useful': 104, 'rep_useless': 39, 'nonrep_useful': 115, 'nonrep_useless': 120})
+    rep_useful       U=1  P_copy=1.00  P_probe=1.00  T=0.077
+    rep_useless      U=0  P_copy=1.00  P_probe=1.00  T=0.083
+    nonrep_useful    U=1  P_copy=0.77  P_probe=0.00  T=0.085
+    nonrep_useless   U=0  P_copy=0.00  P_probe=0.00  T=0.071
+  [14/32] 'The Yelmo river is 318 kilometers long.'  (tokens: {'rep_useful': 104, 'rep_useless': 39, 'nonrep_useful': 105, 'nonrep_useless': 112})
+    rep_useful       U=1  P_copy=1.00  P_probe=1.00  T=0.075
+    rep_useless      U=0  P_copy=1.00  P_probe=1.00  T=0.102
+    nonrep_useful    U=1  P_copy=0.50  P_probe=1.00  T=0.087
+    nonrep_useless   U=0  P_copy=0.00  P_probe=1.00  T=0.066
+  [15/32] 'The Carrow engine produces 94 kilowatts.'  (tokens: {'rep_useful': 96, 'rep_useless': 32, 'nonrep_useful': 101, 'nonrep_useless': 102})
+    rep_useful       U=1  P_copy=1.00  P_probe=1.00  T=0.080
+    rep_useless      U=0  P_copy=1.00  P_probe=1.00  T=0.142
+    nonrep_useful    U=1  P_copy=0.02  P_probe=1.00  T=0.072
+    nonrep_useless   U=0  P_copy=0.00  P_probe=1.00  T=0.052
+  [16/32] 'The village of Dunmere has 27 streets.'  (tokens: {'rep_useful': 88, 'rep_useless': 39, 'nonrep_useful': 95, 'nonrep_useless': 97})
+    rep_useful       U=1  P_copy=1.00  P_probe=0.00  T=0.079
+    rep_useless      U=0  P_copy=1.00  P_probe=1.00  T=0.137
+    nonrep_useful    U=1  P_copy=0.00  P_probe=1.00  T=0.066
+    nonrep_useless   U=0  P_copy=0.65  P_probe=1.00  T=0.061
+  [17/32] 'The Halbrook tunnel is 4700 meters long.'  (tokens: {'rep_useful': 104, 'rep_useless': 39, 'nonrep_useful': 110, 'nonrep_useless': 106})
+    rep_useful       U=1  P_copy=1.00  P_probe=1.00  T=0.075
+    rep_useless      U=0  P_copy=1.00  P_probe=1.00  T=0.136
+    nonrep_useful    U=0  P_copy=0.33  P_probe=1.00  T=0.071
+    nonrep_useless   U=0  P_copy=0.04  P_probe=1.00  T=0.061
+  [18/32] 'The composer Lirenne wrote the Amber Suite.'  (tokens: {'rep_useful': 80, 'rep_useless': 32, 'nonrep_useful': 92, 'nonrep_useless': 86})
+    rep_useful       U=1  P_copy=1.00  P_probe=0.00  T=0.086
+    rep_useless      U=0  P_copy=1.00  P_probe=1.00  T=0.168
+    nonrep_useful    U=1  P_copy=0.40  P_probe=0.00  T=0.076
+    nonrep_useless   U=0  P_copy=0.52  P_probe=1.00  T=0.060
+  [19/32] 'The Sorvik mine yields 820 tons of ore each '  (tokens: {'rep_useful': 120, 'rep_useless': 32, 'nonrep_useful': 130, 'nonrep_useless': 125})
+    rep_useful       U=0  P_copy=1.00  P_probe=1.00  T=0.077
+    rep_useless      U=0  P_copy=1.00  P_probe=1.00  T=0.126
+    nonrep_useful    U=0  P_copy=0.02  P_probe=0.00  T=0.086
+    nonrep_useless   U=0  P_copy=0.02  P_probe=0.00  T=0.075
+  [20/32] 'The Pelline alloy contains 35 percent copper'  (tokens: {'rep_useful': 88, 'rep_useless': 32, 'nonrep_useful': 95, 'nonrep_useless': 104})
+    rep_useful       U=1  P_copy=1.00  P_probe=1.00  T=0.088
+    rep_useless      U=0  P_copy=1.00  P_probe=1.00  T=0.168
+    nonrep_useful    U=1  P_copy=0.73  P_probe=0.00  T=0.060
+    nonrep_useless   U=0  P_copy=0.00  P_probe=0.00  T=0.084
+  [21/32] 'The Winterhollow race covers 142 kilometers.'  (tokens: {'rep_useful': 96, 'rep_useless': 32, 'nonrep_useful': 98, 'nonrep_useless': 97})
+    rep_useful       U=1  P_copy=1.00  P_probe=1.00  T=0.074
+    rep_useless      U=0  P_copy=1.00  P_probe=1.00  T=0.113
+    nonrep_useful    U=1  P_copy=0.31  P_probe=0.00  T=0.075
+    nonrep_useless   U=0  P_copy=0.15  P_probe=0.00  T=0.049
+  [22/32] 'The Ardent observatory opened in 1931.'  (tokens: {'rep_useful': 104, 'rep_useless': 39, 'nonrep_useful': 118, 'nonrep_useless': 115})
+    rep_useful       U=1  P_copy=1.00  P_probe=0.00  T=0.078
+    rep_useless      U=0  P_copy=1.00  P_probe=1.00  T=0.152
+    nonrep_useful    U=1  P_copy=0.00  P_probe=0.00  T=0.072
+    nonrep_useless   U=0  P_copy=0.00  P_probe=0.00  T=0.071
+  [23/32] 'Doctor Varnell founded the Tessamine clinic.'  (tokens: {'rep_useful': 80, 'rep_useless': 32, 'nonrep_useful': 80, 'nonrep_useless': 84})
+    rep_useful       U=1  P_copy=1.00  P_probe=1.00  T=0.053
+    rep_useless      U=0  P_copy=1.00  P_probe=1.00  T=0.151
+    nonrep_useful    U=0  P_copy=0.04  P_probe=0.00  T=0.070
+    nonrep_useless   U=0  P_copy=0.00  P_probe=0.00  T=0.069
+  [24/32] 'The Quorra desert receives 19 millimeters of'  (tokens: {'rep_useful': 120, 'rep_useless': 39, 'nonrep_useful': 134, 'nonrep_useless': 134})
+    rep_useful       U=1  P_copy=1.00  P_probe=1.00  T=0.075
+    rep_useless      U=0  P_copy=1.00  P_probe=1.00  T=0.157
+    nonrep_useful    U=1  P_copy=0.00  P_probe=0.00  T=0.080
+    nonrep_useless   U=0  P_copy=0.00  P_probe=0.00  T=0.075
+  [25/32] 'The Mardel canal has 14 locks.'  (tokens: {'rep_useful': 88, 'rep_useless': 32, 'nonrep_useful': 100, 'nonrep_useless': 92})
+    rep_useful       U=1  P_copy=1.00  P_probe=1.00  T=0.078
+    rep_useless      U=0  P_copy=1.00  P_probe=1.00  T=0.121
+    nonrep_useful    U=1  P_copy=0.04  P_probe=0.00  T=0.089
+    nonrep_useless   U=0  P_copy=0.02  P_probe=0.00  T=0.072
+  [26/32] 'The Fenwick telescope has a 230 centimeter m'  (tokens: {'rep_useful': 112, 'rep_useless': 32, 'nonrep_useful': 129, 'nonrep_useless': 115})
+    rep_useful       U=1  P_copy=1.00  P_probe=1.00  T=0.080
+    rep_useless      U=0  P_copy=1.00  P_probe=1.00  T=0.105
+    nonrep_useful    U=0  P_copy=0.38  P_probe=0.00  T=0.082
+    nonrep_useless   U=0  P_copy=0.00  P_probe=1.00  T=0.074
+  [27/32] 'The island of Serrowe has 61 villages.'  (tokens: {'rep_useful': 96, 'rep_useless': 32, 'nonrep_useful': 107, 'nonrep_useless': 97})
+    rep_useful       U=1  P_copy=1.00  P_probe=1.00  T=0.080
+    rep_useless      U=0  P_copy=1.00  P_probe=1.00  T=0.129
+    nonrep_useful    U=1  P_copy=0.00  P_probe=0.00  T=0.099
+    nonrep_useless   U=0  P_copy=0.00  P_probe=1.00  T=0.048
+  [28/32] 'The Ulmric festival lasts 11 days.'  (tokens: {'rep_useful': 88, 'rep_useless': 32, 'nonrep_useful': 92, 'nonrep_useless': 101})
+    rep_useful       U=1  P_copy=1.00  P_probe=1.00  T=0.089
+    rep_useless      U=0  P_copy=1.00  P_probe=1.00  T=0.155
+    nonrep_useful    U=1  P_copy=0.12  P_probe=0.00  T=0.062
+    nonrep_useless   U=0  P_copy=0.12  P_probe=0.00  T=0.074
+  [29/32] 'The Brennock dam generates 475 megawatts.'  (tokens: {'rep_useful': 104, 'rep_useless': 32, 'nonrep_useful': 114, 'nonrep_useless': 113})
+    rep_useful       U=1  P_copy=1.00  P_probe=0.00  T=0.080
+    rep_useless      U=0  P_copy=1.00  P_probe=1.00  T=0.073
+    nonrep_useful    U=1  P_copy=0.58  P_probe=1.00  T=0.070
+    nonrep_useless   U=0  P_copy=0.02  P_probe=1.00  T=0.067
+  [30/32] 'The author Pemberly wrote the novel Saltmars'  (tokens: {'rep_useful': 88, 'rep_useless': 39, 'nonrep_useful': 93, 'nonrep_useless': 103})
+    rep_useful       U=1  P_copy=1.00  P_probe=0.00  T=0.093
+    rep_useless      U=0  P_copy=1.00  P_probe=1.00  T=0.130
+    nonrep_useful    U=1  P_copy=0.54  P_probe=0.00  T=0.071
+    nonrep_useless   U=0  P_copy=0.00  P_probe=0.00  T=0.067
+  [31/32] 'The Corvane express reaches 265 kilometers p'  (tokens: {'rep_useful': 112, 'rep_useless': 32, 'nonrep_useful': 120, 'nonrep_useless': 123})
+    rep_useful       U=1  P_copy=1.00  P_probe=1.00  T=0.079
+    rep_useless      U=0  P_copy=1.00  P_probe=1.00  T=0.133
+    nonrep_useful    U=1  P_copy=0.08  P_probe=0.00  T=0.078
+    nonrep_useless   U=0  P_copy=0.23  P_probe=1.00  T=0.092
+  [32/32] 'The Talwick mint struck 88 thousand coins in'  (tokens: {'rep_useful': 120, 'rep_useless': 32, 'nonrep_useful': 134, 'nonrep_useless': 122})
+    rep_useful       U=1  P_copy=1.00  P_probe=0.00  T=0.080
+    rep_useless      U=0  P_copy=1.00  P_probe=1.00  T=0.147
+    nonrep_useful    U=1  P_copy=0.08  P_probe=0.00  T=0.057
+    nonrep_useless   U=0  P_copy=0.12  P_probe=0.00  T=0.091
+
+2x2 means:
+  rep_useful       U=0.94  P_copy=1.00  P_probe=0.66  T=0.077
+  rep_useless      U=0.00  P_copy=1.00  P_probe=0.97  T=0.138
+  nonrep_useful    U=0.81  P_copy=0.20  P_probe=0.25  T=0.073
+  nonrep_useless   U=0.00  P_copy=0.07  P_probe=0.31  T=0.072
+
+correlations (bootstrap 95% CI over facts):
+  corr_P_copy_U    +0.13  [+0.04, +0.23]
+  corr_P_copy_T    +0.52  [+0.47, +0.56]
+  corr_P_probe_U   -0.18  [-0.31, -0.04]
+  corr_P_probe_T   +0.38  [+0.26, +0.50]
+  (prediction: P ⊥ U, P ∥ T -- judged on P_probe)
+wrote results/e4_scale_v2_qwen7b-instruct.json
+wrote results/e4_scale_v2_qwen7b-instruct.png
+[snapshot] copied 3 file(s) to data/trackC/: e4_scale_v2_qwen7b-instruct.console.log, e4_scale_v2_qwen7b-instruct.json, e4_scale_v2_qwen7b-instruct.png
+[snapshot] next: git add data/trackC && git commit -m 'Snapshot trackC results'
+[2026-11-04T06:55:55Z] <<< e4_scale_v2_qwen7b-instruct exit=0
+[2026-11-04T06:55:55Z] >>> e5_scale_v2_qwen7b-instruct :: -m experiments.e5_scale --model Qwen/Qwen2.5-7B-Instruct --context-tokens 4000 --device cuda --prefix results/e5_scale_v2_qwen7b-instruct --snapshot trackC
+`torch_dtype` is deprecated! Use `dtype` instead!
+Loading checkpoint shards:   0%|          | 0/4 [00:00<?, ?it/s]Loading checkpoint shards: 100%|██████████| 4/4 [00:00<00:00, 126.68it/s]
+The following generation flags are not valid and may be ignored: ['temperature', 'top_p', 'top_k']. Set `TRANSFORMERS_VERBOSITY=info` for more details.
+=== E5-scale on Qwen/Qwen2.5-7B-Instruct ===
+
+=== A. placement sweep (k=16, ~4000 tok context, query='summarize') ===
+  pos=0.00  hijack mean=0.00  hijacked=0.00
+  pos=0.25  hijack mean=0.00  hijacked=0.00
+  pos=0.50  hijack mean=0.00  hijacked=0.00
+  pos=0.75  hijack mean=0.00  hijacked=0.00
+  pos=1.00  hijack mean=0.00  hijacked=0.00
+
+=== B. repetition sweep (pos=1.0) x query styles ['summarize', 'extract', 'open']; C. positive controls ['raw', 'chat'] ===
+  k= 1  summarize=0.00  extract=0.00  open=0.00  |  controls: raw=0.01  chat=0.00
+  k= 2  summarize=0.00  extract=0.01  open=0.00  |  controls: raw=0.38  chat=0.01
+  k= 4  summarize=0.01  extract=0.00  open=0.00  |  controls: raw=0.63  chat=0.00
+  k= 8  summarize=0.00  extract=0.00  open=0.00  |  controls: raw=0.70  chat=0.00
+  k=16  summarize=0.00  extract=0.00  open=0.00  |  controls: raw=0.59  chat=0.00
+  k=32  summarize=0.00  extract=0.00  open=0.00  |  controls: raw=0.68  chat=0.00
+
+positive control at k=32: best mean occupancy 0.68 -> OK: the harness can hijack; a null in B is a real null
+
+wrote results/e5_scale_v2_qwen7b-instruct.json
+wrote results/e5_scale_v2_qwen7b-instruct.png
+[snapshot] copied 3 file(s) to data/trackC/: e5_scale_v2_qwen7b-instruct.console.log, e5_scale_v2_qwen7b-instruct.json, e5_scale_v2_qwen7b-instruct.png
+[snapshot] next: git add data/trackC && git commit -m 'Snapshot trackC results'
+[2026-11-04T07:03:59Z] <<< e5_scale_v2_qwen7b-instruct exit=0
+[2026-11-04T07:03:59Z] >>> e4_scale_v2_llama3b-instruct :: -m experiments.e4_scale --model meta-llama/Llama-3.2-3B-Instruct --device cuda --prefix results/e4_scale_v2_llama3b-instruct --snapshot trackC
+`torch_dtype` is deprecated! Use `dtype` instead!
+Fetching 2 files:   0%|          | 0/2 [00:00<?, ?it/s]Fetching 2 files:  50%|█████     | 1/2 [00:03<00:03,  3.68s/it]Fetching 2 files: 100%|██████████| 2/2 [00:06<00:00,  3.12s/it]Fetching 2 files: 100%|██████████| 2/2 [00:06<00:00,  3.12s/it]
+Loading checkpoint shards:   0%|          | 0/2 [00:00<?, ?it/s]Loading checkpoint shards: 100%|██████████| 2/2 [00:00<00:00, 65.66it/s]
+The following generation flags are not valid and may be ignored: ['top_k']. Set `TRANSFORMERS_VERBOSITY=info` for more details.
+=== E4-scale on meta-llama/Llama-3.2-3B-Instruct (k=8, probe_k=2, 32 facts) ===
+  [1/32] 'The Vantor crystal emits light at 512 nanome'  (tokens: {'rep_useful': 97, 'rep_useless': 40, 'nonrep_useful': 94, 'nonrep_useless': 98})
+    rep_useful       U=1  P_copy=1.00  P_probe=1.00  T=0.040
+    rep_useless      U=0  P_copy=1.00  P_probe=1.00  T=0.057
+    nonrep_useful    U=1  P_copy=0.02  P_probe=1.00  T=0.045
+    nonrep_useless   U=0  P_copy=0.00  P_probe=1.00  T=0.039
+  [2/32] 'Professor Quilby discovered the element brin'  (tokens: {'rep_useful': 121, 'rep_useless': 40, 'nonrep_useful': 115, 'nonrep_useless': 121})
+    rep_useful       U=1  P_copy=1.00  P_probe=1.00  T=0.034
+    rep_useless      U=0  P_copy=1.00  P_probe=1.00  T=0.074
+    nonrep_useful    U=1  P_copy=0.06  P_probe=1.00  T=0.040
+    nonrep_useless   U=0  P_copy=0.00  P_probe=1.00  T=0.040
+  [3/32] 'The city of Marnth has a population of 84 th'  (tokens: {'rep_useful': 113, 'rep_useless': 33, 'nonrep_useful': 118, 'nonrep_useless': 120})
+    rep_useful       U=1  P_copy=1.00  P_probe=1.00  T=0.040
+    rep_useless      U=0  P_copy=1.00  P_probe=1.00  T=0.068
+    nonrep_useful    U=1  P_copy=0.58  P_probe=1.00  T=0.041
+    nonrep_useless   U=0  P_copy=0.00  P_probe=1.00  T=0.041
+  [4/32] 'The Glimmer protocol uses a key length of 21'  (tokens: {'rep_useful': 113, 'rep_useless': 33, 'nonrep_useful': 123, 'nonrep_useless': 113})
+    rep_useful       U=1  P_copy=1.00  P_probe=1.00  T=0.039
+    rep_useless      U=0  P_copy=1.00  P_probe=1.00  T=0.047
+    nonrep_useful    U=1  P_copy=0.00  P_probe=0.00  T=0.052
+    nonrep_useless   U=0  P_copy=0.02  P_probe=1.00  T=0.046
+  [5/32] 'The Drenn spacecraft reached a speed of 39 k'  (tokens: {'rep_useful': 121, 'rep_useless': 33, 'nonrep_useful': 122, 'nonrep_useless': 117})
+    rep_useful       U=1  P_copy=1.00  P_probe=1.00  T=0.037
+    rep_useless      U=0  P_copy=1.00  P_probe=1.00  T=0.036
+    nonrep_useful    U=1  P_copy=0.02  P_probe=1.00  T=0.049
+    nonrep_useless   U=0  P_copy=0.65  P_probe=1.00  T=0.051
+  [6/32] 'The Ostara festival is celebrated on the sev'  (tokens: {'rep_useful': 113, 'rep_useless': 40, 'nonrep_useful': 119, 'nonrep_useless': 120})
+    rep_useful       U=1  P_copy=1.00  P_probe=1.00  T=0.037
+    rep_useless      U=0  P_copy=1.00  P_probe=1.00  T=0.105
+    nonrep_useful    U=1  P_copy=0.00  P_probe=0.00  T=0.034
+    nonrep_useless   U=0  P_copy=0.92  P_probe=0.00  T=0.045
+  [7/32] 'The Pellam reservoir holds 73 million liters'  (tokens: {'rep_useful': 97, 'rep_useless': 33, 'nonrep_useful': 104, 'nonrep_useless': 105})
+    rep_useful       U=1  P_copy=1.00  P_probe=1.00  T=0.040
+    rep_useless      U=0  P_copy=1.00  P_probe=1.00  T=0.060
+    nonrep_useful    U=1  P_copy=0.67  P_probe=0.00  T=0.041
+    nonrep_useless   U=0  P_copy=0.00  P_probe=0.00  T=0.050
+  [8/32] 'The Orvane bridge was completed in 1962.'  (tokens: {'rep_useful': 97, 'rep_useless': 33, 'nonrep_useful': 96, 'nonrep_useless': 96})
+    rep_useful       U=1  P_copy=1.00  P_probe=1.00  T=0.035
+    rep_useless      U=0  P_copy=1.00  P_probe=1.00  T=0.052
+    nonrep_useful    U=1  P_copy=0.92  P_probe=0.00  T=0.044
+    nonrep_useless   U=0  P_copy=0.88  P_probe=0.00  T=0.047
+  [9/32] 'The Kessrin lighthouse stands 41 meters tall'  (tokens: {'rep_useful': 97, 'rep_useless': 33, 'nonrep_useful': 92, 'nonrep_useless': 103})
+    rep_useful       U=1  P_copy=1.00  P_probe=1.00  T=0.034
+    rep_useless      U=0  P_copy=1.00  P_probe=1.00  T=0.042
+    nonrep_useful    U=1  P_copy=0.00  P_probe=1.00  T=0.036
+    nonrep_useless   U=0  P_copy=0.04  P_probe=1.00  T=0.039
+  [10/32] 'The Tulvar comet returns every 58 years.'  (tokens: {'rep_useful': 81, 'rep_useless': 33, 'nonrep_useful': 80, 'nonrep_useless': 86})
+    rep_useful       U=1  P_copy=1.00  P_probe=1.00  T=0.048
+    rep_useless      U=0  P_copy=1.00  P_probe=1.00  T=0.085
+    nonrep_useful    U=1  P_copy=0.04  P_probe=1.00  T=0.037
+    nonrep_useless   U=0  P_copy=0.69  P_probe=0.00  T=0.038
+  [11/32] 'The mineral zorbite melts at 640 degrees.'  (tokens: {'rep_useful': 89, 'rep_useless': 40, 'nonrep_useful': 92, 'nonrep_useless': 90})
+    rep_useful       U=1  P_copy=1.00  P_probe=1.00  T=0.043
+    rep_useless      U=0  P_copy=1.00  P_probe=1.00  T=0.094
+    nonrep_useful    U=1  P_copy=0.02  P_probe=1.00  T=0.044
+    nonrep_useless   U=0  P_copy=0.62  P_probe=1.00  T=0.014
+  [12/32] 'Captain Elvane commanded the ship Meridian.'  (tokens: {'rep_useful': 81, 'rep_useless': 33, 'nonrep_useful': 92, 'nonrep_useless': 89})
+    rep_useful       U=1  P_copy=1.00  P_probe=1.00  T=0.028
+    rep_useless      U=0  P_copy=1.00  P_probe=1.00  T=0.094
+    nonrep_useful    U=1  P_copy=0.04  P_probe=1.00  T=0.040
+    nonrep_useless   U=0  P_copy=0.00  P_probe=1.00  T=0.049
+  [13/32] 'The Brashford library holds 125 thousand vol'  (tokens: {'rep_useful': 89, 'rep_useless': 33, 'nonrep_useful': 90, 'nonrep_useless': 95})
+    rep_useful       U=1  P_copy=1.00  P_probe=1.00  T=0.042
+    rep_useless      U=0  P_copy=0.00  P_probe=1.00  T=0.091
+    nonrep_useful    U=1  P_copy=0.79  P_probe=1.00  T=0.049
+    nonrep_useless   U=0  P_copy=0.00  P_probe=1.00  T=0.043
+  [14/32] 'The Yelmo river is 318 kilometers long.'  (tokens: {'rep_useful': 89, 'rep_useless': 33, 'nonrep_useful': 98, 'nonrep_useless': 89})
+    rep_useful       U=1  P_copy=1.00  P_probe=1.00  T=0.036
+    rep_useless      U=0  P_copy=1.00  P_probe=1.00  T=0.062
+    nonrep_useful    U=1  P_copy=0.00  P_probe=1.00  T=0.039
+    nonrep_useless   U=0  P_copy=0.42  P_probe=1.00  T=0.027
+  [15/32] 'The Carrow engine produces 94 kilowatts.'  (tokens: {'rep_useful': 89, 'rep_useless': 33, 'nonrep_useful': 97, 'nonrep_useless': 85})
+    rep_useful       U=1  P_copy=1.00  P_probe=0.00  T=0.046
+    rep_useless      U=0  P_copy=1.00  P_probe=1.00  T=0.077
+    nonrep_useful    U=1  P_copy=0.00  P_probe=0.00  T=0.046
+    nonrep_useless   U=0  P_copy=0.00  P_probe=0.00  T=0.025
+  [16/32] 'The village of Dunmere has 27 streets.'  (tokens: {'rep_useful': 81, 'rep_useless': 33, 'nonrep_useful': 78, 'nonrep_useless': 82})
+    rep_useful       U=1  P_copy=1.00  P_probe=1.00  T=0.041
+    rep_useless      U=0  P_copy=1.00  P_probe=1.00  T=0.087
+    nonrep_useful    U=1  P_copy=0.96  P_probe=1.00  T=0.045
+    nonrep_useless   U=0  P_copy=0.00  P_probe=1.00  T=0.042
+  [17/32] 'The Halbrook tunnel is 4700 meters long.'  (tokens: {'rep_useful': 89, 'rep_useless': 33, 'nonrep_useful': 97, 'nonrep_useless': 90})
+    rep_useful       U=1  P_copy=1.00  P_probe=1.00  T=0.042
+    rep_useless      U=0  P_copy=1.00  P_probe=1.00  T=0.066
+    nonrep_useful    U=1  P_copy=0.56  P_probe=0.00  T=0.042
+    nonrep_useless   U=0  P_copy=0.00  P_probe=0.00  T=0.037
+  [18/32] 'The composer Lirenne wrote the Amber Suite.'  (tokens: {'rep_useful': 81, 'rep_useless': 40, 'nonrep_useful': 82, 'nonrep_useless': 92})
+    rep_useful       U=1  P_copy=1.00  P_probe=1.00  T=0.048
+    rep_useless      U=0  P_copy=1.00  P_probe=1.00  T=0.094
+    nonrep_useful    U=1  P_copy=0.00  P_probe=1.00  T=0.036
+    nonrep_useless   U=0  P_copy=0.00  P_probe=1.00  T=0.037
+  [19/32] 'The Sorvik mine yields 820 tons of ore each '  (tokens: {'rep_useful': 105, 'rep_useless': 33, 'nonrep_useful': 117, 'nonrep_useless': 119})
+    rep_useful       U=1  P_copy=1.00  P_probe=1.00  T=0.039
+    rep_useless      U=0  P_copy=1.00  P_probe=1.00  T=0.055
+    nonrep_useful    U=1  P_copy=0.29  P_probe=1.00  T=0.046
+    nonrep_useless   U=0  P_copy=0.88  P_probe=1.00  T=0.041
+  [20/32] 'The Pelline alloy contains 35 percent copper'  (tokens: {'rep_useful': 81, 'rep_useless': 33, 'nonrep_useful': 77, 'nonrep_useless': 86})
+    rep_useful       U=1  P_copy=1.00  P_probe=1.00  T=0.047
+    rep_useless      U=0  P_copy=1.00  P_probe=1.00  T=0.063
+    nonrep_useful    U=1  P_copy=0.31  P_probe=1.00  T=0.035
+    nonrep_useless   U=0  P_copy=0.00  P_probe=1.00  T=0.035
+  [21/32] 'The Winterhollow race covers 142 kilometers.'  (tokens: {'rep_useful': 81, 'rep_useless': 33, 'nonrep_useful': 91, 'nonrep_useless': 84})
+    rep_useful       U=1  P_copy=1.00  P_probe=1.00  T=0.043
+    rep_useless      U=0  P_copy=1.00  P_probe=1.00  T=0.048
+    nonrep_useful    U=1  P_copy=0.00  P_probe=1.00  T=0.045
+    nonrep_useless   U=0  P_copy=0.00  P_probe=0.00  T=0.036
+  [22/32] 'The Ardent observatory opened in 1931.'  (tokens: {'rep_useful': 89, 'rep_useless': 33, 'nonrep_useful': 94, 'nonrep_useless': 86})
+    rep_useful       U=1  P_copy=1.00  P_probe=1.00  T=0.042
+    rep_useless      U=0  P_copy=1.00  P_probe=1.00  T=0.090
+    nonrep_useful    U=1  P_copy=0.88  P_probe=1.00  T=0.042
+    nonrep_useless   U=0  P_copy=0.54  P_probe=1.00  T=0.041
+  [23/32] 'Doctor Varnell founded the Tessamine clinic.'  (tokens: {'rep_useful': 81, 'rep_useless': 40, 'nonrep_useful': 86, 'nonrep_useless': 90})
+    rep_useful       U=1  P_copy=1.00  P_probe=1.00  T=0.027
+    rep_useless      U=0  P_copy=1.00  P_probe=1.00  T=0.076
+    nonrep_useful    U=1  P_copy=0.04  P_probe=1.00  T=0.042
+    nonrep_useless   U=0  P_copy=0.88  P_probe=1.00  T=0.036
+  [24/32] 'The Quorra desert receives 19 millimeters of'  (tokens: {'rep_useful': 113, 'rep_useless': 40, 'nonrep_useful': 121, 'nonrep_useless': 118})
+    rep_useful       U=1  P_copy=1.00  P_probe=1.00  T=0.039
+    rep_useless      U=0  P_copy=1.00  P_probe=1.00  T=0.095
+    nonrep_useful    U=1  P_copy=0.00  P_probe=0.00  T=0.050
+    nonrep_useless   U=0  P_copy=0.00  P_probe=0.00  T=0.043
+  [25/32] 'The Mardel canal has 14 locks.'  (tokens: {'rep_useful': 81, 'rep_useless': 33, 'nonrep_useful': 85, 'nonrep_useless': 91})
+    rep_useful       U=1  P_copy=1.00  P_probe=1.00  T=0.044
+    rep_useless      U=0  P_copy=1.00  P_probe=1.00  T=0.082
+    nonrep_useful    U=1  P_copy=0.54  P_probe=1.00  T=0.033
+    nonrep_useless   U=0  P_copy=0.04  P_probe=1.00  T=0.020
+  [26/32] 'The Fenwick telescope has a 230 centimeter m'  (tokens: {'rep_useful': 97, 'rep_useless': 40, 'nonrep_useful': 96, 'nonrep_useless': 103})
+    rep_useful       U=1  P_copy=1.00  P_probe=1.00  T=0.038
+    rep_useless      U=0  P_copy=1.00  P_probe=1.00  T=0.073
+    nonrep_useful    U=1  P_copy=0.96  P_probe=0.00  T=0.029
+    nonrep_useless   U=0  P_copy=0.92  P_probe=0.00  T=0.037
+  [27/32] 'The island of Serrowe has 61 villages.'  (tokens: {'rep_useful': 89, 'rep_useless': 33, 'nonrep_useful': 90, 'nonrep_useless': 99})
+    rep_useful       U=1  P_copy=1.00  P_probe=1.00  T=0.040
+    rep_useless      U=0  P_copy=1.00  P_probe=1.00  T=0.058
+    nonrep_useful    U=1  P_copy=0.23  P_probe=1.00  T=0.046
+    nonrep_useless   U=0  P_copy=0.00  P_probe=1.00  T=0.042
+  [28/32] 'The Ulmric festival lasts 11 days.'  (tokens: {'rep_useful': 81, 'rep_useless': 33, 'nonrep_useful': 85, 'nonrep_useless': 85})
+    rep_useful       U=1  P_copy=1.00  P_probe=1.00  T=0.042
+    rep_useless      U=0  P_copy=1.00  P_probe=1.00  T=0.049
+    nonrep_useful    U=1  P_copy=0.06  P_probe=0.00  T=0.052
+    nonrep_useless   U=0  P_copy=0.00  P_probe=1.00  T=0.037
+  [29/32] 'The Brennock dam generates 475 megawatts.'  (tokens: {'rep_useful': 89, 'rep_useless': 40, 'nonrep_useful': 89, 'nonrep_useless': 85})
+    rep_useful       U=1  P_copy=1.00  P_probe=1.00  T=0.043
+    rep_useless      U=0  P_copy=1.00  P_probe=1.00  T=0.101
+    nonrep_useful    U=1  P_copy=0.00  P_probe=0.00  T=0.045
+    nonrep_useless   U=0  P_copy=0.96  P_probe=1.00  T=0.047
+  [30/32] 'The author Pemberly wrote the novel Saltmars'  (tokens: {'rep_useful': 89, 'rep_useless': 40, 'nonrep_useful': 92, 'nonrep_useless': 95})
+    rep_useful       U=1  P_copy=1.00  P_probe=1.00  T=0.049
+    rep_useless      U=0  P_copy=1.00  P_probe=1.00  T=0.073
+    nonrep_useful    U=1  P_copy=0.00  P_probe=1.00  T=0.041
+    nonrep_useless   U=0  P_copy=0.00  P_probe=1.00  T=0.041
+  [31/32] 'The Corvane express reaches 265 kilometers p'  (tokens: {'rep_useful': 97, 'rep_useless': 40, 'nonrep_useful': 97, 'nonrep_useless': 101})
+    rep_useful       U=1  P_copy=1.00  P_probe=1.00  T=0.040
+    rep_useless      U=0  P_copy=1.00  P_probe=1.00  T=0.080
+    nonrep_useful    U=1  P_copy=0.00  P_probe=1.00  T=0.040
+    nonrep_useless   U=0  P_copy=0.60  P_probe=1.00  T=0.036
+  [32/32] 'The Talwick mint struck 88 thousand coins in'  (tokens: {'rep_useful': 113, 'rep_useless': 33, 'nonrep_useful': 113, 'nonrep_useless': 109})
+    rep_useful       U=1  P_copy=1.00  P_probe=1.00  T=0.038
+    rep_useless      U=0  P_copy=1.00  P_probe=1.00  T=0.050
+    nonrep_useful    U=1  P_copy=0.02  P_probe=1.00  T=0.045
+    nonrep_useless   U=0  P_copy=0.00  P_probe=1.00  T=0.049
+
+2x2 means:
+  rep_useful       U=1.00  P_copy=1.00  P_probe=0.97  T=0.040
+  rep_useless      U=0.00  P_copy=0.97  P_probe=1.00  T=0.071
+  nonrep_useful    U=1.00  P_copy=0.25  P_probe=0.69  T=0.042
+  nonrep_useless   U=0.00  P_copy=0.28  P_probe=0.72  T=0.039
+
+correlations (bootstrap 95% CI over facts):
+  corr_P_copy_U    -0.00  [-0.11, +0.11]
+  corr_P_copy_T    +0.30  [+0.16, +0.41]
+  corr_P_probe_U   -0.04  [-0.14, +0.06]
+  corr_P_probe_T   +0.15  [+0.06, +0.25]
+  (prediction: P ⊥ U, P ∥ T -- judged on P_probe)
+wrote results/e4_scale_v2_llama3b-instruct.json
+wrote results/e4_scale_v2_llama3b-instruct.png
+[snapshot] copied 3 file(s) to data/trackC/: e4_scale_v2_llama3b-instruct.console.log, e4_scale_v2_llama3b-instruct.json, e4_scale_v2_llama3b-instruct.png
+[snapshot] next: git add data/trackC && git commit -m 'Snapshot trackC results'
+[2026-11-04T07:09:45Z] <<< e4_scale_v2_llama3b-instruct exit=0
+[2026-11-04T07:09:45Z] >>> e5_scale_v2_llama3b-instruct :: -m experiments.e5_scale --model meta-llama/Llama-3.2-3B-Instruct --context-tokens 4000 --device cuda --prefix results/e5_scale_v2_llama3b-instruct --snapshot trackC
+`torch_dtype` is deprecated! Use `dtype` instead!
+Loading checkpoint shards:   0%|          | 0/2 [00:00<?, ?it/s]Loading checkpoint shards: 100%|██████████| 2/2 [00:00<00:00, 80.72it/s]
+The following generation flags are not valid and may be ignored: ['temperature', 'top_p']. Set `TRANSFORMERS_VERBOSITY=info` for more details.
+=== E5-scale on meta-llama/Llama-3.2-3B-Instruct ===
+
+=== A. placement sweep (k=16, ~4000 tok context, query='summarize') ===
+  pos=0.00  hijack mean=0.00  hijacked=0.00
+  pos=0.25  hijack mean=0.00  hijacked=0.00
+  pos=0.50  hijack mean=0.00  hijacked=0.00
+  pos=0.75  hijack mean=0.00  hijacked=0.00
+  pos=1.00  hijack mean=0.00  hijacked=0.00
+
+=== B. repetition sweep (pos=1.0) x query styles ['summarize', 'extract', 'open']; C. positive controls ['raw', 'chat'] ===
+  k= 1  summarize=0.00  extract=0.00  open=0.00  |  controls: raw=0.01  chat=0.00
+  k= 2  summarize=0.01  extract=0.00  open=0.01  |  controls: raw=0.44  chat=0.00
+  k= 4  summarize=0.01  extract=0.01  open=0.01  |  controls: raw=0.70  chat=0.00
+  k= 8  summarize=0.00  extract=0.00  open=0.00  |  controls: raw=0.69  chat=0.00
+  k=16  summarize=0.00  extract=0.00  open=0.01  |  controls: raw=0.67  chat=0.09
+  k=32  summarize=0.00  extract=0.00  open=0.00  |  controls: raw=0.65  chat=0.00
+
+positive control at k=32: best mean occupancy 0.65 -> OK: the harness can hijack; a null in B is a real null
+
+wrote results/e5_scale_v2_llama3b-instruct.json
+wrote results/e5_scale_v2_llama3b-instruct.png
+[snapshot] copied 3 file(s) to data/trackC/: e5_scale_v2_llama3b-instruct.console.log, e5_scale_v2_llama3b-instruct.json, e5_scale_v2_llama3b-instruct.png
+[snapshot] next: git add data/trackC && git commit -m 'Snapshot trackC results'
+[2026-11-04T07:15:15Z] <<< e5_scale_v2_llama3b-instruct exit=0
+[2026-11-04T07:15:15Z] >>> e4_scale_v2_phi35mini-instruct :: -m experiments.e4_scale --model microsoft/Phi-3.5-mini-instruct --device cuda --prefix results/e4_scale_v2_phi35mini-instruct --snapshot trackC
+`torch_dtype` is deprecated! Use `dtype` instead!
+Fetching 2 files:   0%|          | 0/2 [00:00<?, ?it/s]Fetching 2 files:  50%|█████     | 1/2 [00:05<00:05,  5.97s/it]Fetching 2 files: 100%|██████████| 2/2 [00:09<00:00,  4.57s/it]Fetching 2 files: 100%|██████████| 2/2 [00:09<00:00,  4.57s/it]
+Loading checkpoint shards:   0%|          | 0/2 [00:00<?, ?it/s]Loading checkpoint shards: 100%|██████████| 2/2 [00:00<00:00, 73.28it/s]
+The following generation flags are not valid and may be ignored: ['top_k']. Set `TRANSFORMERS_VERBOSITY=info` for more details.
+=== E4-scale on microsoft/Phi-3.5-mini-instruct (k=8, probe_k=2, 32 facts) ===
+  [1/32] 'The Vantor crystal emits light at 512 nanome'  (tokens: {'rep_useful': 144, 'rep_useless': 32, 'nonrep_useful': 151, 'nonrep_useless': 155})
+    rep_useful       U=1  P_copy=1.00  P_probe=1.00  T=0.050
+    rep_useless      U=0  P_copy=1.00  P_probe=1.00  T=0.061
+    nonrep_useful    U=1  P_copy=0.00  P_probe=0.00  T=0.034
+    nonrep_useless   U=0  P_copy=0.00  P_probe=0.00  T=0.043
+  [2/32] 'Professor Quilby discovered the element brin'  (tokens: {'rep_useful': 136, 'rep_useless': 32, 'nonrep_useful': 149, 'nonrep_useless': 140})
+    rep_useful       U=1  P_copy=1.00  P_probe=1.00  T=0.037
+    rep_useless      U=0  P_copy=1.00  P_probe=1.00  T=0.074
+    nonrep_useful    U=1  P_copy=0.02  P_probe=1.00  T=0.028
+    nonrep_useless   U=0  P_copy=0.00  P_probe=1.00  T=0.037
+  [3/32] 'The city of Marnth has a population of 84 th'  (tokens: {'rep_useful': 112, 'rep_useless': 32, 'nonrep_useful': 112, 'nonrep_useless': 120})
+    rep_useful       U=1  P_copy=1.00  P_probe=1.00  T=0.043
+    rep_useless      U=0  P_copy=1.00  P_probe=1.00  T=0.096
+    nonrep_useful    U=1  P_copy=0.96  P_probe=1.00  T=0.049
+    nonrep_useless   U=0  P_copy=0.04  P_probe=0.00  T=0.034
+  [4/32] 'The Glimmer protocol uses a key length of 21'  (tokens: {'rep_useful': 128, 'rep_useless': 32, 'nonrep_useful': 132, 'nonrep_useless': 139})
+    rep_useful       U=1  P_copy=1.00  P_probe=1.00  T=0.051
+    rep_useless      U=0  P_copy=1.00  P_probe=1.00  T=0.072
+    nonrep_useful    U=1  P_copy=0.42  P_probe=1.00  T=0.047
+    nonrep_useless   U=0  P_copy=0.00  P_probe=1.00  T=0.042
+  [5/32] 'The Drenn spacecraft reached a speed of 39 k'  (tokens: {'rep_useful': 144, 'rep_useless': 32, 'nonrep_useful': 153, 'nonrep_useless': 153})
+    rep_useful       U=1  P_copy=1.00  P_probe=1.00  T=0.047
+    rep_useless      U=0  P_copy=1.00  P_probe=1.00  T=0.102
+    nonrep_useful    U=1  P_copy=0.79  P_probe=1.00  T=0.039
+    nonrep_useless   U=0  P_copy=0.42  P_probe=1.00  T=0.026
+  [6/32] 'The Ostara festival is celebrated on the sev'  (tokens: {'rep_useful': 128, 'rep_useless': 32, 'nonrep_useful': 129, 'nonrep_useless': 133})
+    rep_useful       U=1  P_copy=1.00  P_probe=1.00  T=0.047
+    rep_useless      U=0  P_copy=1.00  P_probe=1.00  T=0.068
+    nonrep_useful    U=1  P_copy=0.00  P_probe=1.00  T=0.047
+    nonrep_useless   U=0  P_copy=0.00  P_probe=1.00  T=0.050
+  [7/32] 'The Pellam reservoir holds 73 million liters'  (tokens: {'rep_useful': 136, 'rep_useless': 32, 'nonrep_useful': 136, 'nonrep_useless': 135})
+    rep_useful       U=1  P_copy=1.00  P_probe=1.00  T=0.042
+    rep_useless      U=0  P_copy=1.00  P_probe=1.00  T=0.129
+    nonrep_useful    U=1  P_copy=0.00  P_probe=0.00  T=0.040
+    nonrep_useless   U=0  P_copy=0.00  P_probe=0.00  T=0.037
+  [8/32] 'The Orvane bridge was completed in 1962.'  (tokens: {'rep_useful': 112, 'rep_useless': 32, 'nonrep_useful': 107, 'nonrep_useless': 110})
+    rep_useful       U=1  P_copy=1.00  P_probe=1.00  T=0.046
+    rep_useless      U=0  P_copy=1.00  P_probe=1.00  T=0.117
+    nonrep_useful    U=1  P_copy=0.00  P_probe=0.00  T=0.032
+    nonrep_useless   U=0  P_copy=0.00  P_probe=0.00  T=0.046
+  [9/32] 'The Kessrin lighthouse stands 41 meters tall'  (tokens: {'rep_useful': 112, 'rep_useless': 32, 'nonrep_useful': 115, 'nonrep_useless': 116})
+    rep_useful       U=1  P_copy=1.00  P_probe=1.00  T=0.045
+    rep_useless      U=0  P_copy=1.00  P_probe=1.00  T=0.056
+    nonrep_useful    U=1  P_copy=0.00  P_probe=1.00  T=0.035
+    nonrep_useless   U=0  P_copy=0.00  P_probe=1.00  T=0.029
+  [10/32] 'The Tulvar comet returns every 58 years.'  (tokens: {'rep_useful': 96, 'rep_useless': 32, 'nonrep_useful': 111, 'nonrep_useless': 99})
+    rep_useful       U=1  P_copy=1.00  P_probe=1.00  T=0.053
+    rep_useless      U=0  P_copy=1.00  P_probe=1.00  T=0.120
+    nonrep_useful    U=1  P_copy=0.00  P_probe=1.00  T=0.042
+    nonrep_useless   U=0  P_copy=0.00  P_probe=1.00  T=0.024
+  [11/32] 'The mineral zorbite melts at 640 degrees.'  (tokens: {'rep_useful': 120, 'rep_useless': 32, 'nonrep_useful': 118, 'nonrep_useless': 126})
+    rep_useful       U=1  P_copy=1.00  P_probe=1.00  T=0.051
+    rep_useless      U=0  P_copy=1.00  P_probe=1.00  T=0.069
+    nonrep_useful    U=1  P_copy=0.00  P_probe=1.00  T=0.045
+    nonrep_useless   U=0  P_copy=0.02  P_probe=0.00  T=0.027
+  [12/32] 'Captain Elvane commanded the ship Meridian.'  (tokens: {'rep_useful': 88, 'rep_useless': 32, 'nonrep_useful': 89, 'nonrep_useless': 91})
+    rep_useful       U=1  P_copy=1.00  P_probe=1.00  T=0.037
+    rep_useless      U=0  P_copy=1.00  P_probe=1.00  T=0.113
+    nonrep_useful    U=1  P_copy=0.38  P_probe=1.00  T=0.045
+    nonrep_useless   U=0  P_copy=0.00  P_probe=1.00  T=0.047
+  [13/32] 'The Brashford library holds 125 thousand vol'  (tokens: {'rep_useful': 104, 'rep_useless': 32, 'nonrep_useful': 113, 'nonrep_useless': 104})
+    rep_useful       U=1  P_copy=1.00  P_probe=1.00  T=0.047
+    rep_useless      U=0  P_copy=1.00  P_probe=1.00  T=0.088
+    nonrep_useful    U=1  P_copy=0.00  P_probe=1.00  T=0.046
+    nonrep_useless   U=0  P_copy=0.00  P_probe=1.00  T=0.040
+  [14/32] 'The Yelmo river is 318 kilometers long.'  (tokens: {'rep_useful': 112, 'rep_useless': 32, 'nonrep_useful': 123, 'nonrep_useless': 124})
+    rep_useful       U=1  P_copy=1.00  P_probe=1.00  T=0.043
+    rep_useless      U=0  P_copy=1.00  P_probe=1.00  T=0.087
+    nonrep_useful    U=1  P_copy=0.60  P_probe=0.00  T=0.033
+    nonrep_useless   U=0  P_copy=0.19  P_probe=0.00  T=0.032
+  [15/32] 'The Carrow engine produces 94 kilowatts.'  (tokens: {'rep_useful': 104, 'rep_useless': 32, 'nonrep_useful': 117, 'nonrep_useless': 100})
+    rep_useful       U=1  P_copy=1.00  P_probe=1.00  T=0.051
+    rep_useless      U=0  P_copy=1.00  P_probe=1.00  T=0.098
+    nonrep_useful    U=1  P_copy=0.00  P_probe=1.00  T=0.030
+    nonrep_useless   U=0  P_copy=0.12  P_probe=1.00  T=0.019
+  [16/32] 'The village of Dunmere has 27 streets.'  (tokens: {'rep_useful': 96, 'rep_useless': 32, 'nonrep_useful': 96, 'nonrep_useless': 101})
+    rep_useful       U=1  P_copy=1.00  P_probe=1.00  T=0.045
+    rep_useless      U=0  P_copy=1.00  P_probe=1.00  T=0.102
+    nonrep_useful    U=1  P_copy=0.00  P_probe=1.00  T=0.022
+    nonrep_useless   U=0  P_copy=0.00  P_probe=1.00  T=0.039
+  [17/32] 'The Halbrook tunnel is 4700 meters long.'  (tokens: {'rep_useful': 112, 'rep_useless': 32, 'nonrep_useful': 107, 'nonrep_useless': 117})
+    rep_useful       U=1  P_copy=1.00  P_probe=1.00  T=0.045
+    rep_useless      U=0  P_copy=1.00  P_probe=1.00  T=0.089
+    nonrep_useful    U=1  P_copy=0.00  P_probe=0.00  T=0.044
+    nonrep_useless   U=0  P_copy=0.38  P_probe=0.00  T=0.049
+  [18/32] 'The composer Lirenne wrote the Amber Suite.'  (tokens: {'rep_useful': 96, 'rep_useless': 32, 'nonrep_useful': 100, 'nonrep_useless': 100})
+    rep_useful       U=1  P_copy=1.00  P_probe=1.00  T=0.054
+    rep_useless      U=0  P_copy=1.00  P_probe=1.00  T=0.122
+    nonrep_useful    U=1  P_copy=0.00  P_probe=1.00  T=0.044
+    nonrep_useless   U=0  P_copy=0.04  P_probe=0.00  T=0.033
+  [19/32] 'The Sorvik mine yields 820 tons of ore each '  (tokens: {'rep_useful': 120, 'rep_useless': 32, 'nonrep_useful': 120, 'nonrep_useless': 117})
+    rep_useful       U=1  P_copy=1.00  P_probe=1.00  T=0.047
+    rep_useless      U=0  P_copy=1.00  P_probe=1.00  T=0.093
+    nonrep_useful    U=1  P_copy=0.15  P_probe=0.00  T=0.033
+    nonrep_useless   U=0  P_copy=0.00  P_probe=0.00  T=0.037
+  [20/32] 'The Pelline alloy contains 35 percent copper'  (tokens: {'rep_useful': 112, 'rep_useless': 32, 'nonrep_useful': 112, 'nonrep_useless': 111})
+    rep_useful       U=1  P_copy=1.00  P_probe=0.00  T=0.058
+    rep_useless      U=0  P_copy=1.00  P_probe=1.00  T=0.079
+    nonrep_useful    U=1  P_copy=0.02  P_probe=1.00  T=0.040
+    nonrep_useless   U=0  P_copy=0.00  P_probe=0.00  T=0.040
+  [21/32] 'The Winterhollow race covers 142 kilometers.'  (tokens: {'rep_useful': 104, 'rep_useless': 32, 'nonrep_useful': 104, 'nonrep_useless': 116})
+    rep_useful       U=1  P_copy=1.00  P_probe=1.00  T=0.048
+    rep_useless      U=0  P_copy=1.00  P_probe=1.00  T=0.086
+    nonrep_useful    U=1  P_copy=0.42  P_probe=1.00  T=0.029
+    nonrep_useless   U=0  P_copy=0.04  P_probe=1.00  T=0.042
+  [22/32] 'The Ardent observatory opened in 1931.'  (tokens: {'rep_useful': 104, 'rep_useless': 32, 'nonrep_useful': 109, 'nonrep_useless': 116})
+    rep_useful       U=1  P_copy=1.00  P_probe=1.00  T=0.047
+    rep_useless      U=0  P_copy=1.00  P_probe=1.00  T=0.077
+    nonrep_useful    U=1  P_copy=0.12  P_probe=0.00  T=0.036
+    nonrep_useless   U=0  P_copy=0.00  P_probe=1.00  T=0.033
+  [23/32] 'Doctor Varnell founded the Tessamine clinic.'  (tokens: {'rep_useful': 104, 'rep_useless': 32, 'nonrep_useful': 108, 'nonrep_useless': 101})
+    rep_useful       U=1  P_copy=0.85  P_probe=1.00  T=0.038
+    rep_useless      U=0  P_copy=1.00  P_probe=1.00  T=0.083
+    nonrep_useful    U=1  P_copy=0.08  P_probe=0.00  T=0.044
+    nonrep_useless   U=0  P_copy=0.00  P_probe=0.00  T=0.023
+  [24/32] 'The Quorra desert receives 19 millimeters of'  (tokens: {'rep_useful': 136, 'rep_useless': 32, 'nonrep_useful': 133, 'nonrep_useless': 137})
+    rep_useful       U=1  P_copy=1.00  P_probe=1.00  T=0.045
+    rep_useless      U=0  P_copy=1.00  P_probe=1.00  T=0.064
+    nonrep_useful    U=1  P_copy=0.00  P_probe=1.00  T=0.049
+    nonrep_useless   U=0  P_copy=0.00  P_probe=1.00  T=0.039
+  [25/32] 'The Mardel canal has 14 locks.'  (tokens: {'rep_useful': 96, 'rep_useless': 32, 'nonrep_useful': 104, 'nonrep_useless': 102})
+    rep_useful       U=1  P_copy=1.00  P_probe=1.00  T=0.051
+    rep_useless      U=0  P_copy=1.00  P_probe=1.00  T=0.064
+    nonrep_useful    U=1  P_copy=0.88  P_probe=1.00  T=0.041
+    nonrep_useless   U=0  P_copy=0.00  P_probe=0.00  T=0.027
+  [26/32] 'The Fenwick telescope has a 230 centimeter m'  (tokens: {'rep_useful': 120, 'rep_useless': 32, 'nonrep_useful': 121, 'nonrep_useless': 125})
+    rep_useful       U=1  P_copy=1.00  P_probe=0.00  T=0.046
+    rep_useless      U=0  P_copy=1.00  P_probe=1.00  T=0.142
+    nonrep_useful    U=1  P_copy=0.00  P_probe=1.00  T=0.034
+    nonrep_useless   U=0  P_copy=0.00  P_probe=0.00  T=0.024
+  [27/32] 'The island of Serrowe has 61 villages.'  (tokens: {'rep_useful': 96, 'rep_useless': 32, 'nonrep_useful': 105, 'nonrep_useless': 94})
+    rep_useful       U=1  P_copy=1.00  P_probe=1.00  T=0.047
+    rep_useless      U=0  P_copy=1.00  P_probe=1.00  T=0.065
+    nonrep_useful    U=1  P_copy=0.58  P_probe=1.00  T=0.034
+    nonrep_useless   U=0  P_copy=0.00  P_probe=1.00  T=0.034
+  [28/32] 'The Ulmric festival lasts 11 days.'  (tokens: {'rep_useful': 96, 'rep_useless': 32, 'nonrep_useful': 92, 'nonrep_useless': 105})
+    rep_useful       U=1  P_copy=1.00  P_probe=1.00  T=0.050
+    rep_useless      U=0  P_copy=1.00  P_probe=1.00  T=0.053
+    nonrep_useful    U=1  P_copy=0.06  P_probe=0.00  T=0.026
+    nonrep_useless   U=0  P_copy=0.04  P_probe=0.00  T=0.042
+  [29/32] 'The Brennock dam generates 475 megawatts.'  (tokens: {'rep_useful': 128, 'rep_useless': 32, 'nonrep_useful': 138, 'nonrep_useless': 123})
+    rep_useful       U=1  P_copy=1.00  P_probe=1.00  T=0.045
+    rep_useless      U=0  P_copy=1.00  P_probe=1.00  T=0.057
+    nonrep_useful    U=1  P_copy=0.04  P_probe=0.00  T=0.039
+    nonrep_useless   U=0  P_copy=0.00  P_probe=0.00  T=0.042
+  [30/32] 'The author Pemberly wrote the novel Saltmars'  (tokens: {'rep_useful': 96, 'rep_useless': 32, 'nonrep_useful': 93, 'nonrep_useless': 108})
+    rep_useful       U=1  P_copy=0.23  P_probe=1.00  T=0.048
+    rep_useless      U=0  P_copy=1.00  P_probe=1.00  T=0.134
+    nonrep_useful    U=1  P_copy=0.00  P_probe=0.00  T=0.047
+    nonrep_useless   U=0  P_copy=0.00  P_probe=0.00  T=0.016
+  [31/32] 'The Corvane express reaches 265 kilometers p'  (tokens: {'rep_useful': 120, 'rep_useless': 32, 'nonrep_useful': 115, 'nonrep_useless': 124})
+    rep_useful       U=1  P_copy=1.00  P_probe=1.00  T=0.050
+    rep_useless      U=0  P_copy=1.00  P_probe=1.00  T=0.065
+    nonrep_useful    U=1  P_copy=0.00  P_probe=1.00  T=0.032
+    nonrep_useless   U=0  P_copy=0.00  P_probe=0.00  T=0.044
+  [32/32] 'The Talwick mint struck 88 thousand coins in'  (tokens: {'rep_useful': 128, 'rep_useless': 32, 'nonrep_useful': 132, 'nonrep_useless': 140})
+    rep_useful       U=1  P_copy=1.00  P_probe=1.00  T=0.047
+    rep_useless      U=0  P_copy=1.00  P_probe=1.00  T=0.095
+    nonrep_useful    U=1  P_copy=0.96  P_probe=0.00  T=0.044
+    nonrep_useless   U=0  P_copy=0.06  P_probe=0.00  T=0.047
+
+2x2 means:
+  rep_useful       U=1.00  P_copy=0.97  P_probe=0.94  T=0.047
+  rep_useless      U=0.00  P_copy=1.00  P_probe=1.00  T=0.088
+  nonrep_useful    U=1.00  P_copy=0.20  P_probe=0.62  T=0.038
+  nonrep_useless   U=0.00  P_copy=0.04  P_probe=0.44  T=0.036
+
+correlations (bootstrap 95% CI over facts):
+  corr_P_copy_U    +0.07  [+0.01, +0.14]
+  corr_P_copy_T    +0.58  [+0.55, +0.62]
+  corr_P_probe_U   +0.07  [+0.00, +0.16]
+  corr_P_probe_T   +0.34  [+0.26, +0.42]
+  (prediction: P ⊥ U, P ∥ T -- judged on P_probe)
+wrote results/e4_scale_v2_phi35mini-instruct.json
+wrote results/e4_scale_v2_phi35mini-instruct.png
+[snapshot] copied 3 file(s) to data/trackC/: e4_scale_v2_phi35mini-instruct.console.log, e4_scale_v2_phi35mini-instruct.json, e4_scale_v2_phi35mini-instruct.png
+[snapshot] next: git add data/trackC && git commit -m 'Snapshot trackC results'
+[2026-11-04T07:21:18Z] <<< e4_scale_v2_phi35mini-instruct exit=0
+[2026-11-04T07:21:18Z] >>> e5_scale_v2_phi35mini-instruct :: -m experiments.e5_scale --model microsoft/Phi-3.5-mini-instruct --context-tokens 4000 --device cuda --prefix results/e5_scale_v2_phi35mini-instruct --snapshot trackC
+`torch_dtype` is deprecated! Use `dtype` instead!
+Loading checkpoint shards:   0%|          | 0/2 [00:00<?, ?it/s]Loading checkpoint shards: 100%|██████████| 2/2 [00:00<00:00, 101.77it/s]
+=== E5-scale on microsoft/Phi-3.5-mini-instruct ===
+
+=== A. placement sweep (k=16, ~4000 tok context, query='summarize') ===
+  pos=0.00  hijack mean=0.00  hijacked=0.00
+  pos=0.25  hijack mean=0.00  hijacked=0.00
+  pos=0.50  hijack mean=0.00  hijacked=0.00
+  pos=0.75  hijack mean=0.00  hijacked=0.00
+  pos=1.00  hijack mean=0.00  hijacked=0.00
+
+=== B. repetition sweep (pos=1.0) x query styles ['summarize', 'extract', 'open']; C. positive controls ['raw', 'chat'] ===
+  k= 1  summarize=0.01  extract=0.00  open=0.01  |  controls: raw=0.01  chat=0.01
+  k= 2  summarize=0.01  extract=0.00  open=0.00  |  controls: raw=0.75  chat=0.01
+  k= 4  summarize=0.00  extract=0.00  open=0.00  |  controls: raw=1.00  chat=0.02
+  k= 8  summarize=0.00  extract=0.01  open=0.00  |  controls: raw=1.00  chat=0.25
+  k=16  summarize=0.00  extract=0.00  open=0.00  |  controls: raw=1.00  chat=0.12
+  k=32  summarize=0.00  extract=0.01  open=0.02  |  controls: raw=1.00  chat=0.01
+
+positive control at k=32: best mean occupancy 1.00 -> OK: the harness can hijack; a null in B is a real null
+
+wrote results/e5_scale_v2_phi35mini-instruct.json
+wrote results/e5_scale_v2_phi35mini-instruct.png
+[snapshot] copied 3 file(s) to data/trackC/: e5_scale_v2_phi35mini-instruct.console.log, e5_scale_v2_phi35mini-instruct.json, e5_scale_v2_phi35mini-instruct.png
+[snapshot] next: git add data/trackC && git commit -m 'Snapshot trackC results'
+[2026-11-04T07:28:17Z] <<< e5_scale_v2_phi35mini-instruct exit=0
+[2026-11-04T07:28:17Z] job body finished after 40 min

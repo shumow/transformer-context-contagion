@@ -1,0 +1,17 @@
+{
+  "_provenance": "TRANSCRIBED from results_log.md (E6, GPT-2 / Pythia-160M, Track A, 2026-06-26). The raw results/e6_worm.json is NOT in this repository (results/ is gitignored and the file was not recovered from the dev machine). Values are MEAN viral load per hop over 8 trials (fresh payload per trial), sampled T=1.0, T=96 tokens/host, host0-reps 16. Where the log wrote a chain shorter than 7 entries the payload was extinct (0) for the remaining hops.",
+  "config": {"hops": 6, "trials": 8, "host0_reps": 16, "T": 96, "temperature": 1.0},
+  "serial": {
+    "gpt2": {
+      "1": {"mean": [42, 18, 12, 12, 12, 12, 12], "survive": 0.25},
+      "2": {"mean": [25, 4, 0, 0, 0, 0, 0], "survive": 0.0},
+      "3": {"mean": [25, 15, 11, 8, 6, 2, 0], "survive": 0.0},
+      "5": {"mean": [12, 5, 5, 3, 1, 0, 0], "survive": 0.0},
+      "8": {"mean": [6, 2, 0, 0, 0, 0, 0], "survive": 0.0}
+    }
+  },
+  "cross_p3": {
+    "gpt2->gpt2 (same tokenizer)":        [15, 9, 8, 6, 4, 4, 2],
+    "gpt2->pythia-160m (cross tokenizer)": [21, 4, 0, 0, 0, 0, 0]
+  }
+}

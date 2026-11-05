@@ -379,6 +379,15 @@ samples/cell. The realistic long-context (4k–128k) RAG version with retrieval 
 
 ## E7 — the paired detector (defensive complement) (2026-06-26)
 
+> **Status (2026-11-03): SUPERSEDED by the rerun below** ("E7 rerun — detector vs n-gram
+> baseline, 32 negatives"). This run had 3 clean documents (an AUC over 3 negatives is not a
+> measurement), no model-free baseline, and no false-positive rate on legitimately repetitive
+> text. The rerun scores 32 clean paragraphs against an n-gram-repeat baseline and 8
+> benign-repetitive negatives with bootstrap CIs, and overturns the headline: the induction
+> detector does **not** beat a model-free n-gram-repeat count (both AUC 1.0 at every k), and is
+> marginally worse on benign-repetitive false positives. The "AUC=1.0" and "fires at k=2" claims
+> below are real but say nothing the n-gram baseline does not; read the rerun entry instead.
+
 The attacks (E4/E5/E6) all key on one quantity: induction trust earned by a repeated span.
 So the defense watches that same quantity. The detector scores a context by its mean
 **induction engagement** (attention the canonical GPT-2 induction heads pay to
@@ -427,6 +436,15 @@ payload locks in with fewer repetitions. So the condensation knee is a property 
 not of stochastic decoding. (A full temperature sweep, 0 → 1.0+, remains future work.)
 
 ## E8-lite — in-context substitution as an induction primitive, and the cascade limit (2026-06-26)
+
+> **Status (2026-11-03): SUPERSEDED by the rerun below** ("E8-lite rerun — true random
+> control"). The "ablate random" column below was in fact the 8 *lowest*-induction-score heads,
+> a control biased toward unimportant heads. The rerun adds a genuinely random matched control
+> (seeded, excluding the induction set, as in E2) alongside the lowest-induction set. Outcome:
+> the induction-carried claim **survives** at the reliable table sizes (m=8: −57% vs a true
+> random −33%; m=16: −68% vs −3%), but is **weaker** than this entry implies — a real random
+> ablation removes ~33% at m=8, not the −6% the mislabeled column showed, so the "−6% random"
+> numbers below overstate the induction-specific effect. Read the rerun entry instead.
 
 Mechanistic core of the "self-extracting payload" idea (random tokens that unfold into a
 payload via per-layer substitution), on GPT-2-small with benign OOD markers — the "decoded"
@@ -686,6 +704,16 @@ design; the depth-cliff locations may shift with more reps.
 
 ## E4-scale — trust vs. usefulness with a REAL task (Track C, RunPod L40S) (2026-07-02)
 
+> **Status (2026-11-03): design flaw; superseded pending rerun.** Both "non-repetitive"
+> contexts in this run were the *same* filler paragraph twice (`FILLER + FILLER`), so the 2×2
+> contrasted 8× repetition with 2× repetition. And P was copy-rate of a raw continuation of
+> "span × 8", which is ~1 for any repeated span by construction. `experiments/e4_scale.py`
+> now builds non-repetitive cells from distinct sentences, length-matched in tokens; adds the
+> plan's original poisonability measure (reproduction of a *planted* probe span); uses 32
+> facts; and reports bootstrap CIs on the correlations (`review_remediation_plan.md` §0.2).
+> **Rerun 2026-11-04: see "E4-scale v2" below** — the dissociation holds on three instruct models
+> with the probe measure, with a smaller effect than the copy-rate numbers here suggested.
+
 E4-lite showed poisonability P ⊥ usefulness U, ∥ trust T on GPT-2-small, but U was a
 *naturalness proxy*. E4-scale replaces it with a genuine task on **Qwen2.5-7B-Instruct**: benign
 **synthetic facts the model cannot already know** (so a context containing the fact is the
@@ -713,6 +741,10 @@ rep_useful U=0.83 (repetition slightly hurt QA on one fact). `results/e4_scale.j
 
 ## E5-scale — RAG hijack in a long context: a bound on C5 (Track C) (2026-07-02)
 
+> **Status (2026-11-04): confirmed with positive controls — see "E5-scale v2" below.** This run
+> had no no-query control, so a harness bug and a real null were indistinguishable; v2 adds two
+> controls (raw continuation hijacks at 0.6–1.0 occupancy), three query styles and two more models.
+
 E5-lite (GPT-2-small, base, no query) showed a recent, repeated payload hijacks the
 *continuation*. E5-scale plants an OOD payload ×k inside a ~4000-token benign "retrieval dump"
 on **Qwen2.5-7B-Instruct** and asks it to answer a query; hijack = payload occupancy of the
@@ -734,7 +766,108 @@ transfer and bounds where the copy-dynamics story applies.) Caveats: one model, 
 4k context, benign OOD payload; a no-query "continue the documents" framing would likely hijack
 (that is E1.4/E5-lite) — the finding is that the *task query* defuses it. `results/e5_scale.json`.
 
+## Analyses of committed data, following the critical review (2026-11-03)
+
+Three re-analyses of data already in the repository, no new model runs. Scripts:
+`experiments/analysis_knee_floor.py`, `analysis_e6_firebreak.py`, `analysis_e6_r0.py`; outputs
+under `data/*/analysis_*.json`. Where the raw JSON was never committed, the inputs are
+transcriptions of the tables in this log (`data/trackA/e6_worm_transcribed.json`,
+`data/trackB/e1_3_e1_4_knees_transcribed.json`, `data/trackC/e6_scale_partB_3hop_reps16.json`),
+each with a `_provenance` field saying so.
+
+### A. The "knee" for multi-token payloads is the grid floor
+
+For p ≥ 2 the transition S[-1]→S[0] has never occurred in a context of N=1 copies, so copying
+it at N=1 is impossible except by chance; at N=2 it has occurred once. Any copy mechanism
+therefore jumps between N=1 and N=2, and the interpolated N* lands in (1, 2] whenever the
+**one-shot copy rate** P(reproduce | N=2) ≥ ½. In that regime N* is a re-parameterization of
+that rate (N* = 1 + ½ / P(N=2) when P(N=1)=0), not an independently measured threshold.
+
+Applied to the E1.3/E1.4 knee tables (48 multi-token cells, 16 models, p ∈ {3,5,8}):
+
+| | cells | at the floor (N* ≤ 2) | implied one-shot rate P(N=2), floor cells |
+|---|---|---|---|
+| p ≥ 3, base + instruct | 48 | **36 (75%)** | median 0.71, min 0.50 |
+
+The 12 cells not at the floor: gpt2-medium p=3 (2.7); pythia-410m p=3 (2.4); pythia-1.4b p=3,
+p=8 (2.3, 2.3); pythia-2.8b p=3 (2.3); Llama-3.2-1B p=5 (2.7); Qwen2.5-1.5B-Instruct p=3, p=5
+(2.8, 2.8); Qwen2.5-7B-Instruct p=5 (2.5); Llama-3.2-3B-Instruct p=3, p=5 (3.2, 6.3);
+gemma-2-2b-it p=3 (3.0). One cell (gemma-2-2b-it p=8, N*=1.4) inverts to P(N=2) > 1, meaning
+P(N=1) was not zero there; the inversion is marked invalid.
+
+**What this changes.** "A sharp knee at N*≈1.5–1.9 that is flat from 355M to 7B" is the
+statement "one prior occurrence of a ≥3-token span suffices more often than not in every
+model" — which is what an induction head is defined to do. The sharpness and the scale-flatness
+are properties of the grid, not findings. The defensible summary is the one-shot rate (≈0.5–1.0
+across models, from the inversion; a direct measurement needs the per-N curves, which E1.3 did
+not store). The cells *above* the floor are the informative ones: three of the four instruct
+models and the smaller Pythia models need more than one prior occurrence at p=3, which is a
+real, if modest, difference. The p=1 and p=2 knees are not floor effects and remain as logged
+(frequency-prior / copy-suppression regime). `e1_3_size_sweep.py` should store the per-N
+curves on its next run so P(N=2) can be reported directly with a Wilson interval.
+
+### B. The cross-tokenizer firebreak: both 2026-07-02 runs, with a test
+
+Two Part-B runs are in `data/trackC/logs/e6.log`; only the second was reported above. Exact
+permutation test, null = host tokenizer identity is irrelevant (columns exchangeable within a
+row), statistic = diagonal mean − off-diagonal mean, 5⁵ = 3125 assignments:
+
+| run | hops | seed copies | trials | diag mean | off-diag mean | ratio | diag is row-max | diag = 0 | one-sided p |
+|---|---|---|---|---|---|---|---|---|---|
+| first (script defaults, **unreported**) | 3 | 16 | 5 | 4.00 | 2.44 | 1.64 | 2 / 5 | pythia, llama | **0.238** |
+| second (reported, `e6_scale.json`) | 1 | 32 | 8 | 14.18 | 8.82 | 1.61 | 3 / 5 | none | **0.004** |
+
+Off-diagonal entries exceeding their row's diagonal: first run, six of them (pythia→qwen 13.6
+vs pythia→pythia 0.0; llama→pythia 6.4 vs llama→llama 0.0; gemma→gpt2 and gemma→pythia 6.4 vs
+gemma→gemma 0.8); second run, two (pythia→qwen 15.5, qwen→llama 16.9).
+
+**What this changes.** At 3 hops on 0.5–2B hosts with 16 seed copies, there is no detectable
+same-tokenizer advantage: the diagonal-vs-off-diagonal gap is what a random assignment of
+"diagonal" produces about one time in four. The reported "partial firebreak" comes from a
+re-run at 1 hop with double the seeding, where the advantage is significant (p = 0.004, ratio
+1.6). One hop is the weakest possible transmission test (patient zero's output re-tokenized
+once). The protocol change between the runs was not recorded in this log or the paper; it is
+now. The claim should read: *under heavy seeding, a single re-tokenization attenuates
+transmission by roughly 1.6× on average; over three hops on small models, transmission is too
+weak in both conditions to measure a firebreak.* The queued `deploy/run_trackC_p1.sh` sweeps
+seeding strength at 3 hops with 30 trials and should settle which description holds.
+
+### C. R0 was never computed; here is what the mean trajectories support
+
+Per (model, p): R_geo = geometric mean of k_{t+1}/k_t over hops where both loads ≥ 1 (the
+per-hop multiplication while alive); R_tail = the ratio at the last hop with k_t ≥ 1 (the step
+nearest threshold; 0 for chains that die). Computed from the **mean** load per hop, since no
+per-trial trajectories were stored (both E6 scripts now store them under `runs`).
+
+| model | p=1 | p=2 | p=3 | p=5 | p=8 |
+|---|---|---|---|---|---|
+| GPT-2 (Track A) | 0.81 / endemic at 12 | 0.16 / dies hop 2 | 0.60 / dies hop 6 | 0.54 / dies hop 5 | 0.33 / dies hop 2 |
+| Pythia-2.8B | – / dead | 0.60 / dies hop 5 | 0.50 / dies hop 3 | 0.66 / dies hop 5 | 0.66 / dies hop 4 |
+| Qwen2.5-7B | – / dies hop 1 | 0.90 / endemic | 0.91 / endemic | 0.93 / endemic | 0.86 / endemic |
+| Llama-3.2-3B | – / dead | 0.60 / dies hop 3 | – / dies hop 1 | 0.71 / dies hop 5 | 0.27 / dies hop 2 |
+| Qwen2.5-7B-Instruct | 0.20 / dies hop 2 | 0.89 / endemic | 0.70 / endemic (load 2 at hop 6) | 0.77 / endemic | 0.89 / endemic |
+
+(cell = R_geo / verdict; "–" = no living hop pair.)
+
+**What this changes.** No cell has R > 1: nothing amplifies. The "endemic" cells are chains whose
+mean load is *flat* across hops (Qwen2.5-7B p=2: 29, 29, 29, 29; p=5: 8, 8, 8, 8), which is the
+signature of hosts emitting their full T=96 tokens as pure payload every hop — a locked
+repetition loop whose load is fixed by T/p, not an epidemic with a reproduction number. The
+dying chains decay by ≈0.5–0.7× per hop until extinction. So the toy's "R0 ≈ T/(p·k_thresh),
+falling with length" is not what the transformer data show: what varies with model and p is
+the *probability of locking* (binary per trial, hence the 20–60% survival figures on 5 trials),
+and the decay rate of unlocked chains. The "worm gets worse at scale" claim reduces to "a 7B
+model locks into a payload loop more readily than a 3B one", which the per-trial rerun with
+CIs (`deploy/run_trackC_p1.sh`) can test directly, and which should be read against Holtzman
+et al. (2019) on degenerate repetition rather than against an epidemic model.
+
 ## E6-scale — the worm at scale: it gets worse (Track C) (2026-07-02)
+
+> **Status (2026-11-04): superseded by "E6 at power" below** (60 trials per cell, three seeds; a
+> seeding-strength sweep at 3 hops with 30 trials). The 5-trial survival figures and the 1-hop
+> matrix here stand as what was run; the conclusions do not: only the Qwen2.5-7B *base* model
+> sustains the loop at power (the instruct model falls to ≈0.1), and no same-tokenizer advantage
+> is detectable at 3 hops at any seeding strength.
 
 **Part A — serial passage on larger/instruct models** (survival across 6 hops, sweep payload
 length p):
@@ -775,3 +908,787 @@ helps (same-tokenizer is worst-case) but is not a hard firebreak** against a str
 payload; the clean Track-A collapse was the weak-signal regime. Caveats: small models (0.5–2B)
 per family, p=3, 8 trials; the diagonal/off-diagonal separation is a tendency, not a clean gap.
 `results/e6_scale.json`.
+
+## E7 rerun — detector vs n-gram baseline, 32 negatives (2026-11-03, local CPU)
+
+Supersedes the E7 run above (3 clean negatives, no baseline, no FPR). Command (the only change
+from defaults is `HF_HUB_OFFLINE=1`, to force the cached gpt2 and make the run offline — it does
+not affect the computation):
+
+```
+HF_HUB_OFFLINE=1 python -m experiments.e7_detector --snapshot trackA
+# defaults: payload-p=3, ks=[2,4,8,16], instances=2, k-heads=8, ngram=3, seed=7
+```
+
+Induction heads scored: `[(5,5),(7,10),(6,9),(5,1),(7,2),(9,6),(10,1),(9,9)]`. 32 clean
+paragraphs (negatives), 8 benign-repetitive controls, 2 payloads × 32 docs = 64 poisoned
+instances per k. AUC = P(poisoned > clean), bootstrap 95% CI in brackets.
+
+| detector | clean mean (max=thr) | k=2 | k=4 | k=8 | k=16 | benign-rep. FPR @thr |
+|---|---|---|---|---|---|---|
+| **induction** (mean head engagement) | 0.0001 (0.0022) | 0.0229 | 0.0606 | 0.0779 | 0.0800 | **1.00 (8/8)** |
+| induction **AUC** | — | 1.000 [1.000,1.000] | 1.000 [1.000,1.000] | 1.000 [1.000,1.000] | 1.000 [1.000,1.000] | |
+| **ngram3_repeat** (model-free) | 0.0000 (0.0000) | 0.0267 | 0.1609 | 0.3420 | 0.5402 | 0.88 (7/8) |
+| ngram3 **AUC** | — | 1.000 [1.000,1.000] | 1.000 [1.000,1.000] | 1.000 [1.000,1.000] | 1.000 [1.000,1.000] | |
+
+**Does the induction score beat the n-gram count? No.** Both detectors separate poisoned from
+clean *perfectly* — AUC = 1.000 with a degenerate [1.000, 1.000] bootstrap CI at every k, from
+k=2 up. They are statistically indistinguishable on the discrimination task because clean prose
+carries essentially zero of either signal (induction clean mean 1e-4, n-gram clean mean exactly
+0), so any planted repeated span is trivially separable by either. The honest reading is the one
+the task anticipated: **the detector is an n-gram repeat detector; the induction machinery
+explains *why* repetition is dangerous (E4) but is not a better alarm than a model-free count of
+repeated 3-grams.** The one place they differ, the n-gram baseline is slightly *better*: at the
+zero-FP-on-clean operating threshold the benign-repetitive false-positive rate is **1.00 for the
+induction detector (8/8: license_header, email_footer, code_loop, numbered_list, chorus,
+csv_dump, form_letter, menu) vs 0.88 for n-gram (7/8 — it alone does not flag the license
+header)**. The induction score's advertised edge (keying on *trust* independent of usefulness)
+buys nothing here and costs one extra false positive. The only qualitative difference is dynamic
+range — the n-gram mean climbs 0.03→0.54 across k while induction saturates ~0.08 — but since
+both already reach AUC 1.0 at k=2, that range does not translate into better detection on this
+benchmark.
+
+Caveats: GPT-2-small, CPU, ~65-token docs, p=3, 2 payloads/doc, seed 7; 71 s. Both detectors are
+evaluated against the *same* benign-repetitive controls, so the FPR gap is not a sampling
+artifact of different thresholds. Raw: `data/trackA/e7_detector.json` (+ `.png`); the superseded
+June 3-negative run is preserved as `data/trackA/e7_detector_2026-06-26_3neg.json`.
+
+## E8-lite rerun — true random control (2026-11-03, local CPU)
+
+Supersedes the E8-lite run above, whose "ablate random" column was in fact the 8 *lowest*-
+induction heads (a control biased toward unimportant heads). This run ablates the induction set
+against **both** a genuinely random matched control (8 heads drawn, seeded, from the
+non-induction heads, as in E2) **and** the lowest-induction set, under their true names. Command
+(only `HF_HUB_OFFLINE=1` added to defaults):
+
+```
+HF_HUB_OFFLINE=1 python -m experiments.e8_substitution --snapshot trackA
+# defaults: ms=[2,4,8,16], n-tables=8, k-heads=8, seed=7
+```
+
+Induction heads `[(5,5),(7,10),(6,9),(5,1),(7,2),(9,6),(10,1),(9,9)]`; random control
+`[(11,6),(9,4),(1,11),(2,6),(3,6),(8,1),(7,6),(11,9)]`; lowest-induction control
+`[(4,11),(3,3),(3,7),(3,2),(3,8),(2,2),(4,0),(3,6)]`. Substitution top-1 accuracy (8 tables × m
+queries/cell; Δ vs clean in parentheses):
+
+| m | clean | ablate induction | ablate TRUE random | ablate lowest-induction |
+|---|---|---|---|---|
+| 2 | 0.312 | 0.188 (−40%) | 0.125 (−60%) | 0.375 (+20%) |
+| 4 | 0.500 | 0.344 (−31%) | 0.438 (−12%) | 0.406 (−19%) |
+| 8 | 0.469 | **0.203 (−57%)** | 0.312 (−33%) | 0.438 (−7%) |
+| 16 | 0.469 | **0.148 (−68%)** | 0.453 (−3%) | 0.312 (−33%) |
+
+**Is the induction-ablation drop still much larger than the random-ablation drop? Yes at the
+reliable table sizes, but the claim is weaker than the old mislabeled comparison implied.** At
+the two largest, least-noisy cells the induction ablation collapses substitution far more than a
+*true* random ablation: m=8, −57% vs −33%; m=16, −68% vs −3% (random is essentially unchanged
+from clean at m=16). The lowest-induction control barely moves (−7% at m=8), confirming the
+original intuition that unimportant heads are harmless — the old run's only error was calling
+*that* set "random". But the honest correction is that a genuine random non-induction ablation is
+**not** harmless: it removes ~33% of accuracy at m=8 (the old mislabeled column showed only −6%),
+so the induction-specific effect is the *gap* between the induction drop and a real random drop,
+not the near-total contrast the first write-up suggested. The m=2–4 rows are noisy (16–32 lookups)
+and even invert at m=2; the induction>random ordering only stabilizes at m≥8. **In-context
+substitution is induction-carried, but the effect size is moderate and the earlier "−6% random"
+baseline overstated it.**
+
+The cascade finding is unchanged: single-step fidelity with two tables present is high
+(step-1 acc **0.969**), yet the direct 2-step cascade succeeds only **0.188**, *below* the
+optimistic `f²=0.250` (f=0.500) — self-extraction depth is bounded worse than the `f^(L·depth)`
+ladder predicts, because the intermediate value is both a value and a key and splits the
+induction lookup.
+
+Caveats: GPT-2-small, CPU, 8 tables × m queries/cell (small-m rows noisy), top-1 metric, greedy
+2-step, seed 7; 92 s. No bootstrap CIs — point estimates only, so read the −3%/−33% random-column
+swings between m=8 and m=16 as sampling noise, not structure. Raw: `data/trackA/e8_substitution.json`
+(+ `.png`); the superseded June run is preserved as `data/trackA/e8_substitution_2026-06-26.json`.
+
+## E1.1 rerun — curves committed, direct one-shot rate (2026-11-03)
+
+Not a supersession — the same command as the original E1.1 (2026-06-25), rerun so the per-N
+*curves* are committed as raw data for the first time (`data/trackA/e1_1_gpt2.json`) and the
+direct one-shot copy rate P(N=2) is reported with Wilson intervals. It is sampled (T=1.0), so
+the numbers differ slightly from the June entry. Command (only `HF_HUB_OFFLINE=1` added):
+
+```
+HF_HUB_OFFLINE=1 python -m experiments.e1_condensation_knee --model gpt2 \
+    --lengths 1 2 3 5 --reps 1 2 4 8 16 32 --payloads 4 --trials 10 --max-new 48 --snapshot trackA
+HF_HUB_OFFLINE=1 python -m experiments.analysis_knee_floor data/trackA/e1_1_gpt2.json \
+    --out data/trackA/analysis_knee_floor_gpt2.json
+```
+
+Device MPS (generation-only), 4 payloads × 10 trials = 40 samples/cell, 990 s.
+
+**Knee table** (reproduces the June shape: N\* decreases with length):
+
+| p | knee N* (95% CI) | width | scrambled P@N=32 | no-payload P | June N* |
+|---|---|---|---|---|---|
+| 1 | 7.1 (4.7–9.7) | 8.0 | 0.95 | 0.00 | 7.2 |
+| 2 | 3.6 (1.6–5.3) | 4.2 | 0.78 | 0.00 | 4.3 |
+| 3 | 3.2 (2.7–4.8) | 3.4 | 0.03 | 0.00 | 3.0 |
+| 5 | 1.8 (1.6–2.3) | 1.8 | 0.00 | 0.025 | 1.9 |
+
+**Direct one-shot copy rate** (Wilson 95% intervals, from the committed curves):
+
+| p | P(N=1) | P(N=2) = one prior occurrence | at grid floor? |
+|---|---|---|---|
+| 1 | 0.00 [0.00, 0.09] | 0.00 [0.00, 0.09] | no |
+| 2 | 0.00 [0.00, 0.09] | 0.28 [0.16, 0.43] | no |
+| 3 | 0.00 [0.00, 0.09] | 0.20 [0.11, 0.35] | no |
+| 5 | 0.03 [0.00, 0.13] | **0.60 [0.45, 0.74]** | **yes** |
+
+**The one-shot copy rate on GPT-2-small is modest and length-dependent.** A single prior
+occurrence of the span (N=2) suffices more than half the time only at p=5 (0.60 [0.45, 0.74]);
+at p=2 and p=3 it is 0.28 and 0.20, with Wilson intervals that exclude 1/2. So on GPT-2-small
+alone only 1 of the 2 multi-token cells (p≥3) sits at the grid floor, and the direct one-shot
+rate over p≥3 cells has median 0.40. This does **not** contradict the README C1/C3 status
+(which attributes "one occurrence suffices in 36/48 cells" to the *at-scale* models, not
+GPT-2-small) — it quantifies, with intervals, that the small model is the weak end of that
+range. Separately, P(N=1) ≈ 0 at every length (≤0.03), which is the assumption the knee-floor
+analysis relies on to invert N\* into an implied one-shot rate; the committed curves now
+confirm it directly rather than by stipulation.
+
+Caveats: GPT-2-small, MPS, T=1.0, 40 samples/cell, seed 7 — intervals are wide; the p=2 vs p=3
+inversion (0.28 vs 0.20) is within overlapping CIs, not a real ordering. Raw curves + analysis:
+`data/trackA/e1_1_gpt2.json`, `data/trackA/analysis_knee_floor_gpt2.json` (+ the `_knee_`/`_Nstar_`
+PNGs). The recovered June run is preserved as `data/trackA/e1_1_gpt2_2026-06-25.json` (+ PNGs).
+
+## E6 rerun — per-trial R0 and survival CIs (2026-11-03)
+
+The script now stores every trial's trajectory, so R0 (per-hop load ratio) and survival get
+per-trial bootstrap CIs — which the committed Track C data (mean loads only) could not give.
+Command (only `HF_HUB_OFFLINE=1` added to defaults; GPT-2 serial passage + GPT-2→Pythia-160M
+cross-tokenizer, 8 trials, 6 hops, host0-reps 16, T=96, seed 7, MPS, 1001 s):
+
+```
+HF_HUB_OFFLINE=1 python -m experiments.e6_worm --trials 8 --snapshot trackA
+HF_HUB_OFFLINE=1 python -m experiments.analysis_e6_r0 data/trackA/e6_worm.json \
+    --out data/trackA/analysis_e6_r0_gpt2.json
+```
+
+Two bugs in the iter4 pre-run code had to be fixed first (both committed with this entry; neither
+changes any computed number): (1) `e6_worm.py plot_cross` tried to plot the new per-trial `[runs]`
+arrays as lines and crashed *before* the JSON was written — now it plots only the mean curves;
+(2) `analysis_e6_r0.py` only accepted the model-keyed `serial={model:{p:…}}` of the scale/
+transcribed files, but `e6_worm.py` writes the flat `serial={p:…}` — it now normalizes the flat
+form to model-keyed.
+
+**Serial passage (GPT-2):**
+
+| p | mean load per hop | R_geo (mean traj) | per-trial R_geo median [95% CI] | survive [95% CI] | fully-locked | endemic? |
+|---|---|---|---|---|---|---|
+| 1 | 40→36→26→24→14→2→0 | 0.54 | 0.47 [0.11, 0.62] | 0.25 [0.00, 0.50] | **2/8** | no (mean → 0) |
+| 2 | 30→18→8→6→2→0→0 | 0.51 | 0.76 [0.61, 0.96] | 0.00 [0.00, 0.00] | 0/8 | no |
+| 3 | 14→8→0→… | 0.57 | 0.38 [0.25, 0.66] | 0.00 [0.00, 0.00] | 0/8 | no |
+| 5 | 16→9→6→6→6→5→3 | 0.77 | 0.75 [0.26, 0.99] | 0.25 [0.00, 0.50] | **1/8** | yes (mean) |
+| 8 | 8→1→0→… | 0.13 | 0.33 [0.17, 0.50] | 0.00 [0.00, 0.00] | 0/8 | no |
+
+Cross-tokenizer (p=3, patient zero GPT-2): same-host `13→0.4→0→…`, cross-host (Pythia-160M)
+`19→6.8→2.5→2.0→0→…` — both extinct, the cross chain lasting one hop longer this seed (n=8, not
+a reversal of the firebreak direction).
+
+**How many "endemic" p=1 trials are locked loops vs genuinely fluctuating? All of the survivors
+are locked; none fluctuate.** The per-trial data answers the question the mean hid. The June
+Track-A "p=1 endemic" does **not** reproduce: here p=1's mean load decays to ~0 by the last hop,
+only **2 of 8** trials are still alive at hop 6, and both are **fully-locked loops**
+(`fully_locked=2/8`, zero surviving-but-fluctuating trials). The single cell endemic on the mean,
+p=5, is **1 of 8** trials locked. So "endemic" is one or two hosts stuck emitting the payload on
+repeat, not a chain that spreads. **R_geo < 1 at every payload length** (median 0.33–0.77; every
+95% CI caps below 1 — p=5's 0.99 is the only one that reaches it), i.e. the mean viral load
+shrinks every hop in all cells. This is the first *per-trial, CI-backed* confirmation on
+GPT-2-small of the Analyses §B–C / README-C6 reinterpretation: no per-hop reproduction ratio
+above one, and "endemic" chains are locked repetition loops.
+
+Caveats: GPT-2-small + Pythia-160M, MPS, 8 trials (survival CIs are very wide — [0.00, 0.50] for
+both endemic-ish cells, so "endemic" is not statistically separable from extinction at this n),
+fresh sampled payloads per trial, seed 7. Numbers differ from the June Track-A run (sampling +
+n=8); the robust, reproducible statement is R_geo < 1 everywhere. Raw: `data/trackA/e6_worm.json`
+(+ `_serial`/`_crosstok` PNGs), analysis `data/trackA/analysis_e6_r0_gpt2.json`; the recovered
+June run is preserved as `data/trackA/e6_worm_2026-06-26.json` (+ dated PNGs).
+
+## E6 at power — serial passage with 60 trials per cell; firebreak as a seeding-strength curve at 3 hops (2026-11-04, RunPod L40S; plan item 2.1)
+
+The queued `deploy/run_trackC_p1.sh`, run unattended on a RunPod L40S 48 GB (secure cloud,
+image `runpod/pytorch:2.4.0-py3.11-cuda12.4.1`, torch 2.5.1+cu121, transformers 4.57.6, bf16;
+`requirements-lock.txt` is this venv). Script defaults, nothing changed:
+
+```
+deploy/run_trackC_p1.sh        # SEEDS="7 8 9" TRIALS_A=20  REPS_SWEEP="8 16 32" TRIALS_B=30  SNAPSHOT=trackC
+#  Part A: python -m experiments.e6_scale --part A --seed {7,8,9} --trials 20   (hops 6, host0-reps 16, T 96, T=1.0)
+#  Part B: python -m experiments.e6_scale --part B --host0-reps {8,16,32} --trials 30   (p=3, 3 hops)
+```
+
+Files: `data/trackC/e6A_hiN_s{7,8,9}.{json,log,png}`, `e6B_reps{8,16,32}.{json,log,png}`, pod
+console `logs/pod_p1_console.log`. Analyses: `analysis_e6_r0_pooled_hiN.json`
+(`analysis_e6_r0.py --pool` over the three seeds), `analysis_e6_firebreak_sweep.json`.
+Wall time 7.3 pod-hours (Part A 88 min per seed; Part B 60 min per seeding strength).
+
+### Part A — survival at hop 6, three seeds pooled (n = 60 chains per cell, Wilson 95%)
+
+| model | p=1 | p=2 | p=3 | p=5 | p=8 |
+|---|---|---|---|---|---|
+| Pythia-2.8B | 0.23 (0.14–0.35) | 0.12 (0.06–0.22) | 0.07 (0.03–0.16) | 0.20 (0.12–0.32) | 0.05 (0.02–0.14) |
+| **Qwen2.5-7B** | 0.22 (0.13–0.34) | **0.47 (0.35–0.59)** | **0.30 (0.20–0.43)** | **0.42 (0.30–0.54)** | **0.50 (0.38–0.62)** |
+| Llama-3.2-3B | 0.33 (0.23–0.46) | 0.00 (0.00–0.06) | 0.12 (0.06–0.22) | 0.07 (0.03–0.16) | 0.00 (0.00–0.06) |
+| Qwen2.5-7B-Instruct | 0.30 (0.20–0.43) | 0.13 (0.07–0.24) | 0.13 (0.07–0.24) | 0.08 (0.04–0.18) | 0.13 (0.07–0.24) |
+
+Per-seed survival (p = 2/3/5/8) for the Qwen base model: 0.45/0.35/0.40/0.45, 0.55/0.25/0.50/0.55,
+0.40/0.30/0.35/0.50 — the three seeds agree. The p = 1 column is **not transmission**: the
+surviving "load" is 1 and a one-token payload decodes to a short common substring that
+`count_payload` matches by accident (`tcc/payloads.py` docstring); read that column as the
+false-positive floor of text-level counting, ≈0.2–0.3.
+
+**What the surviving chains are.** Among chains alive at hop 6, the last-hop load equals T/p —
+the maximum possible, i.e. the host's entire 96-token output is payload: Qwen2.5-7B median/max
+load 48/48 at p=2, 32/32 at p=3, 18/18 at p=5, 12/13 at p=8 (T/p = 48, 32, 19, 12); the same
+for the instruct model and for Pythia at p ≥ 3. Per-trial R_geo medians (bootstrap 95%) are
+0.99 (0.90–1.00), 0.88 (0.72–0.98), 0.97 (0.91–0.99), 1.00 (0.95–1.00) for Qwen2.5-7B at
+p = 2, 3, 5, 8, and 0.57–0.87 for Pythia, 0.63–0.71 for Llama, 0.69–0.80 for the instruct
+model. **No cell has R > 1.** Survival is the per-chain probability of falling into a locked
+repetition loop; everything that does not lock decays by ≈0.6–0.9× per hop and dies.
+
+**Verdict on "the worm gets worse at scale".** With 60 trials the only model that locks in a
+large fraction of chains is the Qwen2.5-7B **base** model (0.30–0.50 for p = 2–8, intervals clear
+of every other model's). **Its survival is flat in p** — 0.47, 0.30, 0.42, 0.50 from p = 2 to 8,
+every pair within the others' intervals — so there is no critical length in the one model that
+transmits at all: the toy's "R0 falls with payload length" is not weakened here, it is absent. Pythia-2.8B and Llama-3.2-3B lock in 0–0.20, and — the change from the
+5-trial run — **Qwen2.5-7B-Instruct locks in only 0.08–0.13**, indistinguishable from the 3B
+base models. The earlier sentence "the instruct model transmits it too (20–40%)" was the top of
+a 5-trial interval. The defensible statement is: *one 7B base model (Qwen2.5-7B) falls into a
+payload loop in 30–50% of chains for every p from 2 to 8; a 2.8B, a 3B and the instruction-tuned
+7B do so in ≤ 20%.* Whether that is scale or family is confounded (the one 7B base model here is
+also the one Qwen base model); Pythia-6.9B would separate them and was not run.
+
+### Part B — cross-tokenizer matrix at 3 hops vs seeding strength (p = 3, 30 trials per cell)
+
+Rows = patient-zero family, columns = host family; entry = mean surviving load at hop 3.
+
+host0-reps = 8:
+
+| | gpt2 | pythia | qwen | llama | gemma |
+|---|---|---|---|---|---|
+| **gpt2** | **2.1** | 1.1 | 2.1 | 2.3 | 2.1 |
+| **pythia** | 3.3 | **1.1** | 5.6 | 0.0 | 2.3 |
+| **qwen** | 2.1 | 6.1 | **5.4** | 2.7 | 1.8 |
+| **llama** | 0.6 | 0.0 | 3.1 | **0.0** | 2.1 |
+| **gemma** | 0.0 | 0.8 | 7.6 | 2.1 | **1.7** |
+
+host0-reps = 16:
+
+| | gpt2 | pythia | qwen | llama | gemma |
+|---|---|---|---|---|---|
+| **gpt2** | **2.6** | 4.5 | 2.9 | 1.3 | 3.4 |
+| **pythia** | 3.5 | **4.4** | 8.2 | 3.7 | 4.1 |
+| **qwen** | 1.4 | 4.4 | **4.1** | 5.8 | 9.0 |
+| **llama** | 2.1 | 0.0 | 5.3 | **2.7** | 5.2 |
+| **gemma** | 5.0 | 2.2 | 6.9 | 3.7 | **5.6** |
+
+host0-reps = 32:
+
+| | gpt2 | pythia | qwen | llama | gemma |
+|---|---|---|---|---|---|
+| **gpt2** | **2.1** | 0.4 | 6.2 | 3.1 | 3.6 |
+| **pythia** | 1.6 | **3.8** | 10.1 | 3.2 | 4.6 |
+| **qwen** | 4.7 | 6.4 | **13.1** | 6.3 | 10.5 |
+| **llama** | 0.0 | 2.1 | 1.9 | **0.1** | 7.4 |
+| **gemma** | 3.2 | 5.2 | 9.6 | 3.7 | **0.7** |
+
+| seed copies | diag mean | off-diag mean | ratio (bootstrap 95%, 30 trials/cell) | diag is row-max | permutation p (3125 assignments) | host (column) means gpt2 / pythia / qwen / llama / gemma |
+|---|---|---|---|---|---|---|
+| 8 | 2.07 | 2.39 | 0.87 (0.42–1.51) | 0 / 5 | 0.593 | 1.6 / 1.8 / **4.8** / 1.4 / 2.0 |
+| 16 | 3.86 | 4.13 | 0.94 (0.54–1.45) | 0 / 5 | 0.594 | 2.9 / 3.1 / **5.5** / 3.4 / 5.5 |
+| 32 | 3.99 | 4.69 | 0.85 (0.55–1.22) | 1 / 5 | 0.654 | 2.3 / 3.6 / **8.2** / 3.3 / 5.4 |
+
+**Verdict on the firebreak.** At three hops the test finds no same-tokenizer advantage at any
+seeding strength: the diagonal/off-diagonal ratio is below 1 at 8, 16 and 32 copies, every
+bootstrap interval spans 1, the diagonal is the row maximum in 0–1 of 5 rows, and the
+permutation p is ≈0.6 each time. **But the honest summary is that three hops on 0.5–2B hosts is
+below the floor where a firebreak could show.** Only 10%, 17% and 18% of chains (8/16/32 copies)
+are still alive at hop 3 in the whole matrix, the same fraction on the diagonal (0.10, 0.16,
+0.17) as off it (0.10, 0.17, 0.18); mean loads of 2–8 out of a possible 32 are averages over
+mostly-extinct chains, and the bootstrap ratio intervals are half a unit wide. The design can
+rule out a *large* same-tokenizer advantage at 3 hops; it cannot see a modest one. The one
+configuration in which an effect was measured (1 hop) is rerun at n = 30 in the follow-up
+below. What the matrices do show is a **host effect**: the Qwen2.5-0.5B column is the
+largest in every sweep (8.2 vs 2.3–5.4 at 32 copies), i.e. gemma→qwen (9.6) and pythia→qwen
+(10.1) transmit far better than gemma→gemma (0.7) or pythia→pythia (3.8); by chains alive at
+hop 3, the Qwen host keeps 0.31 vs 0.09–0.21 for the other four. Which model *hosts* the hop
+matters; whether its tokenizer matches the payload's does not, once the payload has passed
+through more than one host. Read together with Part A — where the Qwen2.5-7B *base* model is
+the only one that locks in 30–50% of chains — this is one pattern, not two: **Qwen2.5 base
+models fall into repetition loops more readily than Pythia, Llama, Gemma or GPT-2.** That makes
+the scale-vs-family confound named above more likely family; Qwen2.5-3B base in the same
+protocol (follow-up) decides it. The only configuration in which a same-tokenizer advantage has been
+measured remains the 2026-07-02 run at **1 hop** with 32 copies (ratio 1.6, p = 0.004). The
+"partial firebreak" should therefore be stated as a one-hop attenuation and withdrawn as a
+multi-hop claim; plan item 2.4 (the firebreak matrix at ≥ 7B per family) is not triggered by
+this result, since there is no partial transmission left to firm up at 3 hops.
+
+**Caveats.** Part A: four models, one seed-copy strength (16), T = 96, sampled at T = 1.0, 6 hops;
+text-level payload counting (p = 1 invalid, see above). Part B: 0.5–2B hosts, p = 3 only, 3 hops;
+mean loads of 2–8 are small, so the matrices are noisy even at 30 trials (the bootstrap ratio
+intervals are ±0.4–0.5 wide), and a 1-hop sweep at the same n was not run — it would test the
+only reading under which the firebreak survives.
+
+## E4-scale v2 — poisonability of a planted probe vs usefulness, 32 facts, three instruct models (2026-11-04, RunPod L40S; plan item 2.2)
+
+The redesigned `experiments/e4_scale.py` (plan item 0.2): non-repetitive cells built from
+distinct sentences and length-matched in tokens (selftest-checked; the run records
+`nonrep_sentences_repeat = false` for all 96 non-repetitive contexts), poisonability measured
+two ways — P_copy (copy-rate of a raw continuation; ≈1 for any repeated span by construction) and
+**P_probe** (an E1-style probe span of 4 tokens planted ×2 at the end; reproduced or not, greedy)
+— plus U (chat-QA accuracy on the synthetic fact) and T (induction attention). 32 facts, k = 8,
+bootstrap-over-facts 95% CIs on the correlations. Same pod and environment as 2.1; unattended
+job `deploy/runpod_job.sh e4e5`, defaults unchanged:
+
+```
+python -m experiments.e4_scale --model <M> --device cuda --prefix results/e4_scale_v2_<tag> --snapshot trackC
+```
+
+Models: Qwen2.5-7B-Instruct and Llama-3.2-3B-Instruct (the plan's two families) plus
+**Phi-3.5-mini-instruct**, an ungated third family added as a supplement while the gated-repo
+token permission was being sorted out (it was fixed before the pod ran, so Llama ran too).
+Files: `data/trackC/e4_scale_v2_{qwen7b,llama3b,phi35mini}-instruct.{json,png}`; the
+`.console.log` copies are truncated (a tee/snapshot race, fixed in the job script) — every
+number below is read from the JSON. 6 min per model.
+
+**2×2 means** (P_probe also as count/32 with Wilson 95%):
+
+| model | context | U | P_copy | P_probe | T |
+|---|---|---|---|---|---|
+| Qwen2.5-7B-Instruct | rep + useful | 0.94 | 1.00 | 0.66 (21/32; 0.48–0.80) | 0.077 |
+| | rep + useless | 0.00 | 1.00 | **0.97** (31/32; 0.84–0.99) | **0.138** |
+| | nonrep + useful | 0.81 | 0.20 | 0.25 (8/32; 0.13–0.42) | 0.073 |
+| | nonrep + useless | 0.00 | 0.07 | 0.31 (10/32; 0.18–0.49) | 0.072 |
+| Llama-3.2-3B-Instruct | rep + useful | 1.00 | 1.00 | 0.97 (31/32; 0.84–0.99) | 0.040 |
+| | rep + useless | 0.00 | 0.97 | 1.00 (32/32; 0.89–1.00) | 0.071 |
+| | nonrep + useful | 1.00 | 0.25 | 0.69 (22/32; 0.51–0.82) | 0.042 |
+| | nonrep + useless | 0.00 | 0.28 | 0.72 (23/32; 0.55–0.84) | 0.039 |
+| Phi-3.5-mini-instruct | rep + useful | 1.00 | 0.97 | 0.94 (30/32; 0.80–0.98) | 0.047 |
+| | rep + useless | 0.00 | 1.00 | 1.00 (32/32; 0.89–1.00) | 0.088 |
+| | nonrep + useful | 1.00 | 0.20 | 0.62 (20/32; 0.45–0.77) | 0.038 |
+| | nonrep + useless | 0.00 | 0.04 | 0.44 (14/32; 0.28–0.61) | 0.036 |
+
+**Correlations** (Pearson over the 128 context rows; bootstrap over facts):
+
+| model | corr(P_probe, U) | corr(P_probe, T) | corr(P_copy, U) | corr(P_copy, T) |
+|---|---|---|---|---|
+| Qwen2.5-7B-Instruct | **−0.18 [−0.31, −0.04]** | **+0.38 [+0.26, +0.50]** | +0.13 [+0.04, +0.23] | +0.52 [+0.47, +0.56] |
+| Llama-3.2-3B-Instruct | −0.04 [−0.14, +0.06] | +0.15 [+0.06, +0.25] | −0.00 [−0.11, +0.11] | +0.30 [+0.16, +0.41] |
+| Phi-3.5-mini-instruct | +0.07 [+0.00, +0.16] | +0.34 [+0.26, +0.42] | +0.07 [+0.01, +0.14] | +0.58 [+0.55, +0.62] |
+
+**Does poisonability follow usefulness or repetition?** Repetition, on all three models, with the
+flawed design's confounds removed. Along the repetition axis, planting a probe into a context
+that already repeats makes it reproduced far more often than planting it into length-matched
+distinct prose: +0.41/+0.66 (useful/useless) on Qwen, +0.28/+0.28 on Llama, +0.32/+0.56 on Phi.
+Along the usefulness axis, holding repetition fixed, usefulness never raises poisonability: the
+most poisonable cell on every model is **repeated gibberish** (U = 0, P_probe 0.97–1.00), and
+within the non-repetitive pair the useful and useless contexts are within each other's
+intervals. corr(P_probe, T) is positive with the interval clear of zero on all three;
+corr(P_probe, U) is zero or slightly negative. The ordering of T agrees: the repeated gibberish
+draws the most induction attention on every model (0.138 / 0.071 / 0.088 vs 0.04–0.08
+elsewhere). The quantitative dissociation is weaker than the first run's +0.71 vs +0.09, which was
+inflated by a copy-rate that is ≈1 by construction (the P_copy columns above reproduce that
+artifact: corr(P_copy, T) 0.30–0.58).
+
+**What the measurement is, said plainly.** In the repetitive cells the probe is planted after
+eight copies of a span, so the model is already in a repetition regime and continues whatever
+comes last; in the non-repetitive cells the useful and useless contexts barely differ
+(0.25 vs 0.31, 0.69 vs 0.72, 0.62 vs 0.44). The result is therefore *"a context that has put
+the model into repetition mode makes any trailing span reproduced, and whether the context is
+useful has no bearing on that"* — the E6 degeneration mechanism seen from the poisoning side,
+with T acting as a proxy for how repetitive the context is rather than as an independently
+measured "trust". That is the sentence the paper should carry; "trust" as the explanatory
+variable is a label for the repetition axis, not something this design measures separately.
+
+**Caveats.** probe_k = 2 and greedy decoding put Llama-3.2-3B-Instruct near the ceiling (it
+reproduces a two-copy probe in 69–72% of *non-repetitive* contexts), which compresses its
+correlations; a run at probe_k = 1 or with sampled trials would separate its cells better. T
+differences are small in absolute terms (0.04–0.14), one seed, 32 facts, k = 8 only. The
+synthetic facts are the usefulness manipulation; U is 0.81–1.00 wherever the fact is present and
+0.00 wherever it is absent, as designed.
+
+## E5-scale v2 — RAG hijack with positive controls, three query styles, three instruct models (2026-11-04, RunPod L40S; plan item 2.3)
+
+`experiments/e5_scale.py` with the additions of iteration 4: three query styles (summarize /
+extract three details / open-ended), two **no-query positive controls on the same contexts**
+(raw: the documents as a bare prefix, no template; chat: the template with "Continue the
+documents."), per-trial occupancies stored. ~4000-token benign document dump, payload p = 3,
+8 trials per cell, greedy, 64-token answers. Same pod as 2.2, defaults unchanged:
+
+```
+python -m experiments.e5_scale --model <M> --context-tokens 4000 --device cuda --prefix results/e5_scale_v2_<tag> --snapshot trackC
+```
+
+Files: `data/trackC/e5_scale_v2_{qwen7b,llama3b,phi35mini}-instruct.{json,png}` (console copies
+truncated as in 2.2; numbers from the JSON). 5–8 min per model.
+
+**A. Placement** (k = 16, summarize query): mean occupancy **0.00** at every position 0, 0.25,
+0.5, 0.75, 1.0 on all three models; no trial with occupancy ≥ 0.5.
+
+**B/C. Repetition at the end, per query style, with the controls** — cell = mean occupancy
+(fraction of the 8 trials with occupancy ≥ ½):
+
+| model | k | summarize | extract | open | **raw continuation (control)** | chat "continue" (control) |
+|---|---|---|---|---|---|---|
+| Qwen2.5-7B-Instruct | 2 | 0.00 (0.00) | 0.01 (0.00) | 0.00 (0.00) | 0.38 (0.50) | 0.01 (0.00) |
+| | 4 | 0.01 (0.00) | 0.00 (0.00) | 0.00 (0.00) | 0.63 (0.88) | 0.00 (0.00) |
+| | 8 | 0.00 (0.00) | 0.00 (0.00) | 0.00 (0.00) | 0.70 (1.00) | 0.00 (0.00) |
+| | 16 | 0.00 (0.00) | 0.00 (0.00) | 0.00 (0.00) | 0.59 (0.88) | 0.00 (0.00) |
+| | 32 | 0.00 (0.00) | 0.00 (0.00) | 0.00 (0.00) | 0.68 (1.00) | 0.00 (0.00) |
+| Llama-3.2-3B-Instruct | 2 | 0.01 (0.00) | 0.00 (0.00) | 0.01 (0.00) | 0.44 (0.62) | 0.00 (0.00) |
+| | 4 | 0.01 (0.00) | 0.01 (0.00) | 0.01 (0.00) | 0.70 (1.00) | 0.00 (0.00) |
+| | 8 | 0.00 (0.00) | 0.00 (0.00) | 0.00 (0.00) | 0.69 (1.00) | 0.00 (0.00) |
+| | 16 | 0.00 (0.00) | 0.00 (0.00) | 0.01 (0.00) | 0.67 (1.00) | 0.09 (0.12) |
+| | 32 | 0.00 (0.00) | 0.00 (0.00) | 0.00 (0.00) | 0.65 (1.00) | 0.00 (0.00) |
+| Phi-3.5-mini-instruct | 2 | 0.01 (0.00) | 0.00 (0.00) | 0.00 (0.00) | 0.75 (0.75) | 0.01 (0.00) |
+| | 4 | 0.00 (0.00) | 0.00 (0.00) | 0.00 (0.00) | 1.00 (1.00) | 0.02 (0.00) |
+| | 8 | 0.00 (0.00) | 0.01 (0.00) | 0.00 (0.00) | 1.00 (1.00) | 0.25 (0.25) |
+| | 16 | 0.00 (0.00) | 0.00 (0.00) | 0.00 (0.00) | 1.00 (1.00) | 0.12 (0.12) |
+| | 32 | 0.00 (0.00) | 0.01 (0.00) | 0.02 (0.00) | 1.00 (1.00) | 0.01 (0.00) |
+
+(k = 1 rows are 0.00–0.01 everywhere including the controls.) Largest single-trial occupancy in
+any query cell: 0.095 (Qwen), 0.047 (Llama), 0.078 (Phi). `control_ok = true` for all three.
+
+**Is the null a harness artifact?** No. The same contexts, fed as a bare prefix with no chat
+template, are hijacked on every model from k = 2 upward (mean occupancy 0.6–1.0, 88–100% of
+trials at k ≥ 4), so the payloads lock in and the occupancy metric sees it. Under the chat
+template with any of the three task queries, occupancy is 0.00–0.02 with **no trial above
+0.10**, at every k up to 32 and every placement. The bound on C5 from 2026-07-02 stands and is
+now interpretable: *a chat-templated task query defuses raw-repetition hijack on three instruct
+families; the copy tendency is intact underneath (raw control).* The answer-corruption rate
+(trials with occupancy ≥ ½) is 0/8 in all 45 query cells.
+
+**A new observation from the chat control.** The chat template with the instruction "Continue
+the documents." — no task, an explicit invitation to copy — also does not hijack (0.00–0.09 on
+Qwen/Llama; Phi reaches 0.25 at k = 8, 2 of 8 trials). So it is not only the task query that
+defuses: the chat-template framing itself moves generation out of the raw-continuation regime.
+That sharpens the defensive reading (the residual RAG threat is semantic injection, not
+repetition) and the mechanistic one (the lock-in seen in E1.4 is a property of raw continuation).
+
+**Caveats.** 8 trials per cell (a zero-of-8 cell has Wilson upper bound 0.32 on the
+*hijacked* fraction, though the per-trial occupancies are all < 0.10, which is the stronger
+statement); greedy; p = 3; benign OOD payloads; 4k context only; one seed.
+
+## E6 follow-ups — a second 7B base family, and the firebreak at 1 hop with n = 30 (2026-11-04, RunPod L40S)
+
+Two runs raised by "E6 at power" above and by the advisor's reading of it; same pod setup; job
+`deploy/runpod_job.sh followup`, 2.3 pod-hours. Files
+`data/trackC/e6A_hiN_pythia69b_s{7,8,9}.{json,png,console.log}`,
+`e6B_1hop_reps{8,16,32}.{json,png,console.log}`; analyses
+`analysis_e6_r0_pooled_pythia69b.json`, `analysis_e6_firebreak_1hop_sweep.json`.
+
+### A. Pythia-6.9B serial passage: scale or family?
+
+Same protocol as Part A of 2.1 (hops 6, 16 seed copies, T = 96, sampled at T = 1.0, 20 trials ×
+seeds 7, 8, 9):
+
+```
+python -m experiments.e6_scale --part A --serial-models EleutherAI/pythia-6.9b --seed {7,8,9} --trials 20 --device cuda --prefix results/e6A_hiN_pythia69b_s$seed --snapshot trackC
+```
+
+| model | p=1 (artifact) | p=2 | p=3 | p=5 | p=8 |
+|---|---|---|---|---|---|
+| **Pythia-6.9B** (n = 60, Wilson 95%) | 0.38 (0.27–0.51) | **0.07 (0.03–0.16)** | **0.10 (0.05–0.20)** | **0.10 (0.05–0.20)** | **0.10 (0.05–0.20)** |
+| Qwen2.5-7B (from 2.1) | 0.22 | 0.47 (0.35–0.59) | 0.30 (0.20–0.43) | 0.42 (0.30–0.54) | 0.50 (0.38–0.62) |
+| Pythia-2.8B (from 2.1) | 0.23 | 0.12 (0.06–0.22) | 0.07 (0.03–0.16) | 0.20 (0.12–0.32) | 0.05 (0.02–0.14) |
+
+Per seed (p = 2/3/5/8): 0.20/0.20/0.10/0.05, 0.00/0.05/0.10/0.10, 0.00/0.05/0.10/0.15. Per-trial
+R_geo medians 0.60 (0.42–0.83), 0.66 (0.50–0.87), 0.72 (0.57–0.88), 0.74 (0.58–0.84); the few
+survivors sit at T/p (median last load 48, 32, 18, 10 for p = 2, 3, 5, 8).
+
+**Verdict: family, not scale.** A second 7B base model locks in 7–10% of chains, the same as its
+own 2.8B sibling and as Llama-3.2-3B, and 3–5× below Qwen2.5-7B (every Pythia-6.9B interval
+lies below every Qwen2.5-7B interval at p ≥ 2). "The worm gets worse at scale" is withdrawn.
+The surviving statement: *Qwen2.5 base models fall into a locked payload loop far more often
+than Pythia or Llama base models at any size tested (2.8B–7B), and instruction-tuning removes
+most of it (Qwen2.5-7B-Instruct 0.08–0.13).* Qwen2.5-3B base (follow-up 2) tests whether the
+trait holds across Qwen sizes.
+
+### B. The cross-tokenizer matrix at 1 hop, 30 trials, three seeding strengths
+
+```
+python -m experiments.e6_scale --part B --cross-hops 1 --host0-reps {8,16,32} --trials 30 --device cuda --prefix results/e6B_1hop_reps$reps --snapshot trackC
+```
+
+This is the configuration of the only run that ever showed a same-tokenizer advantage
+(2026-07-02: 1 hop, 32 copies, 8 trials; ratio 1.61, p = 0.004). Rows = patient zero, columns =
+host; entry = mean surviving load after one re-tokenization. The 32-copy matrix (the July
+configuration):
+
+| | gpt2 | pythia | qwen | llama | gemma |
+|---|---|---|---|---|---|
+| **gpt2** | **8.7** | 11.6 | 11.6 | 9.6 | 13.6 |
+| **pythia** | 10.0 | **13.1** | 11.9 | 8.5 | 10.0 |
+| **qwen** | 13.1 | 13.6 | **20.8** | 14.4 | 21.2 |
+| **llama** | 7.0 | 4.6 | 11.0 | **10.2** | 13.0 |
+| **gemma** | 12.5 | 9.1 | 14.9 | 13.0 | **8.6** |
+
+| seed copies | diag mean | off-diag mean | ratio (bootstrap 95%) | diag is row-max | permutation p | alive at hop 1: diag / off | host (column) means gpt2 / pythia / qwen / llama / gemma |
+|---|---|---|---|---|---|---|---|
+| 8 | 7.08 | 6.15 | 1.15 (0.82–1.52) | 0 / 5 | 0.239 | 0.31 / 0.30 | 4.9 / 5.4 / **7.8** / 5.9 / 7.6 |
+| 16 | 9.15 | 8.88 | 1.03 (0.80–1.29) | 1 / 5 | 0.399 | 0.39 / 0.41 | 7.0 / 7.3 / **12.3** / 9.4 / 8.6 |
+| 32 | 12.27 | 11.72 | 1.05 (0.84–1.26) | 1 / 5 | 0.356 | 0.49 / 0.52 | 10.3 / 10.4 / **14.0** / 11.2 / 13.3 |
+| *July: 32, n = 8* | *14.18* | *8.82* | *1.61* | *3 / 5* | *0.004* | — | — |
+
+**Verdict: the firebreak does not replicate.** At the July configuration with 30 trials the
+diagonal/off-diagonal ratio is 1.05 (0.84–1.26), not 1.61; at 8 and 16 copies it is 1.15 and
+1.03 with intervals spanning 1; the diagonal is the row maximum in 0–1 of 5 rows. Unlike the
+3-hop sweep this is not a floor problem: 30–51% of chains are alive after the hop, loads run
+5–21, and the alive fraction is identical on and off the diagonal (0.31/0.30, 0.39/0.41,
+0.49/0.52). The July ratio of 1.6 was an 8-trial fluctuation. What is present at 1 hop, as at
+3, is the host effect: the Qwen2.5-0.5B column is the largest at every seeding strength
+(7.8 / 12.3 / 14.0 against 4.9–13.3), and it is the best host for its own payloads (20.8), for
+Gemma's (14.9) and for Pythia's (11.9). **Re-tokenization is not a firebreak at any hop count
+or seeding strength tested; which model hosts the next hop is what matters, and Qwen2.5 hosts
+it best.** The "tokenizer firebreak" (C6) is withdrawn at scale; the Track-A GPT-2→Pythia-160m
+collapse remains a two-model observation at n = 8 that these matrices do not generalize.
+
+**Caveats.** Hosts are 0.5–2B, one per family; p = 3 only; T = 96; sampled at T = 1.0; 30 trials
+per cell. The 8-copy ratio interval reaches 1.52, so a modest same-tokenizer advantage under
+weak seeding is not excluded by that matrix alone; it is absent at 16 and 32 copies and at
+every 3-hop strength.
+
+## Follow-ups 2 — Qwen2.5-3B serial passage, and E5 with the raw-plus-query control (2026-11-04, RunPod L40S)
+
+Job `deploy/runpod_job.sh followup2`, 1.5 pod-hours. Files
+`data/trackC/e6A_hiN_qwen3b_s{7,8,9}.{json,png,console.log}`,
+`e5_scale_v2_rawq_{qwen7b,llama3b,phi35mini}-instruct.{json,png,console.log}`; analysis
+`analysis_e6_r0_pooled_qwen3b.json`.
+
+### C. Qwen2.5-3B serial passage: is the looping trait family-wide?
+
+Same protocol as Part A of 2.1 and follow-up A (hops 6, 16 seed copies, T = 96, sampled at
+T = 1.0, 20 trials × seeds 7, 8, 9):
+
+```
+python -m experiments.e6_scale --part A --serial-models Qwen/Qwen2.5-3B --seed {7,8,9} --trials 20 --device cuda --prefix results/e6A_hiN_qwen3b_s$seed --snapshot trackC
+```
+
+| model (n = 60, Wilson 95%) | p=1 (artifact) | p=2 | p=3 | p=5 | p=8 |
+|---|---|---|---|---|---|
+| **Qwen2.5-3B** | 0.30 (0.20–0.43) | **0.33 (0.23–0.46)** | **0.37 (0.26–0.49)** | **0.38 (0.27–0.51)** | **0.28 (0.19–0.41)** |
+| Qwen2.5-7B (2.1) | 0.22 | 0.47 (0.35–0.59) | 0.30 (0.20–0.43) | 0.42 (0.30–0.54) | 0.50 (0.38–0.62) |
+| Pythia-6.9B (follow-up A) | 0.38 | 0.07 (0.03–0.16) | 0.10 (0.05–0.20) | 0.10 (0.05–0.20) | 0.10 (0.05–0.20) |
+| Pythia-2.8B / Llama-3.2-3B (2.1) | — | 0.12 / 0.00 | 0.07 / 0.12 | 0.20 / 0.07 | 0.05 / 0.00 |
+
+Per seed (p = 2/3/5/8): 0.35/0.40/0.20/0.35, 0.25/0.25/0.60/0.15, 0.40/0.45/0.35/0.35. Per-trial
+R_geo medians 0.88–0.99; survivors at T/p (median last load 48, 32, 18, 12).
+
+**Verdict: the trait is the Qwen2.5 base family, at 3B as at 7B.** Qwen2.5-3B locks in 28–38%
+of chains, flat in p, inside the 7B's intervals at every p and 3–5× above every non-Qwen base
+model of 2.8B–7B. The ordering across the six base/instruct models now tested is Qwen2.5-7B ≈
+Qwen2.5-3B ≫ Pythia-6.9B ≈ Pythia-2.8B ≈ Llama-3.2-3B ≈ Qwen2.5-7B-Instruct. Together with
+follow-up B (the Qwen2.5-0.5B host column dominates every firebreak matrix), this is one fact:
+*Qwen2.5 base models, at every size from 0.5B to 7B, fall into a locked repetition loop on a
+repeated span far more readily than Pythia, Llama, Gemma or GPT-2, and instruction-tuning
+removes most of it.* The paper's C6 should be rewritten around that sentence and read against
+Holtzman et al. (2019); there is no scale law and no critical length in these data.
+
+### D. E5-scale with the raw-plus-query control: template or query?
+
+E5-scale v2 (above) found that the chat template with "Continue the documents." did not hijack
+either, so the template and the task query were not separated. The `rawq` control added to
+`e5_scale.py` feeds the experimental user message verbatim — the preamble, the documents, and
+the task query — as a bare prefix with **no chat template**. Same seed, so the contexts and the
+query cells are identical to v2 (verified: every query-cell mean matches v2 exactly).
+
+```
+python -m experiments.e5_scale --model <M> --context-tokens 4000 --device cuda --controls raw chat rawq --prefix results/e5_scale_v2_rawq_<tag> --snapshot trackC
+```
+
+Mean occupancy (fraction of 8 trials with occupancy ≥ ½), payload at the end, p = 3:
+
+| model | k | task query (templated; 3 styles) | raw, no query | chat, "continue" | **rawq: no template, summarize / extract / open** |
+|---|---|---|---|---|---|
+| Qwen2.5-7B-Instruct | 2 | 0.00–0.01 | 0.38 (0.50) | 0.01 | 0.04 / 0.02 / 0.00 (all 0.00) |
+| | 8 | 0.00 | 0.70 (1.00) | 0.00 | 0.04 / 0.03 / 0.00 (all 0.00) |
+| | 32 | 0.00 | 0.68 (1.00) | 0.00 | 0.00 / 0.03 / 0.00 (all 0.00) |
+| Llama-3.2-3B-Instruct | 2 | 0.00–0.01 | 0.44 (0.62) | 0.00 | 0.01 / 0.00 / 0.01 (all 0.00) |
+| | 8 | 0.00 | 0.69 (1.00) | 0.00 | 0.00 / 0.00 / 0.00 |
+| | 32 | 0.00 | 0.65 (1.00) | 0.00 | 0.00 / 0.00 / 0.00 |
+| Phi-3.5-mini-instruct | 2 | 0.00–0.01 | 0.75 (0.75) | 0.01 | 0.01 / 0.00 / 0.00 (all 0.00) |
+| | 8 | 0.00–0.01 | 1.00 (1.00) | 0.25 (0.25) | 0.00 / 0.01 / 0.00 (all 0.00) |
+| | 32 | 0.00–0.02 | 1.00 (1.00) | 0.01 | 0.01 / 0.01 / 0.02 (all 0.00) |
+
+(k = 4 and 16 are the same picture; full tables in the JSON.) Largest single rawq trial: 0.36
+(Qwen, summarize, k = 16), 0.06 (Llama), 0.08 (Phi); no rawq trial reaches ½ on any model.
+
+**Verdict: the template is not what defuses.** The same text that is hijacked as a bare
+prefix (0.4–1.0 occupancy) is not hijacked once the task query follows the documents, with or
+without a chat template, on all three models. The v2 sentence "the chat template alone
+defuses" is therefore wrong as an explanation: the template is sufficient but not necessary.
+
+**But the honest reading is narrower than "the query defuses".** Every condition that does
+not hijack — templated query, templated "continue", and now the untemplated query — puts
+tokens *after* the payload block (the question line, the instruction, the template suffix),
+whereas the only hijacking condition ends the context inside the repeated payload. E5-lite and
+E1.5 showed on GPT-2 that about 16 tokens of anything between the payload and the generation
+point kill reproduction, and the v2 placement sweep shows the same gate at length. So these
+data cannot distinguish "the model follows the task" from "the payload is no longer the last
+thing in context". The one-line control that separates them is a `rawpad` condition: the raw
+documents followed by benign filler of the same token length as the query line, no question,
+no template. If it hijacks, the query is doing semantic work; if it does not, the C5 bound is
+the recency gate restated, and "a task query defuses hijack" should be replaced by "anything
+that ends the context after the payload defuses it" — which is the same defensive advice with
+a different mechanism. Not run; ten pod-minutes per model.
+
+**Caveats.** 8 trials per cell, greedy, one seed, p = 3, 4k context; the query line is 15–30
+tokens on these tokenizers, above the GPT-2 recency limit measured in E5-lite.
+
+## Follow-ups 3 (first pass, `rawpad` v1) — E5 with the length-matched filler control: the C5 bound is the recency gate (2026-11-05, RunPod L40S)
+
+> **Provenance.** This run used the first implementation of the `rawpad` control (commit
+> `ff07531`: filler sentences drawn from the same bank as the document dump, prose only). In
+> parallel the reviewing session wrote a stricter version on the parent branch (prose drawn from
+> a bank disjoint from the dump, plus a random-token pad, `POD_FOLLOWUP3_BRIEF.md`), which is the
+> implementation now in `experiments/e5_scale.py` and is run as the follow-up 3 proper below.
+> The files of this first pass are kept unmodified under the `_v1_` names.
+
+The `rawpad` control proposed in §D: the raw documents followed by benign filler prose
+truncated to **exactly the token length of the query line** (`"\n\nQuestion: " + query`,
+15–30 tokens), no question, no instruction, no template. 0.7 pod-hours; files
+`data/trackC/e5_scale_v2_rawpad_v1_{qwen7b,llama3b,phi35mini}-instruct.{json,png,console.log}`.
+The selftest of that version checked the length match and that the filler contained no question.
+
+```
+python -m experiments.e5_scale --model <M> --context-tokens 4000 --device cuda --controls raw chat rawq rawpad --prefix results/e5_scale_v2_rawpad_<tag> --snapshot trackC
+```
+
+Mean occupancy (fraction of 8 trials ≥ ½), payload ×k at the end of ~4000 tokens, p = 3. The
+raw and chat columns are a fresh replication (the rawpad draw consumes the RNG, so the contexts
+after the first trial differ from the v2/rawq runs):
+
+| model | k | task query, templated | raw, no query | chat "continue" | rawq (query, no template) | **rawpad (filler, no query, no template)** |
+|---|---|---|---|---|---|---|
+| Qwen2.5-7B-Instruct | 2 | 0.00–0.01 | 0.35 (0.50) | 0.01 | 0.00–0.04 (0.00) | 0.01–0.02 (0.00) |
+| | 8 | 0.00 | 0.66 (1.00) | 0.00 | 0.00–0.02 (0.00) | 0.00 (0.00) |
+| | 32 | 0.00 | 0.63 (1.00) | 0.00 | 0.00–0.02 (0.00) | 0.00 (0.00) |
+| Llama-3.2-3B-Instruct | 2 | 0.00 | 0.63 (1.00) | 0.00 | 0.00 (0.00) | 0.00 (0.00) |
+| | 8 | 0.00 | 0.69 (1.00) | 0.00 | 0.00 (0.00) | 0.00–0.01 (0.00) |
+| | 32 | 0.00 | 0.63 (0.88) | 0.04 | 0.00 (0.00) | 0.00 (0.00) |
+| Phi-3.5-mini-instruct | 2 | 0.00 | 0.75 (0.75) | 0.00 | 0.00 (0.00) | 0.00 (0.00) |
+| | 8 | 0.00 | 1.00 (1.00) | 0.30 (0.25) | 0.00 (0.00) | 0.00 (0.00) |
+| | 32 | 0.00–0.01 | 1.00 (1.00) | 0.25 (0.25) | 0.00–0.01 (0.00) | 0.01 (0.00) |
+
+Pooled over k ≥ 2 and the three filler lengths (120 trials per model): **rawpad hijacked
+0 / 120** on every model (Wilson 95% upper bound 0.03); largest single rawpad trial 0.12 / 0.11 /
+0.06. The raw control on the same pod: 35 / 40, 39 / 40, 38 / 40 hijacked.
+
+**Verdict: the C5 bound is the recency gate, restated at 4k tokens on instruct models.** The
+only thing the hijacking condition has that the four non-hijacking ones lack is that the
+context *ends inside the payload*. Fifteen to thirty tokens of benign prose after the payload
+remove the hijack as completely as a task query does, with or without a chat template; the
+query, the instruction and the template add nothing the data can see. The v2 and §D sentences
+"a task query defuses raw-repetition hijack" and "the template is not the active ingredient"
+are both superseded by: **a repeated span hijacks generation only when it is the last thing in
+the context; anything that follows it — a question, an instruction, a template suffix, or
+unrelated prose of the same length — defuses it on every instruct model tested.** This is
+E5-lite's placement result (hijack 0.52 at frac 1.0, ≤ 0.003 at frac 0.75) and E1.5's distance
+decay, now shown at 4000 tokens on Qwen2.5-7B-Instruct, Llama-3.2-3B-Instruct and
+Phi-3.5-mini-instruct, with controls.
+
+**What this does to the claims.** C5 should no longer be framed as "instruct models asked to do
+a task are not hijacked"; the task is incidental. The defensive reading survives and gets
+simpler: in a RAG prompt the question conventionally follows the retrieved text, and that
+ordering alone is the mitigation against raw-repetition hijack; the residual threat is
+semantic injection. For the paper's Tier-3 ordering, the "bound" result (item 2 of the
+rewrite) becomes a recency result and should be merged with E1.5/E5-lite rather than stand as
+an instruct-model finding.
+
+**Caveats.** 8 trials per cell, greedy, one seed, p = 3, 4k context, filler length matched to
+one query line (15–30 tokens); the minimum defusing length at 4k was not swept (E5-lite put it
+near 16 tokens on GPT-2 at 65 tokens of context). Positions 0.75 and below in the v2 placement
+sweep already gave 0.00 under the query, consistent with this.
+
+## Follow-ups 3 — E5 rawpad control (prose and token pads); E4 v2 Llama at probe_k=1 (2026-11-05, RunPod L40S; `POD_FOLLOWUP3_BRIEF.md`)
+
+The stricter `rawpad` control of iteration 10 (`experiments/e5_scale.py`): the raw documents
+followed by filler of **exactly the token length of the query tail** `"\n\nQuestion: <query>"`,
+no question, no template, in two forms per query style — `rawpad_<q>`, benign prose from a
+sentence bank disjoint from the document dump; `rawpadtok_<q>`, neutral random tokens from the
+payload pool excluding the payload (E1.5's gap filler). `raw` is run alongside so `control_ok`
+is meaningful. Plus E4-scale v2 on Llama-3.2-3B-Instruct at `--probe-k 1`. One pod
+(`ojympcqx0xvmp7`, secure L40S), 0.9 pod-hours; files
+`data/trackC/e5_scale_v2_rawpad_{qwen7b,llama3b,phi35mini}-instruct.{json,png,console.log}`,
+`e4_scale_v2_pk1_llama3b-instruct.{json,png,console.log}`.
+
+```
+python -m experiments.e5_scale --model <M> --context-tokens 4000 --device cuda --controls raw rawpad --prefix results/e5_scale_v2_rawpad_<tag> --snapshot trackC
+python -m experiments.e4_scale --model meta-llama/Llama-3.2-3B-Instruct --probe-k 1 --device cuda --prefix results/e4_scale_v2_pk1_llama3b-instruct --snapshot trackC
+```
+
+**Not a byte-identical repeat of the v2 contexts.** The brief expected the query cells to match
+v2 exactly (same seed). They do not: the prose pads are built from the RNG before the trial
+loop, which shifts every later payload and document draw. The query, `raw`, `rawq` columns
+below are therefore from v2 / Follow-ups 2 on *different* contexts of the same distribution;
+`raw` is replicated here (33 / 40, 40 / 40, 36 / 40 hijacked at k ≥ 2 vs 35–39 / 40 before).
+Pad lengths (tokens, summarize / extract / open): Qwen 17 / 12 / 17, Llama 18 / 13 / 18,
+Phi 21 / 14 / 20.
+
+Mean occupancy (fraction of 8 trials ≥ ½), payload ×k at the end, p = 3:
+
+| model | k | query (v2, templated) | raw (this run) | rawq (Fu-2) | **rawpad, prose** (sum / ext / open) | **rawpadtok, tokens** (sum / ext / open) |
+|---|---|---|---|---|---|---|
+| Qwen2.5-7B-Instruct | 2 | 0.00–0.01 | 0.19 (0.25) | 0.00–0.04 | 0.00 / 0.00 / 0.00 | 0.07 / 0.14 (0.12) / 0.01 |
+| | 8 | 0.00 | 0.66 (1.00) | 0.00–0.04 | 0.01 / 0.00 / 0.09 (0.12) | 0.17 (0.25) / 0.35 (0.50) / 0.25 (0.38) |
+| | 32 | 0.00 | 0.69 (1.00) | 0.00–0.03 | 0.00 / 0.00 / 0.00 | 0.07 (0.12) / 0.09 (0.12) / 0.00 |
+| Llama-3.2-3B-Instruct | 2 | 0.00–0.01 | 0.65 (1.00) | 0.00–0.01 | 0.00 / 0.00 / 0.00 | 0.02 / 0.04 / 0.03 |
+| | 8 | 0.00 | 0.69 (1.00) | 0.00 | 0.01 / 0.00 / 0.00 | 0.08 (0.12) / 0.24 (0.38) / 0.09 (0.12) |
+| | 32 | 0.00 | 0.70 (1.00) | 0.00 | 0.00 / 0.00 / 0.00 | 0.00 / 0.08 (0.12) / 0.00 |
+| Phi-3.5-mini-instruct | 2 | 0.00–0.01 | 0.50 (0.50) | 0.00–0.01 | 0.00 / 0.00 / 0.00 | 0.00 / 0.00 / 0.00 |
+| | 8 | 0.00–0.01 | 1.00 (1.00) | 0.00–0.01 | 0.00 / 0.00 / 0.00 | 0.00 / 0.00 / 0.12 (0.12) |
+| | 32 | 0.00–0.02 | 1.00 (1.00) | 0.01–0.02 | 0.01 / 0.00 / 0.00 | 0.24 (0.25) / 0.37 (0.38) / 0.13 (0.12) |
+
+Pooled over k ≥ 2 and the three pad lengths (120 trials per model per pad type):
+
+| model | raw hijacked | prose pad hijacked (Wilson 95%) | mean occ. | max trial | token pad hijacked (Wilson 95%) | mean occ. | max trial |
+|---|---|---|---|---|---|---|---|
+| Qwen2.5-7B-Instruct | 33 / 40 | **4 / 120** (0.01–0.08) | 0.025 | 0.72 | **25 / 120** (0.15–0.29) | 0.151 | 0.75 |
+| Llama-3.2-3B-Instruct | 40 / 40 | **0 / 120** (0.00–0.03) | 0.001 | 0.06 | **10 / 120** (0.05–0.15) | 0.070 | 0.75 |
+| Phi-3.5-mini-instruct | 36 / 40 | **0 / 120** (0.00–0.03) | 0.003 | 0.05 | **11 / 120** (0.05–0.16) | 0.088 | 1.00 |
+
+**Verdict.** This is the brief's third outcome, with the first as its main part. *Prose after the
+payload defuses the hijack as completely as a task query does* (0–3% of trials on all three
+models, with no question and no template; the v1 pass found the same with a dump-drawn prose
+bank), so **the C5 bound is the recency gate, not task-following**: the task query does no
+semantic work the data can see. *But neutral random tokens of the same length defuse only
+partly*: 8–21% of trials are still hijacked and mean occupancy stays at 0.07–0.15, against
+0.00–0.03 for prose. Coherent text competes for the continuation; arbitrary tokens hold the
+payload back from the generation point but do not fully break its hold. The E1.5 caveat ("the
+gap decay could partly be filler competition") is thus answered: both distance and the content
+of what fills the distance matter, and ordinary prose of 12–21 tokens is enough. Sentence for
+the paper: **a repeated span hijacks generation only when it ends the context; any coherent
+text after it — a question, an instruction, a template suffix, or unrelated prose of the same
+length — removes the hijack, and even arbitrary tokens remove most of it.**
+
+### E4-scale v2, Llama-3.2-3B-Instruct at probe_k = 1 (vs the probe_k = 2 run)
+
+| condition | U | P_copy | P_probe at probe_k = 2 (Wilson) | P_probe at probe_k = 1 (Wilson) | T |
+|---|---|---|---|---|---|
+| rep + useful | 1.00 | 1.00 | 0.97 (31/32; 0.84–0.99) | 0.03 (1/32; 0.01–0.16) | 0.040 |
+| rep + useless | 0.00 | 0.97 | 1.00 (32/32; 0.89–1.00) | 0.16 (5/32; 0.07–0.32) | 0.071 |
+| nonrep + useful | 1.00 | 0.25 | 0.69 (22/32; 0.51–0.82) | 0.00 (0/32; 0.00–0.11) | 0.042 |
+| nonrep + useless | 0.00 | 0.28 | 0.72 (23/32; 0.55–0.84) | 0.03 (1/32; 0.01–0.16) | 0.039 |
+
+| | probe_k = 2 | probe_k = 1 |
+|---|---|---|
+| corr(P_probe, U) | −0.04 [−0.14, +0.06] | −0.17 [−0.29, −0.03] |
+| corr(P_probe, T) | +0.15 [+0.06, +0.25] | −0.03 [−0.15, +0.12] |
+
+(U, P_copy, T are identical between the runs, as they should be: same seed, same contexts; only
+the probe count changed.)
+
+**The ceiling is gone, replaced by the floor.** At one planted copy the probe's cyclic
+transition S[-1]→S[0] has never occurred in the context, so completing it is structurally
+impossible except by chance — exactly the grid-floor argument of *Analyses* §A. P_probe
+collapses to 0.00–0.03 in three cells and corr(P_probe, T) is 0 by construction. The one cell
+above the floor, repeated gibberish at 0.16 (5/32), is the only signal and points the same way
+as before (repetition mode makes a once-seen span completable). probe_k = 1 is therefore not
+the fix for Llama's ceiling; the measurement needs probe_k = 2 with **sampled** trials
+(`--probe-trials 8` at T = 1) so cells at 0.7–1.0 under greedy decoding can spread. Not run.
+
+**Caveats.** 8 trials per cell, greedy, one seed, p = 3, 4k context; pad lengths 12–21 tokens,
+one length per query style, no sweep of the minimum defusing length; the token pad draws from
+the same short-token pool as the payload (excluding the payload itself), which is the harshest
+possible "neutral" filler for a copy mechanism.

@@ -1,8 +1,15 @@
 # Context Contagion in Transformers — One-Pager
 
-**The claim, in one line:** *Repeat a string in an LLM's context window past a sharp
-threshold and the model starts reproducing that string on its own — and the model's
+**The claim, in one line:** *Show an LLM a novel multi-token string twice in its context
+window and it will usually keep reproducing that string on its own — and the model's
 **induction heads** (its in-context copy circuit) are what cause it.*
+
+> **Revised 2026-11-03.** An earlier version of this page described a "sharp condensation
+> knee" that is "flat with scale." A re-analysis showed that for multi-token strings the knee
+> sits at the lowest point the measurement grid can express (one prior occurrence), so it is a
+> one-shot copy rate, not a threshold. Two at-scale results (trust-vs-usefulness with a real
+> task; the detector's AUC) are withdrawn pending reruns for design reasons. Details:
+> `results_log.md`, "Analyses of committed data", and `review_remediation_plan.md`.
 
 This is the empirical follow-on to a toy-model analysis
 ([`trust-is-the-attack-surface`](https://github.com/shumow/trust-is-the-attack-surface)),
@@ -19,12 +26,13 @@ if so, by what mechanism?**
 
 ## The finding (established on GPT-2-small, confirmed to 7B across model families)
 
-1. **A sharp threshold — the "condensation knee."** Inject a novel, out-of-distribution
-   token string and repeat it `N` times. Below a small `N` the model ignores it; above it,
-   the model reliably regenerates the string. The transition is *abrupt* — a knee, not a
-   gradual ramp. The threshold is small (≈2–7 repetitions) and **decreases with string
-   length** (longer strings are *easier* to plant — the opposite of what a naive
-   count-based mechanism would predict).
+1. **One occurrence is usually enough.** Inject a novel, out-of-distribution token string
+   of three or more tokens and show it twice. In most models and settings tested, the model
+   then regenerates it more often than not (one-shot copy rate ≈0.5–1.0). Shorter strings
+   (one or two tokens) are different: they need many repetitions (≈4–10) or never lock at
+   all, and that is a frequency effect, not copying. So **longer strings are easier to
+   plant**, the opposite of what a naive count-based mechanism would predict. (The earlier
+   "sharp knee at N≈2" wording described the grid floor, not a measured transition.)
 
 2. **It's copying, not coincidence.** Priming generation with a *non-matching* token mostly
    fails to elicit the string, while a *matching* cue reliably triggers it. Reproduction is
@@ -39,11 +47,13 @@ if so, by what mechanism?**
    of random heads barely matters. So this is the in-context copy circuit doing its normal
    job — applied to an injected payload.
 
-4. **It holds at scale, and chat models aren't immune.** The knee is low and length-robust
-   from **355M to 7B across four model families** (GPT-2, Pythia, Qwen2.5, Llama-3.2) and
-   **persists in instruction-tuned / chat models** — they copy the planted span rather than
-   refuse. The induction-head *cause* is confirmed up to **6.9–7B in three families** (ablating
-   the top ~5% of induction heads collapses reproduction; random heads don't). A **capstone**
+4. **It holds at scale, and chat models aren't immune.** The one-shot copy rate is above
+   one half in 36 of 48 cells from **355M to 7B across four model families** (GPT-2, Pythia,
+   Qwen2.5, Llama-3.2), and copying **persists in instruction-tuned / chat models** — they
+   need a few more occurrences but copy rather than refuse. The induction-head *cause* is
+   confirmed up to **6.9–7B in three families** (ablating the top ~5% of induction heads
+   collapses reproduction; random heads don't). Whether the rate *rises* with scale cannot be
+   read from the stored data. A **capstone**
    probes the scariest variant — a payload that reads as **gibberish until the model decodes
    it** in context: the toy Markov model was sharply depth-limited, but a capable instruct
    model **unfolds it into coherent text and will even decode-and-execute a (benign)
@@ -69,34 +79,40 @@ if so, by what mechanism?**
   families**, **survive instruction-tuning**, and the induction-head cause is confirmed **to
   ~7B in three families**. The self-extraction **capstone** is established on instruct models.
 - The downstream claims began as GPT-2-small proxies and were then pushed to their real
-  settings (instruct models, long-context RAG, multi-tokenizer populations). The outcomes are
-  **mixed, and reported as such** — one confirmation, one bound, one that is *worse* than the
-  toy predicted:
-  - **Trust, not usefulness — confirmed, including with a real task.** Poisonability tracks
-    repetition/induction-trust, not task usefulness, even when usefulness is a genuine
-    downstream benefit on an instruct model (`corr(P,trust)=+0.71`, `corr(P,usefulness)=+0.09`;
-    repetitive gibberish is fully poisonable while a useful one-shot fact is barely).
-  - **RAG hijack — bounded at scale.** A recent, repeated span hijacks a *base model's
-    continuation* (entry × lock-in), but on an **instruct model asked to answer a query the
-    hijack vanishes (occupancy 0.00)**: the task query anchors generation away from the payload.
-    Raw-repetition hijack is a continuation phenomenon; the residual RAG threat is *semantic*
-    injection, outside this project's benign-copy scope.
-  - **Worm — confirmed, and worse at scale.** Output fed back propagates as a worm with a
-    critical string length, but that length **grows with model capability**: a 7B model (base
-    *and* instruct) sustains the worm where small models kill it. The **cross-tokenizer
-    firebreak is only partial** under strong seeding — a worst-case-reducing measure, not a
-    hard barrier.
-  - A paired **detector** flags the poisonable (repeated-span) configuration — the bound-trust
-    defense — separating planted-payload from clean documents (AUC 1.0 on that clean-vs-planted
-    contrast; it flags any induction-engaging repeated span, so a deployment needs a
-    benign-repetition allowlist rather than a hard block).
-- **What remains:** the **128k-context** and **larger host-population** versions; the
-  **semantic-injection** form of the RAG threat (beyond benign OOD copy); the cross-tokenizer
-  firebreak matrix re-run *at scale* (it was measured on small models); and higher-`n`
-  replication of the Track C reversals, which currently rest on the thinnest samples in the
-  project. See `trackC_scale_plan.md` for the running open-experiments list.
-- Reported honestly as a progress report — the *qualitative* phenomena and mechanism are solid
-  across scale; absolute numbers shift with model and setup.
+  settings (instruct models, long-context RAG, multi-tokenizer populations). Current standing:
+  - **Trust, not usefulness.** Holds on the GPT-2-small proxy. The at-scale version with a
+    real task was found to have a design flaw (its "non-repetitive" contexts repeated, and its
+    poisonability measure is ~1 for any repeated span by construction); the redesigned version
+    (2026-11-04, three instruct models, 32 facts) finds the same direction with a smaller
+    effect: a planted span is reproduced far more often inside repetitive context than inside
+    length-matched distinct prose, and usefulness never raises it — the most poisonable cell is
+    repeated gibberish.
+  - **RAG hijack — a recency gate, not a task effect.** A repeated span hijacks generation
+    only when it is the last thing in the context. On three instruct models at 4k tokens the
+    raw prefix ending inside the payload is hijacked in 33–40 of 40 trials; a task query, a
+    "continue" instruction, or 12–21 tokens of unrelated prose after the payload all give
+    0–4 of 120, with or without a chat template, while random tokens of the same length still
+    let 8–21% through. The task is incidental; any coherent text after the span defuses it, and
+    the RAG convention of putting the question after the documents is itself the mitigation. The residual RAG
+    threat is *semantic* injection, outside this project's benign-copy scope.
+  - **Worm — re-measured at power.** With 60 chains per cell, Qwen2.5 base models (3B and
+    7B) keep the payload alive in 30–50% of chains where Pythia (2.8B and 6.9B), Llama-3.2-3B
+    and the instruction-tuned Qwen 7B keep it in ≤20%: a family trait, not a scale effect, and
+    flat in payload length. No setting shows the payload *multiplying*: every surviving chain
+    is the model stuck in a repetition loop, emitting the payload at a fixed rate. That is a
+    known degeneration behavior, not an epidemic. The cross-tokenizer firebreak is withdrawn:
+    no same-tokenizer advantage at one or three hops at any seeding strength (the July one-hop
+    result did not replicate at n=30); which model hosts a hop matters, whether its tokenizer
+    matches does not.
+  - A paired **detector** flags repeated spans. Its reported perfect separation was measured
+    against three clean documents with no comparison to a plain "does any n-gram repeat"
+    check; it has been rewritten with a proper negative set, that baseline, and a
+    false-positive rate on legitimately repetitive text, and is **awaiting a rerun**.
+- **What remains:** the reruns above; the **128k-context** and **larger host-population**
+  versions; and the **semantic-injection** form of the RAG threat (beyond benign OOD copy).
+  See `review_remediation_plan.md`.
+- A progress report: small samples (3–8 per cell, single seeds) throughout; numbers are point
+  estimates unless an interval is given.
 
 ## Reproduce
 

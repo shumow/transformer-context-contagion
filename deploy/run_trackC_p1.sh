@@ -34,6 +34,7 @@ SEEDS="${SEEDS:-7 8 9}"                              # Part A: seeds (sampled ru
 TRIALS_A="${TRIALS_A:-20}"                           # Part A: trials/cell (was 5 in the snapshot)
 REPS_SWEEP="${REPS_SWEEP:-8 16 32}"                  # Part B: seeding strength (host0-reps) to sweep
 TRIALS_B="${TRIALS_B:-30}"                           # Part B: trials/cell (small models -> cheap)
+SNAPSHOT="${SNAPSHOT:-trackC}"                       # every run copies its outputs to data/<SNAPSHOT>/
 mkdir -p results
 
 ts() { date +'%H:%M:%S'; }
@@ -41,6 +42,7 @@ run() {                                             # run <prefix> <args...>
   local prefix="$1"; shift
   echo "[$(ts)] >>> $prefix  ::  $*"
   python -m experiments.e6_scale "$@" --device "$DEVICE" --prefix "results/$prefix" \
+    --snapshot "$SNAPSHOT" \
     > "results/$prefix.log" 2>&1 \
     && echo "[$(ts)] <<< $prefix OK  -> results/$prefix.json" \
     || echo "[$(ts)] !!! $prefix FAILED (see results/$prefix.log) -- continuing"
@@ -61,8 +63,9 @@ done
 
 echo "=================== Track C / P1 DONE  ($(date)) ==================="
 echo "results: results/e6A_hiN_s*.json  results/e6B_reps*.json  (+ matching .log/.png)"
+echo "         also copied to data/$SNAPSHOT/ -- commit that directory:  git add data/$SNAPSHOT && git commit && git push"
 echo
-echo "Snapshot them from your Mac before tearing the pod down, e.g.:"
+echo "If the push did not happen, fetch them from your Mac before tearing the pod down, e.g.:"
 echo "  POD=root@<ip> PORT=<port> KEY=~/.ssh/<key> RREPO=$(pwd) \\"
 echo "    PATTERNS=\"$(for s in $SEEDS; do printf 'e6A_hiN_s%s ' "$s"; done)$(for r in $REPS_SWEEP; do printf 'e6B_reps%s ' "$r"; done)\" \\"
 echo "    deploy/fetch_results.sh"
