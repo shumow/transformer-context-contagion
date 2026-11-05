@@ -65,7 +65,12 @@ CONTINUE_INSTRUCTION = "Continue the documents."
 # rawq  : the SAME user message as the experimental condition (documents + task query) but with
 #         NO chat template -- separates "the template defuses" from "the query defuses"
 #         (added 2026-11-04 after the v2 result that the chat control also did not hijack)
-CONTROLS = ("raw", "chat", "rawq")
+# rawpad: documents followed by benign filler prose of the SAME token length as the query line,
+#         no question, no template -- separates "the query defuses" from "anything after the
+#         payload defuses" (the recency gate of E1.5 / E5-lite). Added 2026-11-05 after rawq
+#         did not hijack either: every non-hijacking condition had appended text after the payload.
+CONTROLS = ("raw", "chat", "rawq", "rawpad")
+QUERY_LINE = "\n\nQuestion: "                       # what user_message appends after the documents
 
 
 def user_message(documents, query):
@@ -89,6 +94,18 @@ def build_context_text(target_tokens, payload_text, k, pos, tok, rng):
     at = int(round(pos * len(sents)))
     sents = sents[:at] + [block] + sents[at:]
     return " ".join(sents)
+
+
+def padding_like_query(query, tok, rng):
+    """Benign filler prose (from SENTENCES) truncated to the token length of the query line
+    QUERY_LINE + query, so the payload sits the same distance from the generation point as in
+    the query conditions. Returns text."""
+    target = len(tok.encode(QUERY_LINE + query))
+    text = ""
+    while len(tok.encode(text)) < target + 8:
+        text += (" " if text else "") + SENTENCES[int(rng.integers(len(SENTENCES)))]
+    ids = tok.encode(text)[:target]
+    return tok.decode(ids)
 
 
 def occupancy(answer_ids, payload_alphabet):
@@ -134,6 +151,15 @@ class ChatLM:
         ids = torch.tensor([self.tok.encode(documents)], device=self.device)
         return self._generate(ids, max_new)
 
+    def continue_raw_padded_ids(self, documents, query, rng, max_new=64):
+        """Control (rawpad): documents + benign filler of the same token length as the query line
+        that rawq/the experiment append (QUERY_LINE + query), no question, no template. If this
+        does NOT hijack, what defuses is distance from the payload, not the task."""
+        torch = self._torch
+        pad = padding_like_query(query, self.tok, rng)
+        ids = torch.tensor([self.tok.encode(documents + "\n\n" + pad)], device=self.device)
+        return self._generate(ids, max_new)
+
     def answer_raw_query_ids(self, documents, query, max_new=64):
         """Control (rawq): the experimental user message verbatim (documents + task query) as a
         bare prefix with no chat template. If this hijacks while the templated version does not,
@@ -155,8 +181,9 @@ def cell(vals):
 def run(lm, args):
     rng = np.random.default_rng(args.seed)
     pool = payloads.short_token_pool(lm.tok)
-    control_keys = [c for c in args.controls if c != "rawq"] + \
-                   ([f"rawq_{q}" for q in args.queries] if "rawq" in args.controls else [])
+    control_keys = [c for c in args.controls if c not in ("rawq", "rawpad")] + \
+                   ([f"rawq_{q}" for q in args.queries] if "rawq" in args.controls else []) + \
+                   ([f"rawpad_{q}" for q in args.queries] if "rawpad" in args.controls else [])
     out = {"placement": {}, "repetition": {q: {} for q in args.queries},
            "control": {c: {} for c in control_keys}, "context_tokens": args.context_tokens,
            "queries": {q: QUERIES[q] for q in args.queries}}
@@ -196,6 +223,9 @@ def run(lm, args):
             if "rawq" in args.controls:
                 for q in args.queries:
                     ctl[f"rawq_{q}"].append(occupancy(lm.answer_raw_query_ids(docs, QUERIES[q]), alpha))
+            if "rawpad" in args.controls:
+                for q in args.queries:
+                    ctl[f"rawpad_{q}"].append(occupancy(lm.continue_raw_padded_ids(docs, QUERIES[q], rng), alpha))
         for q in args.queries:
             out["repetition"][q][str(k)] = cell(hj[q])
         for c in control_keys:
@@ -236,7 +266,13 @@ def selftest():
     for q, text in QUERIES.items():
         assert text in user_message("DOCS", text)
     assert "Question:" not in continue_message("DOCS") and CONTINUE_INSTRUCTION in continue_message("DOCS")
-    assert set(CONTROLS) == {"raw", "chat", "rawq"}
+    assert set(CONTROLS) == {"raw", "chat", "rawq", "rawpad"}
+    # rawpad filler is token-length-matched to the query line and contains no question
+    for q in QUERIES.values():
+        pad = padding_like_query(q, tok, np.random.default_rng(1))
+        assert len(tok.encode(pad)) == len(tok.encode(QUERY_LINE + q)), (pad, q)
+        assert "Question" not in pad and "?" not in pad
+    assert user_message("DOCS", "Q?").endswith(QUERY_LINE + "Q?")
     # the rawq control must use the experimental message verbatim (only the template differs)
     assert user_message("DOCS", QUERIES["summarize"]).startswith("You are given retrieved documents.")
     print("selftest: long-context construction (placement) + occupancy + cell + prompts OK")
@@ -255,7 +291,8 @@ def main():
                     choices=list(QUERIES), help="query styles for the repetition sweep (first is used for placement)")
     ap.add_argument("--controls", nargs="*", default=["raw", "chat"], choices=list(CONTROLS),
                     help="controls run on the same contexts: raw, chat (defaults, as in the 2026-11-04 v2 run) "
-                         "and rawq (documents + query with no template; pass all three to separate template from query)")
+                         "rawq (documents + query, no template) and rawpad (documents + length-matched filler, no "
+                         "query, no template); pass all four to separate template, query and distance")
     ap.add_argument("--dtype", default="bfloat16")
     ap.add_argument("--device", default="cuda")
     ap.add_argument("--seed", type=int, default=7)
